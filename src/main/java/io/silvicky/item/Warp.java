@@ -6,11 +6,13 @@ import net.fabricmc.fabric.api.dimension.v1.FabricDimensions;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.impl.game.minecraft.launchwrapper.FabricServerTweaker;
+import net.minecraft.block.EndPortalBlock;
 import net.minecraft.command.argument.DimensionArgumentType;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
+import net.minecraft.network.packet.s2c.play.GameStateChangeS2CPacket;
 import net.minecraft.network.packet.s2c.play.PlayerRespawnS2CPacket;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.command.ServerCommandSource;
@@ -83,12 +85,13 @@ public class Warp {
         }
         /*if(spw.getValue().toString().equals(tarDim)||(spw.getValue().getNamespace().equals(mc)&&tarDim.equals(ov)))
         {
-            source.getServer().getPlayerManager().respawnPlayer(player,true);
-            player.networkHandler.syncWithPlayerPosition();
+            player.moveToWorld(dimension);
+            //source.getServer().getPlayerManager().respawnPlayer(player,true);
+            //player.networkHandler.syncWithPlayerPosition();
             return Command.SINGLE_SUCCESS;
-        }
-        new ServerPlayerInteractionManager(player).changeGameMode(GameMode.SURVIVAL);*/
-
+        }*/
+        player.interactionManager.changeGameMode(GameMode.SURVIVAL);
+        player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, GameMode.SURVIVAL.getId()));
         sp=dimension.getSpawnPos();
         TeleportTarget target = new TeleportTarget(new Vec3d(sp.getX(), sp.getY(), sp.getZ()), new Vec3d(1, 1, 1), 0f, 0f);
         FabricDimensions.teleport(player, dimension, target);
