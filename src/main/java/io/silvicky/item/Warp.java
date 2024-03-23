@@ -8,6 +8,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.impl.game.minecraft.launchwrapper.FabricServerTweaker;
 import net.minecraft.block.EndPortalBlock;
 import net.minecraft.command.argument.DimensionArgumentType;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
@@ -27,7 +28,9 @@ import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.FabricUtil;
 
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Optional;
 
 import static io.silvicky.item.ItemStorage.LOGGER;
 import static net.minecraft.server.command.CommandManager.argument;
@@ -53,8 +56,8 @@ public class Warp {
         String id=dimension.getRegistryKey().getValue().getPath();
         LOGGER.info(Objects.requireNonNull(source.getPlayer()).getName().getString()+" goes to "+namespace+":"+id);
         RegistryKey<World> spw = player.getSpawnPointDimension();
-        if(spw==null)spw=ServerWorld.OVERWORLD;
-        BlockPos sp;
+        BlockPos sp=player.getSpawnPointPosition();
+        if(spw==null||sp==null){spw=ServerWorld.OVERWORLD;sp=source.getServer().getOverworld().getSpawnPos();}
         PlayerInventory playerInventory=player.getInventory();
         NbtList pi=new NbtList();
         playerInventory.writeNbt(pi);
@@ -83,13 +86,17 @@ public class Warp {
                 }
             }
         }
-        /*if(spw.getValue().toString().equals(tarDim)||(spw.getValue().getNamespace().equals(mc)&&tarDim.equals(ov)))
+        if(spw.getValue().toString().equals(tarDim)||(spw.getValue().getNamespace().equals(mc)&&tarDim.equals(ov)))
         {
-            player.moveToWorld(dimension);
-            //source.getServer().getPlayerManager().respawnPlayer(player,true);
-            //player.networkHandler.syncWithPlayerPosition();
-            return Command.SINGLE_SUCCESS;
-        }*/
+            Optional<Vec3d> v=PlayerEntity.findRespawnPosition(source.getServer().getWorld(spw),sp,0,false,true);
+            if(v.isPresent())
+            {
+                TeleportTarget target = new TeleportTarget(v.get(), new Vec3d(1, 1, 1), 0f, 0f);
+                source.getServer().getPlayerManager().respawnPlayer(player,true);
+                FabricDimensions.teleport(player, source.getServer().getWorld(spw), target);
+                return Command.SINGLE_SUCCESS;
+            }
+        }
         player.interactionManager.changeGameMode(GameMode.SURVIVAL);
         player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, GameMode.SURVIVAL.getId()));
         sp=dimension.getSpawnPos();
