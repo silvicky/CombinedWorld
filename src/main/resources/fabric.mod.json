@@ -1,11 +1,11 @@
 {
 	"schemaVersion": 1,
-	"id": "item-storage",
+	"id": "combined-world",
 	"version": "${version}",
-	"name": "item storage",
-	"description": "This is an example description! Tell everyone what your mod is about!",
+	"name": "Combined World",
+	"description": "Switch between dimensions as if they are different servers.",
 	"authors": [
-		"Me!"
+		"Vicky Silviana"
 	],
 	"contact": {
 		"homepage": "https://fabricmc.net/",
