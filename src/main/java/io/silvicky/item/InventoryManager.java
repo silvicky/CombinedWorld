@@ -56,9 +56,12 @@ public class InventoryManager {
             if(n.getString(PLAYER).equals(player.getUuidAsString())&&n.getString(DIMENSION).equals(tarDim))
             {
                 LOGGER.info("Fetched!");
-                player.getInventory().readNbt((NbtList) n.get(INVENTORY));
-                player.getEnderChestInventory().readNbtList((NbtList) n.get(ENDER));
-                player.setExperiencePoints(n.getInt(XP));
+                if(n.contains(INVENTORY))player.getInventory().readNbt((NbtList) n.get(INVENTORY));
+                else player.getInventory().clear();
+                if(n.contains(ENDER))player.getEnderChestInventory().readNbtList((NbtList) n.get(ENDER));
+                else player.getEnderChestInventory().clear();
+                if(n.contains(XP))player.setExperiencePoints(n.getInt(XP));
+                else player.setExperiencePoints(0);
                 //player.getRecipeBook().readNbt((NbtCompound) n.get(RECIPE),server.getRecipeManager());
                 iterator.remove();
                 break;
