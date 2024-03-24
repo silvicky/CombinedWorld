@@ -2,6 +2,7 @@ package io.silvicky.item;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,8 +18,7 @@ public class ItemStorage implements ModInitializer {
 		// However, some things (like resources) may still be uninitialized.
 		// Proceed with mild caution.
 		LOGGER.info("emmm");
-		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
-			Warp.register(dispatcher);
-		});
+		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> Warp.register(dispatcher));
+		ServerPlayerEvents.AFTER_RESPAWN.register(OnRespawn::respawn);
 	}
 }

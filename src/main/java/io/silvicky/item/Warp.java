@@ -58,33 +58,12 @@ public class Warp {
         RegistryKey<World> spw = player.getSpawnPointDimension();
         BlockPos sp=player.getSpawnPointPosition();
         if(spw==null||sp==null){spw=ServerWorld.OVERWORLD;sp=source.getServer().getOverworld().getSpawnPos();}
-        PlayerInventory playerInventory=player.getInventory();
-        NbtList pi=new NbtList();
-        playerInventory.writeNbt(pi);
         String tarDim=dimension.getRegistryKey().getValue().toString();
-        String curDim=player.getServerWorld().getRegistryKey().getValue().toString();
         if(dimension.getRegistryKey().getValue().getNamespace().equals(mc)){tarDim=ov;dimension=source.getServer().getOverworld();}
-        if(player.getServerWorld().getRegistryKey().getValue().getNamespace().equals(mc)){curDim=ov;}
         if(!(source.getWorld().getRegistryKey().getValue().equals(registryKey.getValue())||(source.getWorld().getRegistryKey().getValue().getNamespace().equals("minecraft")&&registryKey.getValue().getNamespace().equals("minecraft"))))
         {
-            StateSaver stateSaver=StateSaver.getServerState(source.getServer());
-            NbtCompound sav=new NbtCompound();
-            sav.putString("player", player.getUuidAsString());
-            sav.putString(dimen,curDim);
-            sav.put("inventory",pi);
-            stateSaver.nbtList.add(sav);
-            player.getInventory().readNbt(new NbtList());
-            Iterator<NbtElement> iterator=stateSaver.nbtList.iterator();
-            while (iterator.hasNext())
-            {
-                NbtCompound n=(NbtCompound) iterator.next();
-                if(n.getString("player").equals(player.getUuidAsString())&&n.getString(dimen).equals(tarDim))
-                {
-                    LOGGER.info("Fetched!");
-                    player.getInventory().readNbt((NbtList) n.get("inventory"));
-                    iterator.remove();
-                }
-            }
+            InventoryManager.save(source.getServer(),player);
+            InventoryManager.load(source.getServer(),player,dimension);
         }
         if(source.getServer().getPermissionLevel(player.getGameProfile())<2)
         {
