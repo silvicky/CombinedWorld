@@ -86,6 +86,11 @@ public class Warp {
                 }
             }
         }
+        if(source.getServer().getPermissionLevel(player.getGameProfile())<2)
+        {
+            player.interactionManager.changeGameMode(GameMode.SURVIVAL);
+            player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, GameMode.SURVIVAL.getId()));
+        }
         if(spw.getValue().toString().equals(tarDim)||(spw.getValue().getNamespace().equals(mc)&&tarDim.equals(ov)))
         {
             Optional<Vec3d> v=PlayerEntity.findRespawnPosition(source.getServer().getWorld(spw),sp,0,false,true);
@@ -97,8 +102,6 @@ public class Warp {
                 return Command.SINGLE_SUCCESS;
             }
         }
-        player.interactionManager.changeGameMode(GameMode.SURVIVAL);
-        player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, GameMode.SURVIVAL.getId()));
         sp=dimension.getSpawnPos();
         TeleportTarget target = new TeleportTarget(new Vec3d(sp.getX(), sp.getY(), sp.getZ()), new Vec3d(1, 1, 1), 0f, 0f);
         FabricDimensions.teleport(player, dimension, target);
