@@ -35,6 +35,7 @@ import java.util.Optional;
 import static io.silvicky.item.ItemStorage.LOGGER;
 import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
+import static io.silvicky.item.InventoryManager.getDimensionId;
 
 public class Warp {
     public static final String ov="minecraft:overworld";
@@ -50,18 +51,13 @@ public class Warp {
     public static int warp(ServerCommandSource source, ServerWorld dimension)
     {
         ServerPlayerEntity player=source.getPlayer();
-        RegistryKey<World> registryKey=dimension.getRegistryKey();
-        String namespace=dimension.getRegistryKey().getValue().getNamespace();
-        if(namespace.equals(mc))registryKey=ServerWorld.OVERWORLD;
-        String id=dimension.getRegistryKey().getValue().getPath();
-        LOGGER.info(Objects.requireNonNull(source.getPlayer()).getName().getString()+" goes to "+namespace+":"+id);
-        RegistryKey<World> spw = player.getSpawnPointDimension();
+        LOGGER.info(Objects.requireNonNull(source.getPlayer()).getName().getString()+" goes to "+getDimensionId(dimension));
+        ServerWorld spw=source.getServer().getWorld(player.getSpawnPointDimension());
         BlockPos sp=player.getSpawnPointPosition();
-        if(spw==null||sp==null){spw=ServerWorld.OVERWORLD;sp=source.getServer().getOverworld().getSpawnPos();}
-        String tarDim=dimension.getRegistryKey().getValue().toString();
-        if(dimension.getRegistryKey().getValue().getNamespace().equals(mc)){tarDim=ov;dimension=source.getServer().getOverworld();}
-        if(!(source.getWorld().getRegistryKey().getValue().equals(registryKey.getValue())||(source.getWorld().getRegistryKey().getValue().getNamespace().equals("minecraft")&&registryKey.getValue().getNamespace().equals("minecraft"))))
+        if(spw==null||sp==null){spw=source.getServer().getOverworld();sp=source.getServer().getOverworld().getSpawnPos();}
+        if(!getDimensionId(dimension).equals(getDimensionId(source.getWorld())))
         {
+            LOGGER.info("Changed inventory!");
             InventoryManager.save(source.getServer(),player);
             InventoryManager.load(source.getServer(),player,dimension);
         }
@@ -70,14 +66,13 @@ public class Warp {
             player.interactionManager.changeGameMode(GameMode.SURVIVAL);
             player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, GameMode.SURVIVAL.getId()));
         }
-        if(spw.getValue().toString().equals(tarDim)||(spw.getValue().getNamespace().equals(mc)&&tarDim.equals(ov)))
+        if(getDimensionId(spw).equals(getDimensionId(dimension)))
         {
-            Optional<Vec3d> v=PlayerEntity.findRespawnPosition(source.getServer().getWorld(spw),sp,0,false,true);
+            Optional<Vec3d> v=PlayerEntity.findRespawnPosition(spw,sp,0,false,true);
             if(v.isPresent())
             {
                 TeleportTarget target = new TeleportTarget(v.get(), new Vec3d(1, 1, 1), 0f, 0f);
-                source.getServer().getPlayerManager().respawnPlayer(player,true);
-                FabricDimensions.teleport(player, source.getServer().getWorld(spw), target);
+                FabricDimensions.teleport(player, spw, target);
                 return Command.SINGLE_SUCCESS;
             }
         }

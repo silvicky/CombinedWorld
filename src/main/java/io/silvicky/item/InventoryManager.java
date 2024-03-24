@@ -9,13 +9,12 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
 
 import java.util.Iterator;
-import java.util.Objects;
 
 import static io.silvicky.item.ItemStorage.LOGGER;
 
 public class InventoryManager {
     public static final String DIMENSION="dimension";
-    public static final String PLAYER="dimension";
+    public static final String PLAYER="player";
     public static final String INVENTORY="inventory";
     public static final String MC="minecraft";
     public static String getDimensionId(ServerWorld world)
@@ -30,9 +29,7 @@ public class InventoryManager {
         StateSaver stateSaver=StateSaver.getServerState(server);
         NbtCompound sav=new NbtCompound();
         sav.putString(PLAYER, player.getUuidAsString());
-        Identifier id=player.getServerWorld().getRegistryKey().getValue();
-        String curDim=getDimensionId(player.getServerWorld());
-        sav.putString(DIMENSION,curDim);
+        sav.putString(DIMENSION,getDimensionId(player.getServerWorld()));
         NbtList pi=new NbtList();
         player.getInventory().writeNbt(pi);
         sav.put(INVENTORY,pi);
@@ -47,10 +44,10 @@ public class InventoryManager {
         {
             NbtCompound n=(NbtCompound) iterator.next();
             String tarDim=getDimensionId(targetDimension);
-            if(n.getString("player").equals(player.getUuidAsString())&&n.getString(DIMENSION).equals(tarDim))
+            if(n.getString(PLAYER).equals(player.getUuidAsString())&&n.getString(DIMENSION).equals(tarDim))
             {
                 LOGGER.info("Fetched!");
-                player.getInventory().readNbt((NbtList) n.get("inventory"));
+                player.getInventory().readNbt((NbtList) n.get(INVENTORY));
                 iterator.remove();
             }
         }
