@@ -17,7 +17,7 @@ public class ItemStorage implements ModInitializer {
 		// This code runs as soon as Minecraft is in a mod-load-ready state.
 		// However, some things (like resources) may still be uninitialized.
 		// Proceed with mild caution.
-		LOGGER.info("emmm");
+		LOGGER.info("Loading CombinedWorld...");
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> Warp.register(dispatcher));
 		ServerPlayerEvents.AFTER_RESPAWN.register(OnRespawn::respawn);
 	}
