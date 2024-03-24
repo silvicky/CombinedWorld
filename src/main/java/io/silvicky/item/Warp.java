@@ -77,6 +77,8 @@ public class Warp {
             }
         }
         sp=dimension.getSpawnPos();
+        while(dimension.getBlockState(sp).isAir())sp=sp.down();
+        sp=sp.up();
         TeleportTarget target = new TeleportTarget(new Vec3d(sp.getX(), sp.getY(), sp.getZ()), new Vec3d(1, 1, 1), 0f, 0f);
         FabricDimensions.teleport(player, dimension, target);
         return Command.SINGLE_SUCCESS;
