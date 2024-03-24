@@ -16,7 +16,10 @@ public class InventoryManager {
     public static final String DIMENSION="dimension";
     public static final String PLAYER="player";
     public static final String INVENTORY="inventory";
+    public static final String ENDER="ender";
+    public static final String XP="xp";
     public static final String MC="minecraft";
+    public static final String RECIPE="recipe";
     public static String getDimensionId(ServerWorld world)
     {
         Identifier id=world.getRegistryKey().getValue();
@@ -33,8 +36,14 @@ public class InventoryManager {
         NbtList pi=new NbtList();
         player.getInventory().writeNbt(pi);
         sav.put(INVENTORY,pi);
+        sav.put(ENDER,player.getEnderChestInventory().toNbtList());
+        sav.putInt(XP,player.totalExperience);
+        //sav.put(RECIPE,player.getRecipeBook().toNbt());
         stateSaver.nbtList.add(sav);
-        player.getInventory().readNbt(new NbtList());
+        player.getInventory().clear();
+        player.getEnderChestInventory().clear();
+        player.setExperiencePoints(0);
+        //player.getRecipeBook().readNbt(new NbtCompound(),server.getRecipeManager());
     }
     public static void load(MinecraftServer server, ServerPlayerEntity player, ServerWorld targetDimension)
     {
@@ -48,7 +57,11 @@ public class InventoryManager {
             {
                 LOGGER.info("Fetched!");
                 player.getInventory().readNbt((NbtList) n.get(INVENTORY));
+                player.getEnderChestInventory().readNbtList((NbtList) n.get(ENDER));
+                player.setExperiencePoints(n.getInt(XP));
+                //player.getRecipeBook().readNbt((NbtCompound) n.get(RECIPE),server.getRecipeManager());
                 iterator.remove();
+                break;
             }
         }
     }
