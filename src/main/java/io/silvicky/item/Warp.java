@@ -49,6 +49,7 @@ public class Warp {
             player.interactionManager.changeGameMode(GameMode.SURVIVAL);
             player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, GameMode.SURVIVAL.getId()));
         }
+        player.clearStatusEffects();
         if(getDimensionId(spw).equals(getDimensionId(dimension)))
         {
             Optional<Vec3d> v=PlayerEntity.findRespawnPosition(spw,sp,0,false,true);
