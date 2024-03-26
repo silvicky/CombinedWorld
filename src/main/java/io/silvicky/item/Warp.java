@@ -9,6 +9,7 @@ import net.minecraft.network.packet.s2c.play.GameStateChangeS2CPacket;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.GameMode;
@@ -34,37 +35,18 @@ public class Warp {
     public static int warp(ServerCommandSource source, ServerWorld dimension)
     {
         ServerPlayerEntity player=source.getPlayer();
-        LOGGER.info(Objects.requireNonNull(source.getPlayer()).getName().getString()+" goes to "+getDimensionId(dimension));
-        ServerWorld spw=source.getServer().getWorld(player.getSpawnPointDimension());
-        BlockPos sp=player.getSpawnPointPosition();
-        if(spw==null||sp==null){spw=source.getServer().getOverworld();sp=source.getServer().getOverworld().getSpawnPos();}
         if(!getDimensionId(dimension).equals(getDimensionId(source.getWorld())))
         {
-            LOGGER.info("Changed inventory!");
+            LOGGER.info(Objects.requireNonNull(source.getPlayer()).getName().getString()+" goes to "+getDimensionId(dimension));
+            player.clearStatusEffects();
             save(source.getServer(),player);
             load(source.getServer(),player,dimension);
+            source.sendFeedback(()-> Text.literal("Teleported to "+getDimensionId(dimension)+"!"),false);
         }
-        if(source.getServer().getPermissionLevel(player.getGameProfile())<2)
+        else
         {
-            player.interactionManager.changeGameMode(GameMode.SURVIVAL);
-            player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, GameMode.SURVIVAL.getId()));
+            source.sendFeedback(()->Text.literal("Nothing happened."),false);
         }
-        player.clearStatusEffects();
-        if(getDimensionId(spw).equals(getDimensionId(dimension)))
-        {
-            Optional<Vec3d> v=PlayerEntity.findRespawnPosition(spw,sp,0,false,true);
-            if(v.isPresent())
-            {
-                TeleportTarget target = new TeleportTarget(v.get(), new Vec3d(1, 1, 1), 0f, 0f);
-                FabricDimensions.teleport(player, spw, target);
-                return Command.SINGLE_SUCCESS;
-            }
-        }
-        sp=dimension.getSpawnPos();
-        while(dimension.getBlockState(sp).isAir())sp=sp.down();
-        sp=sp.up();
-        TeleportTarget target = new TeleportTarget(new Vec3d(sp.getX(), sp.getY(), sp.getZ()), new Vec3d(1, 1, 1), 0f, 0f);
-        FabricDimensions.teleport(player, dimension, target);
         return Command.SINGLE_SUCCESS;
     }
 }
