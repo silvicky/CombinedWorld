@@ -2,6 +2,7 @@ package io.silvicky.item;
 
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtList;
+import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.PersistentState;
 import net.minecraft.world.PersistentStateManager;
@@ -13,11 +14,11 @@ public class StateSaver extends PersistentState {
     public StateSaver(){nbtList=new NbtList();}
 
     @Override
-    public NbtCompound writeNbt(NbtCompound nbt) {
+    public NbtCompound writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registryLookup) {
         nbt.put("saved",nbtList);
         return nbt;
     }
-    public static StateSaver createFromNbt(NbtCompound tag) {
+    public static StateSaver createFromNbt(NbtCompound tag, RegistryWrapper.WrapperLookup registryLookup) {
         StateSaver state = new StateSaver();
         state.nbtList = (NbtList) tag.get("saved");
         return state;

@@ -64,7 +64,7 @@ public class InventoryManager {
         NbtList pi=new NbtList();
         player.getInventory().writeNbt(pi);
         sav.put(INVENTORY,pi);
-        sav.put(ENDER,player.getEnderChestInventory().toNbtList());
+        sav.put(ENDER,player.getEnderChestInventory().toNbtList(server.getRegistryManager()));
         sav.putInt(XP,player.totalExperience);
         sav.putFloat(HP,player.getHealth());
         sav.putInt(FOOD,player.getHungerManager().getFoodLevel());
@@ -95,7 +95,7 @@ public class InventoryManager {
                 LOGGER.info("Fetched!");
                 if(n.contains(INVENTORY))player.getInventory().readNbt((NbtList) n.get(INVENTORY));
                 else player.getInventory().clear();
-                if(n.contains(ENDER))player.getEnderChestInventory().readNbtList((NbtList) n.get(ENDER));
+                if(n.contains(ENDER))player.getEnderChestInventory().readNbtList((NbtList) n.get(ENDER),server.getRegistryManager());
                 else player.getEnderChestInventory().clear();
                 if(n.contains(XP))player.setExperiencePoints(n.getInt(XP));
                 else player.setExperiencePoints(0);
