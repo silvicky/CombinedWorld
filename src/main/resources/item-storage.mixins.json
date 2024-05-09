@@ -3,8 +3,10 @@
 	"package": "io.silvicky.item.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
+		"AbstractFireBlockMixin",
+		"EndPortalBlockMixin",
 		"EntityInvoker",
-		"PortalMixin"
+		"EntityMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
