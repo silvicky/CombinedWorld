@@ -31,15 +31,18 @@ public class InventoryManager {
     public static final String HP="hp";
     public static final String FOOD="food";
     public static final String FOOD2="food2";
-    public static final String MC="minecraft";
     public static final String GAMEMODE="gamemode";
     public static final String REAL_DIMENSION="rdim";
     public static final String POS="pos";
+    public static final String OVERWORLD="overworld";
+    public static final String NETHER="the_nether";
+    public static final String END="the_end";
     public static String getDimensionId(ServerWorld world)
     {
-        Identifier id=world.getRegistryKey().getValue();
-        if(id.getNamespace().equals(MC))return world.getServer().getOverworld().getRegistryKey().getValue().toString();
-        else return id.toString();
+        String id=world.getRegistryKey().getValue().toString();
+        if(id.endsWith(NETHER))id=id.substring(0,id.length()-10)+OVERWORLD;
+        if(id.endsWith(END))id=id.substring(0,id.length()-7)+OVERWORLD;
+        return id;
     }
     public static NbtCompound V3dToNbt(Vec3d v)
     {
