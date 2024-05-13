@@ -34,6 +34,7 @@ public class InventoryManager {
     public static final String OVERWORLD="overworld";
     public static final String NETHER="the_nether";
     public static final String END="the_end";
+    public static final String MC="minecraft";
     public static String getDimensionId(ServerWorld world)
     {
         String id=world.getRegistryKey().getValue().toString();
