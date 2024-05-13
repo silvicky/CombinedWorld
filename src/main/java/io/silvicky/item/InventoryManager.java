@@ -124,7 +124,6 @@ public class InventoryManager {
                 {
                     TeleportTarget target = new TeleportTarget(NbtToV3d((NbtCompound) n.get(POS)), Vec3d.ZERO, 0f, 0f);
                     String dim=n.getString(REAL_DIMENSION);
-                    Iterator<ServerWorld> i=server.getWorlds().iterator();
                     ServerWorld sw2=server.getWorld(RegistryKey.of(RegistryKey.ofRegistry(targetDimension.getRegistryKey().getRegistry()),
                             Identifier.of(targetDimension.getRegistryKey().getValue().getNamespace(),
                                     overworldId.substring(overworldId.indexOf(":")+1))));
