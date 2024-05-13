@@ -5,9 +5,7 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.network.packet.s2c.play.GameStateChangeS2CPacket;
-import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -16,7 +14,6 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.GameMode;
 import net.minecraft.world.TeleportTarget;
-import net.minecraft.world.World;
 
 import java.util.Iterator;
 
@@ -85,7 +82,11 @@ public class InventoryManager {
     }
     public static void load(MinecraftServer server, ServerPlayerEntity player, ServerWorld targetDimension)
     {
-        if(getDimensionId(targetDimension).equals(getDimensionId(server.getOverworld())))targetDimension=server.getOverworld();
+        String overworldId=getDimensionId(targetDimension);
+        ServerWorld sw=server.getWorld(RegistryKey.of(RegistryKey.ofRegistry(targetDimension.getRegistryKey().getRegistry()),
+                Identifier.of(targetDimension.getRegistryKey().getValue().getNamespace(),
+                        overworldId.substring(overworldId.indexOf(":")+1))));
+        targetDimension=(sw!=null?sw:targetDimension);
         StateSaver stateSaver=StateSaver.getServerState(server);
         Iterator<NbtElement> iterator=stateSaver.nbtList.iterator();
         boolean hit=false;
@@ -123,21 +124,14 @@ public class InventoryManager {
                     TeleportTarget target = new TeleportTarget(NbtToV3d((NbtCompound) n.get(POS)), Vec3d.ZERO, 0f, 0f);
                     String dim=n.getString(REAL_DIMENSION);
                     Iterator<ServerWorld> i=server.getWorlds().iterator();
-                    boolean teleported=false;
-                    while(i.hasNext())
-                    {
-                        ServerWorld sw=i.next();
-                        if(sw.getRegistryKey().getValue().toString().equals(dim))
-                        {
-                            FabricDimensions.teleport(player, sw, target);
-                            teleported=true;
-                            break;
-                        }
-                    }
-                    if(!teleported)
+                    ServerWorld sw2=server.getWorld(RegistryKey.of(RegistryKey.ofRegistry(targetDimension.getRegistryKey().getRegistry()),
+                            Identifier.of(targetDimension.getRegistryKey().getValue().getNamespace(),
+                                    overworldId.substring(overworldId.indexOf(":")+1))));
+                    if(sw2==null)
                     {
                         LOGGER.error("A dimension named "+dim+" is NOT FOUND!");
                     }
+                    FabricDimensions.teleport(player, sw2, target);
                 }
                 else
                 {
