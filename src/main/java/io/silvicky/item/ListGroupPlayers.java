@@ -14,11 +14,11 @@ import static io.silvicky.item.InventoryManager.DIMENSION;
 import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
 
-public class ListDimensionPlayers {
+public class ListGroupPlayers {
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher)
     {
         dispatcher.register(
-                literal("listdimensionplayers")
+                literal("listgroupplayers")
                         .then(argument(DIMENSION, DimensionArgumentType.dimension())
                                 .executes(context -> listPlayers(context.getSource(),DimensionArgumentType.getDimensionArgument(context,"dimension")))));
     }
@@ -30,7 +30,7 @@ public class ListDimensionPlayers {
         for(ServerPlayerEntity player:players)
         {
             if(player.
-                    getServerWorld().getRegistryKey().getValue().equals(dimension.getRegistryKey().getValue()))
+                    getServerWorld().getRegistryKey().getValue().getNamespace().equals(dimension.getRegistryKey().getValue().getNamespace()))
             {
                 cnt++;
                 if(cnt!=1)tot.append(", ");
@@ -38,7 +38,7 @@ public class ListDimensionPlayers {
             }
         }
         int finalCnt = cnt;
-        source.sendFeedback(()-> Text.literal("There are now "+ finalCnt +" players in "+dimension.getRegistryKey().getValue()+" : "+tot),false);
+        source.sendFeedback(()-> Text.literal("There are now "+ finalCnt +" players in "+dimension.getRegistryKey().getValue().getNamespace()+" : "+tot),false);
         return Command.SINGLE_SUCCESS;
     }
 }
