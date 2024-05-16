@@ -91,31 +91,17 @@ public class InventoryManager {
     {
         targetDimension=toOverworld(server,targetDimension);
         Iterator<NbtElement> iterator=stateSaver.posList.iterator();
-        boolean hit=false;
+        NbtCompound n=null;
         while (iterator.hasNext())
         {
-            NbtCompound n=(NbtCompound) iterator.next();
-            String tarDim=getDimensionId(targetDimension);
-            if(n.getString(PLAYER).equals(player.getUuidAsString())&&n.getString(DIMENSION).equals(tarDim))
-            {
-                LOGGER.info("Fetched position data!");
-                TeleportTarget target = new TeleportTarget(NbtToV3d((NbtCompound) n.get(POS)), Vec3d.ZERO, 0f, 0f);
-                String dim=n.getString(REAL_DIMENSION);
-                ServerWorld sw2=server.getWorld(RegistryKey.of(RegistryKey.ofRegistry(targetDimension.getRegistryKey().getRegistry()),
-                        Identifier.of(targetDimension.getRegistryKey().getValue().getNamespace(),
-                                dim.substring(dim.indexOf(":")+1))));
-                if(sw2==null)
-                {
-                    LOGGER.error("A dimension named "+dim+" is NOT FOUND!");
-                    return false;
-                }
-                FabricDimensions.teleport(player, sw2, target);
-                hit=true;
-                iterator.remove();
-                break;
-            }
+            NbtCompound nt=(NbtCompound) iterator.next();
+            if(!(nt.getString(PLAYER).equals(player.getUuidAsString())&&nt.getString(DIMENSION).equals(getDimensionId(targetDimension))))continue;
+            iterator.remove();
+            LOGGER.info("Fetched position data!");
+            if(n!=null)LOGGER.warn("Duplicated data found! Discarding old data, but this should not happen...");
+            n=nt;
         }
-        if(!hit)
+        if(n==null)
         {
             LOGGER.info("Entering a new world... Good luck to the pioneer!");
             BlockPos sp=targetDimension.getSpawnPos();
@@ -123,6 +109,24 @@ public class InventoryManager {
             sp=sp.up();
             TeleportTarget target = new TeleportTarget(sp.toCenterPos(), Vec3d.ZERO, 0f, 0f);
             FabricDimensions.teleport(player, targetDimension, target);
+        }
+        else
+        {
+            String dim=n.getString(REAL_DIMENSION);
+            ServerWorld sw2=server.getWorld(RegistryKey.of(RegistryKey.ofRegistry(targetDimension.getRegistryKey().getRegistry()),
+                    Identifier.of(targetDimension.getRegistryKey().getValue().getNamespace(),
+                            dim.substring(dim.indexOf(":")+1))));
+            if(sw2==null)
+            {
+                LOGGER.error("A dimension named "+dim+" is NOT FOUND!");
+                return false;
+            }
+            Vec3d v3d=NbtToV3d((NbtCompound) n.get(POS));
+            BlockPos sp=new BlockPos((int) Math.floor(v3d.x), (int) Math.floor(v3d.y), (int) Math.floor(v3d.z));
+            while(sw2.getBlockState(sp).isAir())sp=sp.down();
+            sp=sp.up();
+            TeleportTarget target = new TeleportTarget(sp.toCenterPos(), Vec3d.ZERO, 0f, 0f);
+            FabricDimensions.teleport(player, sw2, target);
         }
         return true;
     }
@@ -145,7 +149,6 @@ public class InventoryManager {
                 player.interactionManager.changeGameMode(GameMode.byId(n.getInt(GAMEMODE)));
                 player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, n.getInt(GAMEMODE)));
                 iterator.remove();
-                break;
             }
         }
     }
