@@ -8,7 +8,9 @@ public class OnRespawn {
     public static void respawn(ServerPlayerEntity oldPlayer,ServerPlayerEntity newPlayer,boolean alive)
     {
         if(getDimensionId(oldPlayer.getServerWorld()).equals(getDimensionId(newPlayer.getServerWorld())))return;
-        if(alive) save(oldPlayer.server,oldPlayer);
-        load(newPlayer.server,newPlayer,newPlayer.getServerWorld());
+        if(oldPlayer.getServerWorld().getRegistryKey().getValue().getNamespace().equals(newPlayer.getServerWorld().getRegistryKey().getValue().getNamespace()))return;
+        StateSaver stateSaver=StateSaver.getServerState(oldPlayer.getServer());
+        if(alive) saveInventory(oldPlayer.server,oldPlayer,stateSaver);
+        loadInventory(newPlayer.server,newPlayer,newPlayer.getServerWorld(),stateSaver);
     }
 }

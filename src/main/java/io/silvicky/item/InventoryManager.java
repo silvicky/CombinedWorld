@@ -54,14 +54,20 @@ public class InventoryManager {
     {
         return new Vec3d(n.getDouble("x"),n.getDouble("y"),n.getDouble("z"));
     }
-    public static void save(MinecraftServer server, ServerPlayerEntity player)
+    public static void savePos(ServerPlayerEntity player, StateSaver stateSaver)
     {
-        StateSaver stateSaver=StateSaver.getServerState(server);
+        NbtCompound pos=new NbtCompound();
+        pos.putString(PLAYER, player.getUuidAsString());
+        pos.putString(DIMENSION,getDimensionId(player.getServerWorld()));
+        pos.putString(REAL_DIMENSION,player.getServerWorld().getRegistryKey().getValue().toString());
+        pos.put(POS,V3dToNbt(player.getPos()));
+        stateSaver.posList.add(pos);
+    }
+    public static void saveInventory(MinecraftServer server,ServerPlayerEntity player,StateSaver stateSaver)
+    {
         NbtCompound sav=new NbtCompound();
         sav.putString(PLAYER, player.getUuidAsString());
-        sav.putString(DIMENSION,getDimensionId(player.getServerWorld()));
-        sav.putString(REAL_DIMENSION,player.getServerWorld().getRegistryKey().getValue().toString());
-        sav.put(POS,V3dToNbt(player.getPos()));
+        sav.putString(DIMENSION,player.getServerWorld().getRegistryKey().getValue().getNamespace());
         NbtList pi=new NbtList();
         player.getInventory().writeNbt(pi);
         sav.put(INVENTORY,pi);
@@ -81,15 +87,10 @@ public class InventoryManager {
         player.interactionManager.changeGameMode(GameMode.SURVIVAL);
         player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, GameMode.SURVIVAL.getId()));
     }
-    public static void load(MinecraftServer server, ServerPlayerEntity player, ServerWorld targetDimension)
+    public static boolean loadPos(MinecraftServer server,ServerPlayerEntity player,ServerWorld targetDimension,StateSaver stateSaver)
     {
-        String overworldId=getDimensionId(targetDimension);
-        ServerWorld sw=server.getWorld(RegistryKey.of(RegistryKey.ofRegistry(targetDimension.getRegistryKey().getRegistry()),
-                Identifier.of(targetDimension.getRegistryKey().getValue().getNamespace(),
-                        overworldId.substring(overworldId.indexOf(":")+1))));
-        targetDimension=(sw!=null?sw:targetDimension);
-        StateSaver stateSaver=StateSaver.getServerState(server);
-        Iterator<NbtElement> iterator=stateSaver.nbtList.iterator();
+        targetDimension=toOverworld(server,targetDimension);
+        Iterator<NbtElement> iterator=stateSaver.posList.iterator();
         boolean hit=false;
         while (iterator.hasNext())
         {
@@ -97,50 +98,18 @@ public class InventoryManager {
             String tarDim=getDimensionId(targetDimension);
             if(n.getString(PLAYER).equals(player.getUuidAsString())&&n.getString(DIMENSION).equals(tarDim))
             {
-                LOGGER.info("Fetched!");
-                if(n.contains(INVENTORY))player.getInventory().readNbt((NbtList) n.get(INVENTORY));
-                else player.getInventory().clear();
-                if(n.contains(ENDER))player.getEnderChestInventory().readNbtList((NbtList) n.get(ENDER),server.getRegistryManager());
-                else player.getEnderChestInventory().clear();
-                if(n.contains(XP))player.setExperiencePoints(n.getInt(XP));
-                else player.setExperiencePoints(0);
-                if(n.contains(HP))player.setHealth(n.getFloat(HP));
-                else player.setHealth(20.0F);
-                if(n.contains(FOOD))player.getHungerManager().setFoodLevel(n.getInt(FOOD));
-                else player.getHungerManager().setFoodLevel(20);
-                if(n.contains(FOOD2))player.getHungerManager().setSaturationLevel(n.getFloat(FOOD2));
-                else player.getHungerManager().setSaturationLevel(5.0F);
-                if(n.contains(GAMEMODE))
+                LOGGER.info("Fetched position data!");
+                TeleportTarget target = new TeleportTarget(NbtToV3d((NbtCompound) n.get(POS)), Vec3d.ZERO, 0f, 0f);
+                String dim=n.getString(REAL_DIMENSION);
+                ServerWorld sw2=server.getWorld(RegistryKey.of(RegistryKey.ofRegistry(targetDimension.getRegistryKey().getRegistry()),
+                        Identifier.of(targetDimension.getRegistryKey().getValue().getNamespace(),
+                                dim.substring(dim.indexOf(":")+1))));
+                if(sw2==null)
                 {
-                    player.interactionManager.changeGameMode(GameMode.byId(n.getInt(GAMEMODE)));
-                    player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, n.getInt(GAMEMODE)));
+                    LOGGER.error("A dimension named "+dim+" is NOT FOUND!");
+                    return false;
                 }
-                else
-                {
-                    player.interactionManager.changeGameMode(GameMode.SURVIVAL);
-                    player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED,GameMode.SURVIVAL.getId()));
-                }
-                if(n.contains(REAL_DIMENSION)&&n.contains(POS))
-                {
-                    TeleportTarget target = new TeleportTarget(NbtToV3d((NbtCompound) n.get(POS)), Vec3d.ZERO, 0f, 0f);
-                    String dim=n.getString(REAL_DIMENSION);
-                    ServerWorld sw2=server.getWorld(RegistryKey.of(RegistryKey.ofRegistry(targetDimension.getRegistryKey().getRegistry()),
-                            Identifier.of(targetDimension.getRegistryKey().getValue().getNamespace(),
-                                    overworldId.substring(overworldId.indexOf(":")+1))));
-                    if(sw2==null)
-                    {
-                        LOGGER.error("A dimension named "+dim+" is NOT FOUND!");
-                    }
-                    FabricDimensions.teleport(player, sw2, target);
-                }
-                else
-                {
-                    BlockPos sp=targetDimension.getSpawnPos();
-                    while(targetDimension.getBlockState(sp).isAir())sp=sp.down();
-                    sp=sp.up();
-                    TeleportTarget target = new TeleportTarget(sp.toCenterPos(), Vec3d.ZERO, 0f, 0f);
-                    FabricDimensions.teleport(player, targetDimension, target);
-                }
+                FabricDimensions.teleport(player, sw2, target);
                 hit=true;
                 iterator.remove();
                 break;
@@ -155,5 +124,55 @@ public class InventoryManager {
             TeleportTarget target = new TeleportTarget(sp.toCenterPos(), Vec3d.ZERO, 0f, 0f);
             FabricDimensions.teleport(player, targetDimension, target);
         }
+        return true;
+    }
+    public static void loadInventory(MinecraftServer server,ServerPlayerEntity player,ServerWorld targetDimension,StateSaver stateSaver)
+    {
+        Iterator<NbtElement> iterator=stateSaver.nbtList.iterator();
+        while (iterator.hasNext())
+        {
+            NbtCompound n=(NbtCompound) iterator.next();
+            String tarDim=targetDimension.getRegistryKey().getValue().getNamespace();
+            if(n.getString(PLAYER).equals(player.getUuidAsString())&&n.getString(DIMENSION).equals(tarDim))
+            {
+                LOGGER.info("Fetched inventory!");
+                player.getInventory().readNbt((NbtList) n.get(INVENTORY));
+                player.getEnderChestInventory().readNbtList((NbtList) n.get(ENDER),server.getRegistryManager());
+                player.setExperiencePoints(n.getInt(XP));
+                player.setHealth(n.getFloat(HP));
+                player.getHungerManager().setFoodLevel(n.getInt(FOOD));
+                player.getHungerManager().setSaturationLevel(n.getFloat(FOOD2));
+                player.interactionManager.changeGameMode(GameMode.byId(n.getInt(GAMEMODE)));
+                player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, n.getInt(GAMEMODE)));
+                iterator.remove();
+                break;
+            }
+        }
+    }
+    public static ServerWorld toOverworld(MinecraftServer server,ServerWorld world)
+    {
+        String overworldId=getDimensionId(world);
+        ServerWorld sw=server.getWorld(RegistryKey.of(RegistryKey.ofRegistry(world.getRegistryKey().getRegistry()),
+                Identifier.of(world.getRegistryKey().getValue().getNamespace(),
+                        overworldId.substring(overworldId.indexOf(":")+1))));
+        return (sw!=null?sw:world);
+    }
+    public static void save(MinecraftServer server, ServerPlayerEntity player)
+    {
+        StateSaver stateSaver=StateSaver.getServerState(server);
+        savePos(player,stateSaver);
+        saveInventory(server,player,stateSaver);
+    }
+    public static boolean load(MinecraftServer server, ServerPlayerEntity player, ServerWorld targetDimension)
+    {
+        StateSaver stateSaver=StateSaver.getServerState(server);
+        loadInventory(server,player,targetDimension,stateSaver);
+        return loadPos(server, player, targetDimension, stateSaver);
+    }
+    public static boolean directWarp(MinecraftServer server,ServerPlayerEntity player,ServerWorld targetDimension)
+    {
+        StateSaver stateSaver=StateSaver.getServerState(server);
+        savePos(player,stateSaver);
+        return loadPos(server, player, targetDimension, stateSaver);
     }
 }

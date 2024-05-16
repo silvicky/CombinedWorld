@@ -9,18 +9,22 @@ import net.minecraft.world.PersistentStateManager;
 import net.minecraft.world.World;
 
 public class StateSaver extends PersistentState {
-
+    public static final String POS="pos";
+    public static final String SAVED="saved";
     public NbtList nbtList;
-    public StateSaver(){nbtList=new NbtList();}
+    public NbtList posList;
+    public StateSaver(){nbtList=new NbtList();posList=new NbtList();}
 
     @Override
     public NbtCompound writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registryLookup) {
-        nbt.put("saved",nbtList);
+        nbt.put(SAVED,nbtList);
+        nbt.put(POS,posList);
         return nbt;
     }
     public static StateSaver createFromNbt(NbtCompound tag, RegistryWrapper.WrapperLookup registryLookup) {
         StateSaver state = new StateSaver();
-        state.nbtList = (NbtList) tag.get("saved");
+        state.nbtList = (NbtList) tag.get(SAVED);
+        state.posList = (NbtList) tag.get(POS);
         return state;
     }
 
