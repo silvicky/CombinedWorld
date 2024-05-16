@@ -135,24 +135,41 @@ public class InventoryManager {
     public static void loadInventory(MinecraftServer server,ServerPlayerEntity player,ServerWorld targetDimension,StateSaver stateSaver)
     {
         Iterator<NbtElement> iterator=stateSaver.nbtList.iterator();
+        NbtCompound n=null;
         while (iterator.hasNext())
         {
-            NbtCompound n=(NbtCompound) iterator.next();
-            String tarDim=targetDimension.getRegistryKey().getValue().getNamespace();
-            if(n.getString(PLAYER).equals(player.getUuidAsString())&&n.getString(DIMENSION).equals(tarDim))
-            {
-                LOGGER.info("Fetched inventory!");
-                player.getInventory().readNbt((NbtList) n.get(INVENTORY));
-                player.getEnderChestInventory().readNbtList((NbtList) n.get(ENDER),server.getRegistryManager());
-                player.setExperiencePoints(n.getInt(XP));
-                player.setHealth(n.getFloat(HP));
-                player.getHungerManager().setFoodLevel(n.getInt(FOOD));
-                player.getHungerManager().setSaturationLevel(n.getFloat(FOOD2));
-                player.setAir(n.getInt(AIR));
-                player.interactionManager.changeGameMode(GameMode.byId(n.getInt(GAMEMODE)));
-                player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, n.getInt(GAMEMODE)));
-                iterator.remove();
-            }
+            NbtCompound nt=(NbtCompound) iterator.next();
+            if(!(nt.getString(PLAYER).equals(player.getUuidAsString())
+                    &&nt.getString(DIMENSION).equals(targetDimension.getRegistryKey().getValue().getNamespace())))
+                    continue;
+            iterator.remove();
+            LOGGER.info("Fetched inventory!");
+            if(n!=null)LOGGER.warn("Duplicated data found! Discarding old data, but this should not happen...");
+            n=nt;
+        }
+        if(n!=null)
+        {
+            player.getInventory().readNbt((NbtList) n.get(INVENTORY));
+            player.getEnderChestInventory().readNbtList((NbtList) n.get(ENDER),server.getRegistryManager());
+            player.setExperiencePoints(n.getInt(XP));
+            player.setHealth(n.getFloat(HP));
+            player.getHungerManager().setFoodLevel(n.getInt(FOOD));
+            player.getHungerManager().setSaturationLevel(n.getFloat(FOOD2));
+            player.setAir(n.getInt(AIR));
+            player.interactionManager.changeGameMode(GameMode.byId(n.getInt(GAMEMODE)));
+            player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, n.getInt(GAMEMODE)));
+        }
+        else
+        {
+            player.getInventory().clear();
+            player.getEnderChestInventory().clear();
+            player.setExperiencePoints(0);
+            player.setHealth(20);
+            player.getHungerManager().setFoodLevel(20);
+            player.getHungerManager().setSaturationLevel(20);
+            player.setAir(300);
+            player.interactionManager.changeGameMode(GameMode.SURVIVAL);
+            player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, GameMode.SURVIVAL.getId()));
         }
     }
     public static ServerWorld toOverworld(MinecraftServer server,ServerWorld world)
