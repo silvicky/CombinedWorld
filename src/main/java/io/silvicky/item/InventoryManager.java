@@ -27,6 +27,7 @@ public class InventoryManager {
     public static final String XP="xp";
     public static final String HP="hp";
     public static final String FOOD="food";
+    public static final String AIR="air";
     public static final String FOOD2="food2";
     public static final String GAMEMODE="gamemode";
     public static final String REAL_DIMENSION="rdim";
@@ -76,6 +77,7 @@ public class InventoryManager {
         sav.putFloat(HP,player.getHealth());
         sav.putInt(FOOD,player.getHungerManager().getFoodLevel());
         sav.putFloat(FOOD2,player.getHungerManager().getSaturationLevel());
+        sav.putInt(AIR,player.getAir());
         sav.putInt(GAMEMODE,player.interactionManager.getGameMode().getId());
         stateSaver.nbtList.add(sav);
         player.getInventory().clear();
@@ -146,6 +148,7 @@ public class InventoryManager {
                 player.setHealth(n.getFloat(HP));
                 player.getHungerManager().setFoodLevel(n.getInt(FOOD));
                 player.getHungerManager().setSaturationLevel(n.getFloat(FOOD2));
+                player.setAir(n.getInt(AIR));
                 player.interactionManager.changeGameMode(GameMode.byId(n.getInt(GAMEMODE)));
                 player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, n.getInt(GAMEMODE)));
                 iterator.remove();
