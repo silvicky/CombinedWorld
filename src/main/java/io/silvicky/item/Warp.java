@@ -37,7 +37,11 @@ public class Warp {
             {
                 player.clearStatusEffects();
                 save(source.getServer(),player);
-                if(!load(source.getServer(),player,dimension))throw ERR_DIMENSION_NOT_FOUND.create();
+                if(!load(source.getServer(),player,dimension))
+                {
+                    loadInventory(source.getServer(),player,source.getWorld(),StateSaver.getServerState(source.getServer()));
+                    throw ERR_DIMENSION_NOT_FOUND.create();
+                }
             }
             else
             {
