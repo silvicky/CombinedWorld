@@ -106,8 +106,8 @@ public class InventoryManager {
         if(n==null)
         {
             LOGGER.info("Entering a new world... Good luck to the pioneer!");
-            BlockPos sp=targetDimension.getSpawnPos();
-            while(targetDimension.getBlockState(sp).isAir())sp=sp.down();
+            BlockPos sp=targetDimension.getSpawnPos().withY(targetDimension.getTopY());
+            while(targetDimension.getBlockState(sp).isAir()&&sp.getY()>=targetDimension.getBottomY())sp=sp.down();
             sp=sp.up();
             TeleportTarget target = new TeleportTarget(sp.toCenterPos(), Vec3d.ZERO, 0f, 0f);
             FabricDimensions.teleport(player, targetDimension, target);
@@ -125,7 +125,8 @@ public class InventoryManager {
             }
             Vec3d v3d=NbtToV3d((NbtCompound) n.get(POS));
             BlockPos sp=new BlockPos((int) Math.floor(v3d.x), (int) Math.floor(v3d.y), (int) Math.floor(v3d.z));
-            while(sw2.getBlockState(sp).isAir())sp=sp.down();
+            sp=sp.withY(sw2.getTopY());
+            while(sw2.getBlockState(sp).isAir()&&sp.getY()>=targetDimension.getBottomY())sp=sp.down();
             sp=sp.up();
             TeleportTarget target = new TeleportTarget(sp.toCenterPos(), Vec3d.ZERO, 0f, 0f);
             FabricDimensions.teleport(player, sw2, target);
