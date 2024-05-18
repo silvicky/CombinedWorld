@@ -53,4 +53,9 @@ public class EntityMixin {
 	{
 		return true;
 	}
+	@ModifyVariable(method = "getTeleportTarget",at= @At(value = "INVOKE", target = "Lnet/minecraft/server/world/ServerWorld;getWorldBorder()Lnet/minecraft/world/border/WorldBorder;"),ordinal =2)
+	public boolean modifyBl3_2(boolean b, @Local(argsOnly = true) ServerWorld destination)
+	{
+		return destination.getRegistryKey().getValue().getPath().endsWith(NETHER);
+	}
 }
