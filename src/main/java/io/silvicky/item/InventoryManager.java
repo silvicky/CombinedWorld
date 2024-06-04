@@ -1,6 +1,7 @@
 package io.silvicky.item;
 
 import net.fabricmc.fabric.api.dimension.v1.FabricDimensions;
+import net.minecraft.entity.mob.ZombieVillagerEntity;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
@@ -55,6 +56,17 @@ public class InventoryManager {
     {
         return new Vec3d(n.getDouble("x"),n.getDouble("y"),n.getDouble("z"));
     }
+    public static BlockPos transLoc(BlockPos sp,ServerWorld sw)
+    {
+        while((!sw.getBlockState(sp).isAir())||(!sw.getBlockState(sp.up()).isAir()))sp=sp.down();
+        while(sw.getBlockState(sp.down()).isAir()&&sp.getY()>sw.getBottomY())sp=sp.down();
+        if(sp.getY()==sw.getBottomY())
+        {
+            sp=sp.withY(sw.getLogicalHeight());
+            LOGGER.warn("Spawn point not found!");
+        }
+        return sp;
+    }
     public static void savePos(ServerPlayerEntity player, StateSaver stateSaver)
     {
         NbtCompound pos=new NbtCompound();
@@ -106,9 +118,7 @@ public class InventoryManager {
         if(n==null)
         {
             LOGGER.info("Entering a new world... Good luck to the pioneer!");
-            BlockPos sp=targetDimension.getSpawnPos().withY(targetDimension.getTopY());
-            while(targetDimension.getBlockState(sp).isAir()&&sp.getY()>=targetDimension.getBottomY())sp=sp.down();
-            sp=sp.up();
+            BlockPos sp=transLoc(targetDimension.getSpawnPos().withY(targetDimension.getLogicalHeight()-1),targetDimension);
             TeleportTarget target = new TeleportTarget(sp.toCenterPos(), Vec3d.ZERO, 0f, 0f);
             FabricDimensions.teleport(player, targetDimension, target);
         }
@@ -125,9 +135,8 @@ public class InventoryManager {
             }
             Vec3d v3d=NbtToV3d((NbtCompound) n.get(POS));
             BlockPos sp=new BlockPos((int) Math.floor(v3d.x), (int) Math.floor(v3d.y), (int) Math.floor(v3d.z));
-            sp=sp.withY(sw2.getTopY());
-            while(sw2.getBlockState(sp).isAir()&&sp.getY()>=targetDimension.getBottomY())sp=sp.down();
-            sp=sp.up();
+            //sp=sp.withY(sw2.getTopY());
+            //sp=transLoc(sp,sw2);
             TeleportTarget target = new TeleportTarget(sp.toCenterPos(), Vec3d.ZERO, 0f, 0f);
             FabricDimensions.teleport(player, sw2, target);
         }
