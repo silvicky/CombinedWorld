@@ -1,26 +1,30 @@
 package io.silvicky.item.mixin;
 
 import com.llamalad7.mixinextras.sugar.Local;
-import net.minecraft.block.BlockState;
 import net.minecraft.block.EndPortalBlock;
 import net.minecraft.entity.Entity;
 import net.minecraft.registry.RegistryKey;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.TeleportTarget;
 import net.minecraft.world.World;
+import net.minecraft.world.gen.feature.EndPlatformFeature;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import static io.silvicky.item.InventoryManager.*;
 
 @Mixin(EndPortalBlock.class)
 public class EndPortalBlockMixin {
-    @ModifyVariable(method = "onEntityCollision", at = @At(value = "STORE"),ordinal =0)
-    private RegistryKey<World> injected(RegistryKey<World> registryKey, @Local(argsOnly = true) World world) {
+    @ModifyVariable(method = "createTeleportTarget", at = @At(value = "STORE"),ordinal =0)
+    private RegistryKey<World> injected(RegistryKey<World> registryKey, @Local(argsOnly = true) ServerWorld world) {
         RegistryKey<World> registryKey0=world.getRegistryKey();
         String path=registryKey0.getValue().getPath();
         if(registryKey0.getValue().getPath().endsWith(OVERWORLD))
@@ -46,10 +50,32 @@ public class EndPortalBlockMixin {
             return registryKey0;
         }
     }
-    @Inject(method = "onEntityCollision",at= @At(value = "INVOKE", target = "Lnet/minecraft/entity/Entity;moveToWorld(Lnet/minecraft/server/world/ServerWorld;)Lnet/minecraft/entity/Entity;"))
-    public void createPlatform(BlockState state, World world, BlockPos pos, Entity entity, CallbackInfo ci,@Local ServerWorld serverWorld)
+    /*@ModifyVariable(method = "createTeleportTarget", at = @At(value = "STORE"))
+    private boolean injected2(boolean bl, @Local RegistryKey<World> registryKey) {
+        return registryKey.getValue().getPath().endsWith(END);
+    }*/
+    @Inject(method = "createTeleportTarget",at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/Entity;getYaw()F",shift = At.Shift.AFTER), cancellable = true)
+    private void injected3(ServerWorld world, Entity entity, BlockPos pos, CallbackInfoReturnable<TeleportTarget> cir
+    ,@Local(ordinal = 1) ServerWorld serverWorld,@Local RegistryKey<World> registryKey)
     {
-        if(world.getRegistryKey().getValue().getNamespace().equals(MC))return;
-        ServerWorld.createEndSpawnPlatform(serverWorld);
+        boolean bl=registryKey.getValue().getPath().endsWith(END);
+        BlockPos blockPos = bl ? ServerWorld.END_SPAWN_POS : serverWorld.getSpawnPos();
+        Vec3d vec3d = blockPos.toBottomCenterPos();
+        if (bl) {
+                EndPlatformFeature.generate(serverWorld, BlockPos.ofFloored(vec3d).down(), true);
+                if (entity instanceof ServerPlayerEntity) {
+                    vec3d = vec3d.subtract(0.0, 1.0, 0.0);
+                }
+            } else {
+                if (entity instanceof ServerPlayerEntity serverPlayerEntity) {
+                    if(toOverworld(world.getServer(),serverPlayerEntity.getRespawnTarget(false, TeleportTarget.NO_OP).world()).equals(toOverworld(world.getServer(),serverWorld))){
+                    cir.setReturnValue(serverPlayerEntity.getRespawnTarget(false, TeleportTarget.NO_OP));
+                    return;
+                    }
+                }
+
+                vec3d = entity.getWorldSpawnPos(serverWorld, blockPos).toBottomCenterPos();
+            }
+            cir.setReturnValue(new TeleportTarget(serverWorld, vec3d, entity.getVelocity(), Direction.WEST.asRotation(), entity.getPitch(), TeleportTarget.SEND_TRAVEL_THROUGH_PORTAL_PACKET.then(TeleportTarget.ADD_PORTAL_CHUNK_TICKET)));
     }
 }

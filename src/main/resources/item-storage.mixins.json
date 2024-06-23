@@ -1,14 +1,13 @@
 {
-	"required": true,
-	"package": "io.silvicky.item.mixin",
-	"compatibilityLevel": "JAVA_21",
-	"mixins": [
-		"AbstractFireBlockMixin",
-		"EndPortalBlockMixin",
-		"EntityInvoker",
-		"EntityMixin"
-	],
-	"injectors": {
-		"defaultRequire": 1
+  "required": true,
+  "package": "io.silvicky.item.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "AbstractFireBlockMixin",
+    "EndPortalBlockMixin",
+    "NetherPortalBlockMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
 	}
 }

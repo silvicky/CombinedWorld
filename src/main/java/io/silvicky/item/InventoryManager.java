@@ -1,7 +1,5 @@
 package io.silvicky.item;
 
-import net.fabricmc.fabric.api.dimension.v1.FabricDimensions;
-import net.minecraft.entity.mob.ZombieVillagerEntity;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
@@ -119,8 +117,10 @@ public class InventoryManager {
         {
             LOGGER.info("Entering a new world... Good luck to the pioneer!");
             BlockPos sp=transLoc(targetDimension.getSpawnPos().withY(targetDimension.getLogicalHeight()-1),targetDimension);
-            TeleportTarget target = new TeleportTarget(sp.toCenterPos(), Vec3d.ZERO, 0f, 0f);
-            FabricDimensions.teleport(player, targetDimension, target);
+            TeleportTarget.PostDimensionTransition postDimensionTransition=TeleportTarget.NO_OP;
+            TeleportTarget target = new TeleportTarget(targetDimension,sp.toCenterPos(), Vec3d.ZERO, 0f, 0f,postDimensionTransition);
+            //FabricDimensions.teleport(player, targetDimension, target);
+            player.teleportTo(target);
         }
         else
         {
@@ -137,8 +137,11 @@ public class InventoryManager {
             BlockPos sp=new BlockPos((int) Math.floor(v3d.x), (int) Math.floor(v3d.y), (int) Math.floor(v3d.z));
             //sp=sp.withY(sw2.getTopY());
             //sp=transLoc(sp,sw2);
-            TeleportTarget target = new TeleportTarget(sp.toCenterPos(), Vec3d.ZERO, 0f, 0f);
-            FabricDimensions.teleport(player, sw2, target);
+            TeleportTarget.PostDimensionTransition postDimensionTransition=TeleportTarget.NO_OP;
+
+            TeleportTarget target = new TeleportTarget(sw2,sp.toCenterPos(), Vec3d.ZERO, 0f, 0f,postDimensionTransition);
+            //FabricDimensions.teleport(player, sw2, target);
+            player.teleportTo(target);
         }
         return true;
     }
