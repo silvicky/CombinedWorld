@@ -54,10 +54,11 @@ public class EndPortalBlockMixin {
     private boolean injected2(boolean bl, @Local RegistryKey<World> registryKey) {
         return registryKey.getValue().getPath().endsWith(END);
     }*/
-    @Inject(method = "createTeleportTarget",at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/Entity;getYaw()F",shift = At.Shift.AFTER), cancellable = true)
+    @Inject(method = "createTeleportTarget",at = @At(value = "INVOKE_ASSIGN",  shift = At.Shift.AFTER, target = "Lnet/minecraft/server/world/ServerWorld;getServer()Lnet/minecraft/server/MinecraftServer;"), cancellable = true)
     private void injected3(ServerWorld world, Entity entity, BlockPos pos, CallbackInfoReturnable<TeleportTarget> cir
-    ,@Local(ordinal = 1) ServerWorld serverWorld,@Local RegistryKey<World> registryKey)
+    , @Local(ordinal = 0, argsOnly = true) ServerWorld serverWorl, @Local RegistryKey<World> registryKey)
     {
+        ServerWorld serverWorld = world.getServer().getWorld(registryKey);
         boolean bl=registryKey.getValue().getPath().endsWith(END);
         BlockPos blockPos = bl ? ServerWorld.END_SPAWN_POS : serverWorld.getSpawnPos();
         Vec3d vec3d = blockPos.toBottomCenterPos();
