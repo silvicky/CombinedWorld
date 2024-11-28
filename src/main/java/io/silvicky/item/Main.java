@@ -1,9 +1,11 @@
 package io.silvicky.item;
 
+import net.minecraft.server.world.ServerWorld;
 import net.querz.nbt.io.NBTUtil;
 import net.querz.nbt.io.NamedTag;
 import net.querz.nbt.tag.CompoundTag;
 import net.querz.nbt.tag.ListTag;
+import net.querz.nbt.tag.StringTag;
 import net.querz.nbt.tag.Tag;
 
 import java.io.BufferedReader;
@@ -13,7 +15,15 @@ import java.io.InputStreamReader;
 import java.util.Map;
 import java.util.Objects;
 
+import static io.silvicky.item.InventoryManager.*;
+
 public class Main {
+    public static String getDimensionId(String id)
+    {
+        if(id.endsWith(NETHER))id=id.substring(0,id.length()-10)+OVERWORLD;
+        if(id.endsWith(END))id=id.substring(0,id.length()-7)+OVERWORLD;
+        return id;
+    }
     public static void main(String[] args) throws IOException {
         BufferedReader reader=new BufferedReader(new InputStreamReader(System.in));
         System.out.println("Welcome to CombinedWorld maintenance console!");
@@ -36,7 +46,7 @@ public class Main {
             ListTag<CompoundTag> saved= (ListTag<CompoundTag>) mainTag.getCompoundTag("data").getListTag("saved");
             System.out.println("Choose operation you need:");
             System.out.println("1.Rename group");
-            System.out.println("2.Turn player data into mod stored data");
+            System.out.println("2.Turn non-vanilla player data into mod stored data(to prevent collision)");
             System.out.println("9.Quit");
             int i=Integer.parseInt(reader.readLine());
             if(i==1)
@@ -137,7 +147,29 @@ public class Main {
                 File pdFile=new File(pd);
                 for(File file: Objects.requireNonNull(pdFile.listFiles()))
                 {
-
+                    if(!file.getPath().endsWith("dat"))continue;
+                    NamedTag tg=NBTUtil.read(file);
+                    CompoundTag tgc= (CompoundTag) tg.getTag();
+                    if(tgc.getStringTag("Dimension").getValue().startsWith("minecraft:"))continue;
+                    CompoundTag posDat=new CompoundTag();
+                    CompoundTag savedDat=new CompoundTag();
+                    CompoundTag posDat1=new CompoundTag();
+                    posDat1.put("x",tgc.getListTag("Pos").asDoubleTagList().get(0));
+                    posDat1.put("y",tgc.getListTag("Pos").asDoubleTagList().get(1));
+                    posDat1.put("z",tgc.getListTag("Pos").asDoubleTagList().get(2));
+                    posDat.put("pos",posDat1);
+                    posDat.put("rdim",tgc.getStringTag("Dimension"));
+                    posDat.put("player",new StringTag(file.getName().replaceFirst(".dat","")));
+                    posDat.put("dimension",new StringTag(getDimensionId( tgc.getStringTag("Dimension").getValue())));
+                    pos.add(posDat);
+                    savedDat.put("inventory",tgc.getListTag("Inventory"));
+                    savedDat.put("ender",tgc.getListTag("EnderItems"));
+                    String did=tgc.getStringTag("Dimension").getValue();
+                    savedDat.put("dimension",new StringTag(did.substring(0,did.indexOf(':'))));;
+                    savedDat.put("player",new StringTag(file.getName().replaceFirst(".dat","")));
+                    savedDat.put("air",tgc.getShortTag("Air"));
+                    savedDat.put("gamemode",tgc.getIntTag("playerGameType"));
+                    saved.add(savedDat);
                 }
                 NBTUtil.write(mainDat,mainFile);
             }
