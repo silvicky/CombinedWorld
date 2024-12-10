@@ -77,6 +77,6 @@ public class EndPortalBlockMixin {
 
                 vec3d = entity.getWorldSpawnPos(serverWorld, blockPos).toBottomCenterPos();
             }
-            cir.setReturnValue(new TeleportTarget(serverWorld, vec3d, entity.getVelocity(), Direction.WEST.asRotation(), entity.getPitch(), TeleportTarget.SEND_TRAVEL_THROUGH_PORTAL_PACKET.then(TeleportTarget.ADD_PORTAL_CHUNK_TICKET)));
+            cir.setReturnValue(new TeleportTarget(serverWorld, vec3d, entity.getVelocity(), 0, entity.getPitch(), TeleportTarget.SEND_TRAVEL_THROUGH_PORTAL_PACKET.then(TeleportTarget.ADD_PORTAL_CHUNK_TICKET)));
     }
 }

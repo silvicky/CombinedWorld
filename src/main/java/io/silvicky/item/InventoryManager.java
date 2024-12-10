@@ -17,6 +17,7 @@ import net.minecraft.world.TeleportTarget;
 import java.util.Iterator;
 
 import static io.silvicky.item.ItemStorage.LOGGER;
+import static io.silvicky.item.cfg.JSONConfig.useStorage;
 
 public class InventoryManager {
     public static final String DIMENSION="dimension";
@@ -197,12 +198,12 @@ public class InventoryManager {
     {
         StateSaver stateSaver=StateSaver.getServerState(server);
         savePos(player,stateSaver);
-        saveInventory(server,player,stateSaver);
+        if(useStorage)saveInventory(server,player,stateSaver);
     }
     public static boolean load(MinecraftServer server, ServerPlayerEntity player, ServerWorld targetDimension)
     {
         StateSaver stateSaver=StateSaver.getServerState(server);
-        loadInventory(server,player,targetDimension,stateSaver);
+        if(useStorage)loadInventory(server,player,targetDimension,stateSaver);
         return loadPos(server, player, targetDimension, stateSaver);
     }
     public static boolean directWarp(MinecraftServer server,ServerPlayerEntity player,ServerWorld targetDimension)
