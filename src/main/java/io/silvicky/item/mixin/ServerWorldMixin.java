@@ -31,4 +31,9 @@ public class ServerWorldMixin {
     {
         for(ServerWorld world:server.getWorlds())world.setTimeOfDay(timeOfDay);
     }
+    @Redirect(method="tick",at= @At(value = "INVOKE", target = "Lnet/minecraft/server/world/ServerWorld;resetWeather()V"))
+    private void inject4(ServerWorld instance)
+    {
+        for(ServerWorld world:server.getWorlds())world.resetWeather();
+    }
 }
