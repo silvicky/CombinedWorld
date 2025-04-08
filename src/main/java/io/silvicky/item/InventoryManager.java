@@ -53,7 +53,7 @@ public class InventoryManager {
     }
     public static Vec3d NbtToV3d(NbtCompound n)
     {
-        return new Vec3d(n.getDouble("x"),n.getDouble("y"),n.getDouble("z"));
+        return new Vec3d(n.getDouble("x").get(),n.getDouble("y").get(),n.getDouble("z").get());
     }
     public static BlockPos transLoc(BlockPos sp,ServerWorld sw)
     {
@@ -89,7 +89,7 @@ public class InventoryManager {
         sav.putInt(FOOD,player.getHungerManager().getFoodLevel());
         sav.putFloat(FOOD2,player.getHungerManager().getSaturationLevel());
         sav.putInt(AIR,player.getAir());
-        sav.putInt(GAMEMODE,player.interactionManager.getGameMode().getId());
+        sav.putInt(GAMEMODE,player.interactionManager.getGameMode().getIndex());
         stateSaver.nbtList.add(sav);
         player.getInventory().clear();
         player.getEnderChestInventory().clear();
@@ -98,7 +98,7 @@ public class InventoryManager {
         player.getHungerManager().setFoodLevel(20);
         player.getHungerManager().setSaturationLevel(5.0F);
         player.interactionManager.changeGameMode(GameMode.SURVIVAL);
-        player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, GameMode.SURVIVAL.getId()));
+        player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, GameMode.SURVIVAL.getIndex()));
     }
     public static boolean loadPos(MinecraftServer server,ServerPlayerEntity player,ServerWorld targetDimension,StateSaver stateSaver)
     {
@@ -125,7 +125,7 @@ public class InventoryManager {
         }
         else
         {
-            String dim=n.getString(REAL_DIMENSION);
+            String dim=n.getString(REAL_DIMENSION).get();
             ServerWorld sw2=server.getWorld(RegistryKey.of(RegistryKey.ofRegistry(targetDimension.getRegistryKey().getRegistry()),
                     Identifier.of(targetDimension.getRegistryKey().getValue().getNamespace(),
                             dim.substring(dim.indexOf(":")+1))));
@@ -165,13 +165,13 @@ public class InventoryManager {
         {
             player.getInventory().readNbt((NbtList) n.get(INVENTORY));
             player.getEnderChestInventory().readNbtList((NbtList) n.get(ENDER),server.getRegistryManager());
-            player.setExperiencePoints(n.getInt(XP));
-            player.setHealth(n.getFloat(HP));
-            player.getHungerManager().setFoodLevel(n.getInt(FOOD));
-            player.getHungerManager().setSaturationLevel(n.getFloat(FOOD2));
-            player.setAir(n.getInt(AIR));
-            player.interactionManager.changeGameMode(GameMode.byId(n.getInt(GAMEMODE)));
-            player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, n.getInt(GAMEMODE)));
+            player.setExperiencePoints(n.getInt(XP).get());
+            player.setHealth(n.getFloat(HP).get());
+            player.getHungerManager().setFoodLevel(n.getInt(FOOD).get());
+            player.getHungerManager().setSaturationLevel(n.getFloat(FOOD2).get());
+            player.setAir(n.getInt(AIR).get());
+            player.interactionManager.changeGameMode(GameMode.byIndex(n.getInt(GAMEMODE).get()));
+            player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, n.getInt(GAMEMODE).get()));
         }
         else
         {
@@ -183,7 +183,7 @@ public class InventoryManager {
             player.getHungerManager().setSaturationLevel(20);
             player.setAir(300);
             player.interactionManager.changeGameMode(GameMode.SURVIVAL);
-            player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, GameMode.SURVIVAL.getId()));
+            player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, GameMode.SURVIVAL.getIndex()));
         }
     }
     public static ServerWorld toOverworld(MinecraftServer server,ServerWorld world)
