@@ -5,7 +5,8 @@
   "mixins": [
     "AbstractFireBlockMixin",
     "EndPortalBlockMixin",
-    "NetherPortalBlockMixin"
+    "NetherPortalBlockMixin",
+    "ServerWorldMixin"
   ],
   "injectors": {
     "defaultRequire": 1
