@@ -1,8 +1,12 @@
 package io.silvicky.item.mixin;
 
+import net.minecraft.entity.boss.dragon.EnderDragonFight;
+import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.world.SaveProperties;
+import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -11,6 +15,8 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
 import java.util.List;
+
+import static io.silvicky.item.InventoryManager.END;
 
 @Mixin(ServerWorld.class)
 public class ServerWorldMixin {
@@ -35,5 +41,12 @@ public class ServerWorldMixin {
     private void inject4(ServerWorld instance)
     {
         for(ServerWorld world:server.getWorlds())world.resetWeather();
+    }
+    @Redirect(method="<init>",at=@At(value="INVOKE",target="Lnet/minecraft/server/world/ServerWorld;getRegistryKey()Lnet/minecraft/registry/RegistryKey;"))
+    private RegistryKey<World> inject5(ServerWorld instance)
+    {
+        RegistryKey<World> registryKey=instance.getRegistryKey();
+        if(registryKey.getValue().getPath().endsWith(END))return World.END;
+        else return registryKey;
     }
 }
