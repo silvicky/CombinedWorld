@@ -30,5 +30,6 @@
 	},
 	"suggests": {
 		"another-mod": "*"
-	}
+	},
+	"accessWidener" : "src/main/resources/DimensionOptions.accesswidener"
 }
