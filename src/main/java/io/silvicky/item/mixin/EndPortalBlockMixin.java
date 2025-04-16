@@ -8,7 +8,6 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.TeleportTarget;
 import net.minecraft.world.World;
@@ -50,10 +49,6 @@ public class EndPortalBlockMixin {
             return registryKey0;
         }
     }
-    /*@ModifyVariable(method = "createTeleportTarget", at = @At(value = "STORE"))
-    private boolean injected2(boolean bl, @Local RegistryKey<World> registryKey) {
-        return registryKey.getValue().getPath().endsWith(END);
-    }*/
     @Inject(method = "createTeleportTarget",at = @At(value = "INVOKE_ASSIGN",  shift = At.Shift.AFTER, target = "Lnet/minecraft/server/world/ServerWorld;getServer()Lnet/minecraft/server/MinecraftServer;"), cancellable = true)
     private void injected3(ServerWorld world, Entity entity, BlockPos pos, CallbackInfoReturnable<TeleportTarget> cir
     , @Local(ordinal = 0, argsOnly = true) ServerWorld serverWorl, @Local RegistryKey<World> registryKey)

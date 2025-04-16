@@ -1,68 +1,34 @@
 package io.silvicky.item;
 
-import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
-import com.mojang.serialization.DataResult;
-import com.mojang.serialization.DynamicOps;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtList;
-import net.minecraft.registry.RegistryWrapper;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.PersistentState;
 import net.minecraft.world.PersistentStateManager;
 import net.minecraft.world.PersistentStateType;
 import net.minecraft.world.World;
 
-import java.util.function.Supplier;
+import java.util.ArrayList;
 
 public class StateSaver extends PersistentState {
     public static final String POS="pos";
     public static final String SAVED="saved";
-    public NbtList nbtList;
-    public NbtList posList;
-    public StateSaver(){nbtList=new NbtList();posList=new NbtList();}
-    public StateSaver(NbtList nbtList,NbtList posList){this.nbtList=nbtList;this.posList=posList;}
-
-    //@Override
-    public static NbtCompound writeNbt(NbtList nbtList,NbtList posList) {
-        NbtCompound nbt=new NbtCompound();
-        nbt.put(SAVED,nbtList);
-        nbt.put(POS,posList);
-        return nbt;
-    }
-    public static StateSaver createFromNbt(NbtCompound tag) {
-        StateSaver state = new StateSaver();
-        state.nbtList = (NbtList) tag.get(SAVED);
-        state.posList = (NbtList) tag.get(POS);
-        return state;
-    }
-
+    public ArrayList<StorageInfo> nbtList;
+    public ArrayList<PositionInfo> posList;
+    public static final Codec<StateSaver> CODEC= RecordCodecBuilder.create((instance)->
+            instance.group
+                    (
+                        StorageInfo.CODEC.listOf().xmap(ArrayList::new, list->list).optionalFieldOf(SAVED, new ArrayList<>()).forGetter((stateSaver)->
+                                stateSaver.nbtList),
+                        PositionInfo.CODEC.listOf().xmap(ArrayList::new,list->list).optionalFieldOf(POS, new ArrayList<>()).forGetter((stateSaver)->
+                                stateSaver.posList)
+                    ).apply(instance,StateSaver::new));
+    public StateSaver(ArrayList<StorageInfo> nbtList,ArrayList<PositionInfo> posList){this.nbtList=nbtList;this.posList=posList;}
+    public StateSaver(){this(new ArrayList<>(),new ArrayList<>());}
     private static final PersistentStateType<StateSaver> type = new PersistentStateType<>(
             ItemStorage.MOD_ID,
-            new Supplier<StateSaver>() {
-                /**
-                 * Gets a result.
-                 *
-                 * @return a result
-                 */
-                @Override
-                public StateSaver get() {
-                    return new StateSaver();
-                }
-            }, // If there's no 'StateSaverAndLoader' yet create one
-            new Codec<StateSaver>() {
-                @Override
-                public <T> DataResult<Pair<StateSaver, T>> decode(DynamicOps<T> ops, T input) {
-                    return createFromNbt(input);
-                }
-
-                @Override
-                public <T> DataResult<T> encode(StateSaver input, DynamicOps<T> ops, T prefix) {
-                    return new DataResult<T>() {
-                    }
-                    //return writeNbt(input.nbtList,input.posList);
-                }
-            }, // If there is a 'StateSaverAndLoader' NBT, parse it with 'createFromNbt'
+            StateSaver::new,
+            CODEC,
             null // Supposed to be an 'DataFixTypes' enum, but we can just pass null
     );
 

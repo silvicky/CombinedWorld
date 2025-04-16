@@ -1,12 +1,10 @@
 package io.silvicky.item.cfg;
 
 import com.google.gson.Gson;
-import io.silvicky.item.ItemStorage;
-import net.fabricmc.fabric.api.event.registry.DynamicRegistries;
 import net.fabricmc.loader.api.FabricLoader;
 
+
 import java.io.*;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import static io.silvicky.item.ItemStorage.LOGGER;

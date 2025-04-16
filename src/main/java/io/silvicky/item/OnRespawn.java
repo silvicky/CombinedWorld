@@ -10,7 +10,7 @@ public class OnRespawn {
         if(getDimensionId(oldPlayer.getServerWorld()).equals(getDimensionId(newPlayer.getServerWorld())))return;
         if(oldPlayer.getServerWorld().getRegistryKey().getValue().getNamespace().equals(newPlayer.getServerWorld().getRegistryKey().getValue().getNamespace()))return;
         StateSaver stateSaver=StateSaver.getServerState(oldPlayer.getServer());
-        if(alive) saveInventory(oldPlayer.server,oldPlayer,stateSaver);
-        loadInventory(newPlayer.server,newPlayer,newPlayer.getServerWorld(),stateSaver);
+        if(alive) saveInventory(oldPlayer,stateSaver);
+        loadInventory(newPlayer,newPlayer.getServerWorld(),stateSaver);
     }
 }

@@ -29,7 +29,7 @@ loom {
 			sourceSet sourceSets.client
 		}
 	}
-
+	accessWidenerPath = file("src/main/resources/1.accesswidener")
 }
 
 dependencies {

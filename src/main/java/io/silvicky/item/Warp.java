@@ -39,7 +39,7 @@ public class Warp {
                 save(source.getServer(),player);
                 if(!load(source.getServer(),player,dimension))
                 {
-                    loadInventory(source.getServer(),player,source.getWorld(),StateSaver.getServerState(source.getServer()));
+                    loadInventory(player,source.getWorld(),StateSaver.getServerState(source.getServer()));
                     throw ERR_DIMENSION_NOT_FOUND.create();
                 }
             }

@@ -1,18 +1,15 @@
 package io.silvicky.item;
 
-import net.minecraft.server.world.ServerWorld;
 import net.querz.nbt.io.NBTUtil;
 import net.querz.nbt.io.NamedTag;
 import net.querz.nbt.tag.CompoundTag;
 import net.querz.nbt.tag.ListTag;
 import net.querz.nbt.tag.StringTag;
-import net.querz.nbt.tag.Tag;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.Map;
 import java.util.Objects;
 
 import static io.silvicky.item.InventoryManager.*;
@@ -165,7 +162,7 @@ public class Main {
                     savedDat.put("inventory",tgc.getListTag("Inventory"));
                     savedDat.put("ender",tgc.getListTag("EnderItems"));
                     String did=tgc.getStringTag("Dimension").getValue();
-                    savedDat.put("dimension",new StringTag(did.substring(0,did.indexOf(':'))));;
+                    savedDat.put("dimension",new StringTag(did.substring(0,did.indexOf(':'))));
                     savedDat.put("player",new StringTag(file.getName().replaceFirst(".dat","")));
                     savedDat.put("air",tgc.getShortTag("Air"));
                     savedDat.put("gamemode",tgc.getIntTag("playerGameType"));
