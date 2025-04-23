@@ -1,2 +1,4 @@
 accessWidener v2 named
 accessible field net/minecraft/entity/player/PlayerInventory main Lnet/minecraft/util/collection/DefaultedList;
+accessible field net/minecraft/server/world/ServerWorld enderDragonFight Lnet/minecraft/entity/boss/dragon/EnderDragonFight;
+mutable field net/minecraft/server/world/ServerWorld enderDragonFight Lnet/minecraft/entity/boss/dragon/EnderDragonFight;
