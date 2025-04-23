@@ -49,7 +49,10 @@ public abstract class ServerWorldMixin {
     private void inject5(ServerWorld instance, EnderDragonFight value, @Local(argsOnly = true) long l)
     {
         if(!instance.getDimensionEntry().matchesKey(DimensionTypes.THE_END)){instance.enderDragonFight=null;return;}
-        HashMap<Identifier,EnderDragonFight.Data> dragonFightHashMap=StateSaver.getServerState(instance).dragonFight;
+        HashMap<Identifier,EnderDragonFight.Data> dragonFightHashMap;
+        if(instance.getRegistryKey()!=World.OVERWORLD)dragonFightHashMap=StateSaver.getServerState(server).dragonFight;
+        //this should not happen but...
+        else dragonFightHashMap=StateSaver.getServerState(instance).dragonFight;
         Identifier cur=instance.getRegistryKey().getValue();
         instance.enderDragonFight = new EnderDragonFight(instance, l, dragonFightHashMap.getOrDefault(cur, EnderDragonFight.Data.DEFAULT));
     }

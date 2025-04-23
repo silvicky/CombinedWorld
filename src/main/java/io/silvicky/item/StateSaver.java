@@ -42,6 +42,7 @@ public class StateSaver extends PersistentState {
     public static StateSaver getServerState(MinecraftServer server) {
         return getServerState(Objects.requireNonNull(server.getWorld(World.OVERWORLD)));
     }
+    //DO NOT USE THIS UNLESS DURING CONSTRUCTION OF OVERWORLD
     public static StateSaver getServerState(ServerWorld world) {
         PersistentStateManager persistentStateManager = world.getPersistentStateManager();
         StateSaver state = persistentStateManager.getOrCreate(type);
