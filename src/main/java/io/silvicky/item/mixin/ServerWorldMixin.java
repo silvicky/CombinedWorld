@@ -48,7 +48,7 @@ public abstract class ServerWorldMixin {
     @Redirect(method="<init>",at= @At(value = "FIELD", target = "Lnet/minecraft/server/world/ServerWorld;enderDragonFight:Lnet/minecraft/entity/boss/dragon/EnderDragonFight;",opcode = Opcodes.PUTFIELD,ordinal = 1))
     private void inject5(ServerWorld instance, EnderDragonFight value, @Local(argsOnly = true) long l)
     {
-        if(!instance.getDimensionEntry().matchesKey(DimensionTypes.THE_END))instance.enderDragonFight=null;
+        if(!instance.getDimensionEntry().matchesKey(DimensionTypes.THE_END)){instance.enderDragonFight=null;return;}
         HashMap<Identifier,EnderDragonFight.Data> dragonFightHashMap=StateSaver.getServerState(instance).dragonFight;
         Identifier cur=instance.getRegistryKey().getValue();
         instance.enderDragonFight = new EnderDragonFight(instance, l, dragonFightHashMap.getOrDefault(cur, EnderDragonFight.Data.DEFAULT));
