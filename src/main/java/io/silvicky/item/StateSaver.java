@@ -2,7 +2,6 @@ package io.silvicky.item;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.datafixer.DataFixTypes;
 import net.minecraft.entity.boss.dragon.EnderDragonFight;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
@@ -17,17 +16,17 @@ import java.util.HashMap;
 import java.util.Objects;
 
 public class StateSaver extends PersistentState {
-    public ArrayList<StorageInfo> nbtList;
-    public ArrayList<PositionInfo> posList;
-    public HashMap<Identifier, EnderDragonFight.Data> dragonFight;
+    public final ArrayList<StorageInfo> nbtList;
+    public final ArrayList<PositionInfo> posList;
+    public final HashMap<Identifier, EnderDragonFight.Data> dragonFight;
     public static final Codec<StateSaver> CODEC= RecordCodecBuilder.create((instance)->
             instance.group
                     (
-                        StorageInfo.CODEC.listOf().xmap(ArrayList::new, list->list).optionalFieldOf("saved", new ArrayList<>()).forGetter((stateSaver)->
+                        StorageInfo.CODEC.listOf().xmap(ArrayList::new, list->list).fieldOf("saved").orElse(new ArrayList<>()).forGetter((stateSaver)->
                                 stateSaver.nbtList),
-                        PositionInfo.CODEC.listOf().xmap(ArrayList::new,list->list).optionalFieldOf("pos", new ArrayList<>()).forGetter((stateSaver)->
+                        PositionInfo.CODEC.listOf().xmap(ArrayList::new,list->list).fieldOf("pos").orElse(new ArrayList<>()).forGetter((stateSaver)->
                                 stateSaver.posList),
-                        Codec.unboundedMap(Identifier.CODEC, EnderDragonFight.Data.CODEC).xmap(HashMap::new,map->map).optionalFieldOf("dragon", new HashMap<>()).forGetter((stateSaver ->
+                        Codec.unboundedMap(Identifier.CODEC, EnderDragonFight.Data.CODEC).xmap(HashMap::new,map->map).fieldOf("dragon").orElse(new HashMap<>()).forGetter((stateSaver ->
                                 stateSaver.dragonFight))
                     ).apply(instance,StateSaver::new));
     public StateSaver(ArrayList<StorageInfo> nbtList,ArrayList<PositionInfo> posList,HashMap<Identifier,EnderDragonFight.Data> dragonFight){this.nbtList=nbtList;this.posList=posList;this.dragonFight=dragonFight;}
@@ -36,7 +35,7 @@ public class StateSaver extends PersistentState {
             ItemStorage.MOD_ID,
             StateSaver::new,
             CODEC,
-            DataFixTypes.LEVEL
+            null
     );
 
     public static StateSaver getServerState(MinecraftServer server) {

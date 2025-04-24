@@ -62,8 +62,11 @@ public abstract class ServerWorldMixin {
         ServerWorld target=(ServerWorld) (Object)this;
         HashMap<Identifier,EnderDragonFight.Data> dragonFightHashMap=StateSaver.getServerState(server).dragonFight;
         Identifier cur=target.getRegistryKey().getValue();
+        assert target.enderDragonFight != null;
         if(target.getRegistryKey()==World.END)
             server.getSaveProperties().setDragonFight(target.enderDragonFight.toData());
-        else dragonFightHashMap.put(cur,target.enderDragonFight.toData());
+        else
+            dragonFightHashMap.put(cur,target.enderDragonFight.toData());
+        //server.getOverworld().getChunkManager().getPersistentStateManager().save();
     }
 }
