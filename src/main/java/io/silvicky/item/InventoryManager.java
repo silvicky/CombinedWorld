@@ -1,5 +1,6 @@
 package io.silvicky.item;
 
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.datafixers.util.Pair;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.EnderChestInventory;
@@ -20,6 +21,8 @@ import java.util.Iterator;
 import java.util.List;
 
 import static io.silvicky.item.ItemStorage.LOGGER;
+import static io.silvicky.item.Warp.ERR_DIMENSION_NOT_FOUND;
+import static io.silvicky.item.Warp.ERR_ITEM;
 import static io.silvicky.item.cfg.JSONConfig.useStorage;
 
 public class InventoryManager {
@@ -126,8 +129,7 @@ public class InventoryManager {
         player.interactionManager.changeGameMode(GameMode.SURVIVAL);
         player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, GameMode.SURVIVAL.getIndex()));
     }
-    public static boolean loadPos(MinecraftServer server,ServerPlayerEntity player,ServerWorld targetDimension,StateSaver stateSaver)
-    {
+    public static void loadPos(MinecraftServer server,ServerPlayerEntity player,ServerWorld targetDimension,StateSaver stateSaver) throws CommandSyntaxException {
         targetDimension=toOverworld(server,targetDimension);
         Iterator<PositionInfo> iterator=stateSaver.posList.iterator();
         PositionInfo n=null;
@@ -157,7 +159,7 @@ public class InventoryManager {
             if(sw2==null)
             {
                 LOGGER.error("A dimension named "+dim+" is NOT FOUND!");
-                return false;
+                throw ERR_DIMENSION_NOT_FOUND.create();
             }
             Vec3d v3d=n.pos;
             BlockPos sp=new BlockPos((int) Math.floor(v3d.x), (int) Math.floor(v3d.y), (int) Math.floor(v3d.z));
@@ -167,10 +169,8 @@ public class InventoryManager {
             TeleportTarget target = new TeleportTarget(sw2,sp.toCenterPos(), Vec3d.ZERO, 0f, 0f,postDimensionTransition);
             player.teleportTo(target);
         }
-        return true;
     }
-    public static void loadInventory(ServerPlayerEntity player,ServerWorld targetDimension,StateSaver stateSaver)
-    {
+    public static void loadInventory(ServerPlayerEntity player,ServerWorld targetDimension,StateSaver stateSaver) throws CommandSyntaxException {
         Iterator<StorageInfo> iterator=stateSaver.nbtList.iterator();
         StorageInfo n=null;
         while (iterator.hasNext())
@@ -186,8 +186,9 @@ public class InventoryManager {
         }
         if(n!=null)
         {
-            stackToInventory(player.getInventory(),n.inventory);
-            stackToEnder(player.getEnderChestInventory(),n.ender);
+            try{stackToInventory(player.getInventory(),n.inventory);
+            stackToEnder(player.getEnderChestInventory(),n.ender);}
+            catch(Exception e){stateSaver.nbtList.add(n);throw ERR_ITEM.create();}
             player.setExperiencePoints(n.xp);
             player.setHealth(n.hp);
             player.getHungerManager().setFoodLevel(n.food);
@@ -223,16 +224,17 @@ public class InventoryManager {
         savePos(player,stateSaver);
         if(useStorage)saveInventory(player,stateSaver);
     }
-    public static boolean load(MinecraftServer server, ServerPlayerEntity player, ServerWorld targetDimension)
-    {
+    public static void load(MinecraftServer server, ServerPlayerEntity player, ServerWorld targetDimension) throws CommandSyntaxException {
         StateSaver stateSaver=StateSaver.getServerState(server);
-        if(useStorage)loadInventory(player,targetDimension,stateSaver);
-        return loadPos(server, player, targetDimension, stateSaver);
+        if(useStorage)
+        {
+            loadInventory(player,targetDimension,stateSaver);
+        }
+        loadPos(server, player, targetDimension, stateSaver);
     }
-    public static boolean directWarp(MinecraftServer server,ServerPlayerEntity player,ServerWorld targetDimension)
-    {
+    public static void directWarp(MinecraftServer server,ServerPlayerEntity player,ServerWorld targetDimension) throws CommandSyntaxException {
         StateSaver stateSaver=StateSaver.getServerState(server);
         savePos(player,stateSaver);
-        return loadPos(server, player, targetDimension, stateSaver);
+        loadPos(server, player, targetDimension, stateSaver);
     }
 }

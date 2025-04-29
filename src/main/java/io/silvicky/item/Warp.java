@@ -20,6 +20,8 @@ import static net.minecraft.server.command.CommandManager.literal;
 
 public class Warp {
     public static final SimpleCommandExceptionType ERR_DIMENSION_NOT_FOUND=new SimpleCommandExceptionType(new LiteralMessage("Target dimension NOT FOUND!"));
+    public static final SimpleCommandExceptionType ERR_ITEM=new SimpleCommandExceptionType(new LiteralMessage("Item stack error(from version change, contact your admin)!"));
+
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher)
     {
         dispatcher.register(
@@ -37,15 +39,16 @@ public class Warp {
             {
                 player.clearStatusEffects();
                 save(source.getServer(),player);
-                if(!load(source.getServer(),player,dimension))
+                try{load(source.getServer(),player,dimension);}
+                catch(Exception e)
                 {
                     loadInventory(player,source.getWorld(),StateSaver.getServerState(source.getServer()));
-                    throw ERR_DIMENSION_NOT_FOUND.create();
+                    throw e;
                 }
             }
             else
             {
-                if(!directWarp(source.getServer(),player,dimension))throw ERR_DIMENSION_NOT_FOUND.create();
+                directWarp(source.getServer(),player,dimension);
             }
             source.sendFeedback(()-> Text.literal("Teleported to "+getDimensionId(dimension)+"!"),false);
         }
