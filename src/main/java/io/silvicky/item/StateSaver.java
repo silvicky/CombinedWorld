@@ -19,6 +19,7 @@ public class StateSaver extends PersistentState {
     public final ArrayList<StorageInfo> nbtList;
     public final ArrayList<PositionInfo> posList;
     public final HashMap<Identifier, EnderDragonFight.Data> dragonFight;
+    public final HashMap<Identifier, Long> seed;
     public static final Codec<StateSaver> CODEC= RecordCodecBuilder.create((instance)->
             instance.group
                     (
@@ -27,10 +28,12 @@ public class StateSaver extends PersistentState {
                         PositionInfo.CODEC.listOf().xmap(ArrayList::new,list->list).fieldOf("pos").orElse(new ArrayList<>()).forGetter((stateSaver)->
                                 stateSaver.posList),
                         Codec.unboundedMap(Identifier.CODEC, EnderDragonFight.Data.CODEC).xmap(HashMap::new,map->map).fieldOf("dragon").orElse(new HashMap<>()).forGetter((stateSaver ->
-                                stateSaver.dragonFight))
+                                stateSaver.dragonFight)),
+                        Codec.unboundedMap(Identifier.CODEC, Codec.LONG).xmap(HashMap::new,map->map).fieldOf("seed").orElse(new HashMap<>()).forGetter((stateSaver ->
+                                stateSaver.seed))
                     ).apply(instance,StateSaver::new));
-    public StateSaver(ArrayList<StorageInfo> nbtList,ArrayList<PositionInfo> posList,HashMap<Identifier,EnderDragonFight.Data> dragonFight){this.nbtList=nbtList;this.posList=posList;this.dragonFight=dragonFight;}
-    public StateSaver(){this(new ArrayList<>(),new ArrayList<>(),new HashMap<>());}
+    public StateSaver(ArrayList<StorageInfo> nbtList,ArrayList<PositionInfo> posList,HashMap<Identifier,EnderDragonFight.Data> dragonFight,HashMap<Identifier,Long> seed){this.nbtList=nbtList;this.posList=posList;this.dragonFight=dragonFight;this.seed=seed;}
+    public StateSaver(){this(new ArrayList<>(),new ArrayList<>(),new HashMap<>(),new HashMap<>());}
     private static final PersistentStateType<StateSaver> type = new PersistentStateType<>(
             ItemStorage.MOD_ID,
             StateSaver::new,

@@ -10,6 +10,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.world.SaveProperties;
 import net.minecraft.world.World;
 import net.minecraft.world.dimension.DimensionTypes;
+import net.minecraft.world.gen.GeneratorOptions;
 import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -60,13 +61,41 @@ public abstract class ServerWorldMixin {
     private void inject6(SaveProperties instance, EnderDragonFight.Data data)
     {
         ServerWorld target=(ServerWorld) (Object)this;
-        HashMap<Identifier,EnderDragonFight.Data> dragonFightHashMap=StateSaver.getServerState(server).dragonFight;
-        Identifier cur=target.getRegistryKey().getValue();
+        HashMap<Identifier,EnderDragonFight.Data> dragonFightHashMap;
+        if(target.getRegistryKey()!=World.OVERWORLD)dragonFightHashMap=StateSaver.getServerState(server).dragonFight;
+            //this should not happen but...
+        else dragonFightHashMap=StateSaver.getServerState(target).dragonFight;Identifier cur=target.getRegistryKey().getValue();
         assert target.enderDragonFight != null;
         if(target.getRegistryKey()==World.END)
             server.getSaveProperties().setDragonFight(target.enderDragonFight.toData());
         else
             dragonFightHashMap.put(cur,target.enderDragonFight.toData());
         //server.getOverworld().getChunkManager().getPersistentStateManager().save();
+    }
+    @Redirect(method="<init>",at= @At(value = "INVOKE", target = "Lnet/minecraft/world/gen/GeneratorOptions;getSeed()J"))
+    private long inject7(GeneratorOptions instance)
+    {
+        ServerWorld target=(ServerWorld) (Object)this;
+        HashMap<Identifier,Long> seedMap;
+        if(target.getRegistryKey()!=World.OVERWORLD)seedMap=StateSaver.getServerState(server).seed;
+            //this should not happen but...
+        else seedMap=StateSaver.getServerState(target).seed;
+        Identifier cur=target.getRegistryKey().getValue();
+        if(seedMap.containsKey(cur))return seedMap.get(cur);
+        return instance.getSeed();
+    }
+    @Redirect(method="getSeed",at= @At(value = "INVOKE", target = "Lnet/minecraft/world/gen/GeneratorOptions;getSeed()J"))
+    private long inject8(GeneratorOptions instance)
+    {
+        ServerWorld target=(ServerWorld) (Object)this;
+        HashMap<Identifier,Long> seedMap;
+        if(target.getRegistryKey()!=World.OVERWORLD)seedMap=StateSaver.getServerState(server).seed;
+            //this should not happen but...
+        else
+            try{seedMap=StateSaver.getServerState(target).seed;}
+            catch(NullPointerException e){return instance.getSeed();}
+        Identifier cur=target.getRegistryKey().getValue();
+        if(seedMap.containsKey(cur))return seedMap.get(cur);
+        return instance.getSeed();
     }
 }
