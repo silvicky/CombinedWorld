@@ -28,6 +28,7 @@ public class InventoryManager {
     public static final String OVERWORLD="overworld";
     public static final String NETHER="the_nether";
     public static final String END="the_end";
+    public static final int playerInventorySize=41;
     public static String getDimensionId(ServerWorld world)
     {
         String id=world.getRegistryKey().getValue().toString();
@@ -60,9 +61,9 @@ public class InventoryManager {
     public static ArrayList<Pair<ItemStack,Byte>> inventoryToStack(PlayerInventory inventory)
     {
         ArrayList<Pair<ItemStack,Byte>> ret=new ArrayList<>();
-        for (int i = 0; i < inventory.main.size(); i++) {
-            if (!inventory.main.get(i).isEmpty()) {
-                ret.add(new Pair<>(inventory.main.get(i),(byte)i));
+        for (int i = 0; i <playerInventorySize; i++) {
+            if (!inventory.getStack(i).isEmpty()) {
+                ret.add(new Pair<>(inventory.getStack(i),(byte)i));
             }
         }
         return ret;
@@ -80,21 +81,19 @@ public class InventoryManager {
     }
     public static void stackToInventory(PlayerInventory inventory,List<Pair<ItemStack,Byte>> stack)
     {
-        inventory.main.clear();
+        inventory.clear();
 
         for (Pair<ItemStack, Byte> pair : stack) {
             int j = pair.getSecond();
             ItemStack itemStack = pair.getFirst();
-            if (j < inventory.main.size()) {
+            if (j < playerInventorySize) {
                 inventory.setStack(j, itemStack);
             }
         }
     }
     public static void stackToEnder(EnderChestInventory inventory,List<Pair<ItemStack,Byte>> stack)
     {
-        for(int i = 0; i < inventory.size(); ++i) {
-            inventory.setStack(i, ItemStack.EMPTY);
-        }
+        inventory.clear();
 
         for (Pair<ItemStack, Byte> pair : stack) {
             int j = pair.getSecond();
