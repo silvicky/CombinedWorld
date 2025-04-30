@@ -188,7 +188,12 @@ public class InventoryManager {
         {
             try{stackToInventory(player.getInventory(),n.inventory);
             stackToEnder(player.getEnderChestInventory(),n.ender);}
-            catch(Exception e){stateSaver.nbtList.add(n);throw ERR_ITEM.create();}
+            catch(Exception e)
+            {
+                LOGGER.error(e.getMessage());
+                stateSaver.nbtList.add(n);
+                throw ERR_ITEM.create();
+            }
             player.setExperiencePoints(n.xp);
             player.setHealth(n.hp);
             player.getHungerManager().setFoodLevel(n.food);
