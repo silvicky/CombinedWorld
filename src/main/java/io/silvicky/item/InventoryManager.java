@@ -34,9 +34,12 @@ public class InventoryManager {
     public static final int playerInventorySize=41;
     public static String getDimensionId(ServerWorld world)
     {
-        String id=world.getRegistryKey().getValue().toString();
-        if(id.endsWith(NETHER))id=id.substring(0,id.length()-10)+OVERWORLD;
-        if(id.endsWith(END))id=id.substring(0,id.length()-7)+OVERWORLD;
+        return getDimensionId(world.getRegistryKey().getValue().toString());
+    }
+    public static String getDimensionId(String id)
+    {
+        if(id.endsWith(NETHER))id=id.substring(0,id.length()-NETHER.length())+OVERWORLD;
+        if(id.endsWith(END))id=id.substring(0,id.length()-END.length())+OVERWORLD;
         return id;
     }
 
@@ -53,11 +56,15 @@ public class InventoryManager {
     }
     public static void savePos(ServerPlayerEntity player, StateSaver stateSaver)
     {
+        savePos(player,stateSaver,player.getServerWorld().getRegistryKey().getValue().toString());
+    }
+    public static void savePos(ServerPlayerEntity player, StateSaver stateSaver, String fakeDimension)
+    {
         stateSaver.posList.add(new PositionInfo
                 (
                         player.getUuidAsString(),
-                        getDimensionId(player.getServerWorld()),
-                        player.getServerWorld().getRegistryKey().getValue().toString(),
+                        getDimensionId(fakeDimension),
+                        fakeDimension,
                         player.getPos()
                 ));
     }
@@ -107,10 +114,14 @@ public class InventoryManager {
     }
     public static void saveInventory(ServerPlayerEntity player,StateSaver stateSaver)
     {
+        saveInventory(player,stateSaver,false,player.getServerWorld().getRegistryKey().getValue().toString());
+    }
+    public static void saveInventory(ServerPlayerEntity player,StateSaver stateSaver,boolean tmp,String fakeDimension)
+    {
         stateSaver.nbtList.add(new StorageInfo
                 (
                         player.getUuidAsString(),
-                        player.getServerWorld().getRegistryKey().getValue().getNamespace(),
+                        fakeDimension.substring(0,fakeDimension.indexOf(':')),
                         inventoryToStack(player.getInventory()),
                         enderToStack(player.getEnderChestInventory()),
                         player.totalExperience,
@@ -120,6 +131,7 @@ public class InventoryManager {
                         player.getAir(),
                         player.interactionManager.getGameMode().getIndex()
                 ));
+        if(tmp)return;
         player.getInventory().clear();
         player.getEnderChestInventory().clear();
         player.setExperiencePoints(0);
@@ -225,9 +237,13 @@ public class InventoryManager {
     }
     public static void save(MinecraftServer server, ServerPlayerEntity player)
     {
+        save(server,player,false,player.getServerWorld().getRegistryKey().getValue().toString());
+    }
+    public static void save(MinecraftServer server, ServerPlayerEntity player,boolean tmp,String fakeDimension)
+    {
         StateSaver stateSaver=StateSaver.getServerState(server);
-        savePos(player,stateSaver);
-        if(useStorage)saveInventory(player,stateSaver);
+        savePos(player,stateSaver,fakeDimension);
+        if(useStorage)saveInventory(player,stateSaver,tmp,fakeDimension);
     }
     public static void load(MinecraftServer server, ServerPlayerEntity player, ServerWorld targetDimension) throws CommandSyntaxException {
         StateSaver stateSaver=StateSaver.getServerState(server);

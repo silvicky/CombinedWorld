@@ -6,7 +6,9 @@
     "AbstractFireBlockMixin",
     "EndPortalBlockMixin",
     "NetherPortalBlockMixin",
-    "ServerWorldMixin"
+    "SaveLoadingMixin",
+    "ServerWorldMixin",
+    "WorldGenSettingsMixin"
   ],
   "injectors": {
     "defaultRequire": 1

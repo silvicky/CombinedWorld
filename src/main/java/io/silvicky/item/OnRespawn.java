@@ -1,6 +1,5 @@
 package io.silvicky.item;
 
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.server.network.ServerPlayerEntity;
 
 import static io.silvicky.item.InventoryManager.*;

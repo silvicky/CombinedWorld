@@ -21,7 +21,7 @@ public class ListWorldPlayers {
         dispatcher.register(
                 literal("listworldplayers")
                         .then(argument(DIMENSION, DimensionArgumentType.dimension())
-                                .executes(context -> listPlayers(context.getSource(),DimensionArgumentType.getDimensionArgument(context,"dimension")))));
+                                .executes(context -> listPlayers(context.getSource(),DimensionArgumentType.getDimensionArgument(context,DIMENSION)))));
     }
     public static int listPlayers(ServerCommandSource source, ServerWorld dimension)
     {

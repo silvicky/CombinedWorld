@@ -27,7 +27,7 @@ public class Warp {
         dispatcher.register(
                 literal("warp")
                         .then(argument(DIMENSION, DimensionArgumentType.dimension())
-                            .executes(context -> warp(context.getSource(),DimensionArgumentType.getDimensionArgument(context,"dimension")))));
+                            .executes(context -> warp(context.getSource(),DimensionArgumentType.getDimensionArgument(context,DIMENSION)))));
     }
     public static int warp(ServerCommandSource source, ServerWorld dimension) throws CommandSyntaxException {
         ServerPlayerEntity player=source.getPlayer();
