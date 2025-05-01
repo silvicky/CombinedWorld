@@ -1,9 +1,10 @@
-package io.silvicky.item;
+package io.silvicky.item.command;
 
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.serialization.Dynamic;
+import io.silvicky.item.StateSaver;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.command.argument.IdentifierArgumentType;
 import net.minecraft.datafixer.DataFixTypes;

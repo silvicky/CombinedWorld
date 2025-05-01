@@ -21,8 +21,8 @@ import java.util.Iterator;
 import java.util.List;
 
 import static io.silvicky.item.ItemStorage.LOGGER;
-import static io.silvicky.item.Warp.ERR_DIMENSION_NOT_FOUND;
-import static io.silvicky.item.Warp.ERR_ITEM;
+import static io.silvicky.item.command.Warp.ERR_DIMENSION_NOT_FOUND;
+import static io.silvicky.item.command.Warp.ERR_ITEM;
 import static io.silvicky.item.cfg.JSONConfig.useStorage;
 
 public class InventoryManager {

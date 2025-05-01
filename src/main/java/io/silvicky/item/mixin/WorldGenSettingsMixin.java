@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 
 import java.util.HashMap;
 
-import static io.silvicky.item.ImportWorld.newDimensions;
+import static io.silvicky.item.command.ImportWorld.newDimensions;
 
 @Mixin(WorldGenSettings.class)
 public class WorldGenSettingsMixin {

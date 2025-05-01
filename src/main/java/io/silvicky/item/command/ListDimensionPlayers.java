@@ -1,4 +1,4 @@
-package io.silvicky.item;
+package io.silvicky.item.command;
 
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;

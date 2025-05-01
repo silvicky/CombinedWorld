@@ -1,10 +1,11 @@
-package io.silvicky.item;
+package io.silvicky.item.command;
 
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.LiteralMessage;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
+import io.silvicky.item.StateSaver;
 import net.minecraft.command.argument.DimensionArgumentType;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -42,7 +43,7 @@ public class Warp {
                 try{load(source.getServer(),player,dimension);}
                 catch(Exception e)
                 {
-                    loadInventory(player,source.getWorld(),StateSaver.getServerState(source.getServer()));
+                    loadInventory(player,source.getWorld(), StateSaver.getServerState(source.getServer()));
                     throw e;
                 }
             }

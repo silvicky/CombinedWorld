@@ -1,4 +1,4 @@
-package io.silvicky.item;
+package io.silvicky.item.command;
 
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
@@ -11,15 +11,14 @@ import net.minecraft.text.Text;
 import java.util.List;
 
 import static io.silvicky.item.InventoryManager.DIMENSION;
-import static io.silvicky.item.InventoryManager.getDimensionId;
 import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
 
-public class ListWorldPlayers {
+public class ListGroupPlayers {
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher)
     {
         dispatcher.register(
-                literal("listworldplayers")
+                literal("listgroupplayers")
                         .then(argument(DIMENSION, DimensionArgumentType.dimension())
                                 .executes(context -> listPlayers(context.getSource(),DimensionArgumentType.getDimensionArgument(context,DIMENSION)))));
     }
@@ -30,7 +29,8 @@ public class ListWorldPlayers {
         List<ServerPlayerEntity> players=source.getServer().getPlayerManager().getPlayerList();
         for(ServerPlayerEntity player:players)
         {
-            if(getDimensionId(player.getServerWorld()).equals(getDimensionId(dimension)))
+            if(player.
+                    getServerWorld().getRegistryKey().getValue().getNamespace().equals(dimension.getRegistryKey().getValue().getNamespace()))
             {
                 cnt++;
                 if(cnt!=1)tot.append(", ");
@@ -38,7 +38,7 @@ public class ListWorldPlayers {
             }
         }
         int finalCnt = cnt;
-        source.sendFeedback(()-> Text.literal("There are now "+ finalCnt +" players in the world of "+getDimensionId(dimension)+" : "+tot),false);
+        source.sendFeedback(()-> Text.literal("There are now "+ finalCnt +" players in "+dimension.getRegistryKey().getValue().getNamespace()+" : "+tot),false);
         return Command.SINGLE_SUCCESS;
     }
 }
