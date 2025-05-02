@@ -64,13 +64,13 @@ public abstract class ServerWorldMixin {
         HashMap<Identifier,EnderDragonFight.Data> dragonFightHashMap;
         if(target.getRegistryKey()!=World.OVERWORLD)dragonFightHashMap=StateSaver.getServerState(server).dragonFight;
             //this should not happen but...
-        else dragonFightHashMap=StateSaver.getServerState(target).dragonFight;Identifier cur=target.getRegistryKey().getValue();
-        assert target.enderDragonFight != null;
+        else dragonFightHashMap=StateSaver.getServerState(target).dragonFight;
+        Identifier cur=target.getRegistryKey().getValue();
+        if(target.enderDragonFight==null)return;
         if(target.getRegistryKey()==World.END)
             server.getSaveProperties().setDragonFight(target.enderDragonFight.toData());
         else
             dragonFightHashMap.put(cur,target.enderDragonFight.toData());
-        //server.getOverworld().getChunkManager().getPersistentStateManager().save();
     }
     @Redirect(method="<init>",at= @At(value = "INVOKE", target = "Lnet/minecraft/world/gen/GeneratorOptions;getSeed()J"))
     private long inject7(GeneratorOptions instance)

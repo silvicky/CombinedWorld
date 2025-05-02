@@ -32,7 +32,11 @@ public class Warp {
     }
     public static int warp(ServerCommandSource source, ServerWorld dimension) throws CommandSyntaxException {
         ServerPlayerEntity player=source.getPlayer();
-        assert player != null;
+        if(player==null)
+        {
+            source.sendFeedback(()->Text.literal("This command must be executed by a player."),false);
+            return Command.SINGLE_SUCCESS;
+        }
         if(!getDimensionId(dimension).equals(getDimensionId(source.getWorld())))
         {
             LOGGER.info(Objects.requireNonNull(source.getPlayer()).getName().getString()+" goes to "+getDimensionId(dimension));
