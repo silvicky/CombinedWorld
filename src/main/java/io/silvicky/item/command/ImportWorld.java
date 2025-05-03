@@ -36,10 +36,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Stream;
 
 import static io.silvicky.item.InventoryManager.*;
@@ -53,7 +50,7 @@ public class ImportWorld {
     public static RegistryWrapper.WrapperLookup wrapper;
     public static HashMap<RegistryKey<DimensionOptions>,DimensionOptions> newDimensions=new HashMap<>();
     private static StateSaver stateSaver;
-    private static List<Identifier> identifiers;
+    private static ArrayList<Identifier> identifiers;
     private static boolean firstType=true;
     private static Identifier id;
     public static final String DIMENSION_ID="dimension_id";
@@ -75,7 +72,9 @@ public class ImportWorld {
     {
         source.sendFeedback(()-> Text.literal("Usage: /importworld <id>"),false);
         source.sendFeedback(()-> Text.literal("Import the world in /imported and give it id of <id>."),false);
-        source.sendFeedback(()-> Text.literal("<id> must end with overworld, and its namespace mustn't be used in other dimensions."),false);
+        source.sendFeedback(()-> Text.literal("Namespace of <id> mustn't be used in other dimensions to prevent collision."),false);
+        source.sendFeedback(()-> Text.literal("If <id> ends with overworld/the_nether/the_end, world would be imported as a vanilla triplet."),false);
+        source.sendFeedback(()-> Text.literal("Otherwise, world would be imported as a singlet and only overworld would be imported."),false);
         source.sendFeedback(()-> Text.literal("Currently only vanilla worlds are supported."),false);
         source.sendFeedback(()-> Text.literal("After importing, restart the whole game to apply changes."),false);
         return Command.SINGLE_SUCCESS;
@@ -143,7 +142,7 @@ public class ImportWorld {
         if(firstType)
         {
             firstType=false;
-            source.sendFeedback(()-> Text.literal("Hello, admin! This command can import a world(currently vanilla only), and although it has been tested, it is still strongly suggested that you backup your save first. Also you need to read the result carefully. Type this command again if you already understand what you are doing."),false);
+            source.sendFeedback(()-> Text.literal("Hello, admin! This command can import a world(currently vanilla only), and although it has been tested, it is still strongly suggested that you backup your save first. Also you need to read the result carefully. Type this command without arguments to see the help. Type this command again if you already understand what you are doing."),false);
             return Command.SINGLE_SUCCESS;
         }
         server=source.getServer();
@@ -172,15 +171,28 @@ public class ImportWorld {
                 return Command.SINGLE_SUCCESS;
             }
         }
-        if(!id.getPath().endsWith(OVERWORLD))
+        for(RegistryKey<DimensionOptions> i:newDimensions.keySet())
         {
-            source.sendFeedback(()-> Text.literal("ERR: Currently you can only input an overworld."),false);
-            return Command.SINGLE_SUCCESS;
+            if(i.getValue().getNamespace().equals(id.getNamespace()))
+            {
+                source.sendFeedback(()-> Text.literal("ERR: Currently we only accept new namespaces, otherwise collision happens."),false);
+                return Command.SINGLE_SUCCESS;
+            }
         }
-        String tmp1=id.getPath().substring(0,id.getPath().length()-OVERWORLD.length());
-        Identifier idNether=Identifier.of(id.getNamespace(),tmp1+NETHER);
-        Identifier idEnd=Identifier.of(id.getNamespace(),tmp1+END);
-        identifiers=Arrays.asList(id,idNether,idEnd);
+        id=Identifier.of(getDimensionId(id.toString()));
+        identifiers=new ArrayList<>();
+        identifiers.add(id);
+        final boolean isSinglet= !id.getPath().endsWith(OVERWORLD);
+        Identifier idNether=null;
+        Identifier idEnd=null;
+        if(!isSinglet)
+        {
+            String tmp1 = id.getPath().substring(0, id.getPath().length() - OVERWORLD.length());
+            idNether = Identifier.of(id.getNamespace(), tmp1 + NETHER);
+            idEnd = Identifier.of(id.getNamespace(), tmp1 + END);
+            identifiers.add(idNether);
+            identifiers.add(idEnd);
+        }
         if(!(path.toFile().exists()&&path.toFile().isDirectory()))
         {
             source.sendFeedback(()-> Text.literal("ERR: A folder with that path does not exist!"),false);
@@ -223,13 +235,16 @@ public class ImportWorld {
         source.sendFeedback(()-> Text.literal("Fetched WorldGenSettings."),false);
         long seed= worldGenSettings.generatorOptions().getSeed();
         stateSaver.seed.put(id,seed);
-        stateSaver.seed.put(idNether,seed);
-        stateSaver.seed.put(idEnd,seed);
+        if(!isSinglet)
+        {
+            stateSaver.seed.put(idNether, seed);
+            stateSaver.seed.put(idEnd, seed);
+        }
         source.sendFeedback(()-> Text.literal("Seed configured."),false);
         try
         {
             EnderDragonFight.Data dragon=EnderDragonFight.Data.CODEC.parse(levelDynamic.get("DragonFight").orElseEmptyMap()).getOrThrow();
-            if(worldGenSettings.dimensionOptionsRegistryHolder().dimensions().get(DimensionOptions.END).dimensionTypeEntry().matchesKey(DimensionTypes.THE_END))
+            if((!isSinglet)&&worldGenSettings.dimensionOptionsRegistryHolder().dimensions().get(DimensionOptions.END).dimensionTypeEntry().matchesKey(DimensionTypes.THE_END))
             {
                 stateSaver.dragonFight.put(idEnd, dragon);
                 source.sendFeedback(() -> Text.literal("Configured dragon fight."), false);
@@ -257,12 +272,21 @@ public class ImportWorld {
                 serverPlayerEntity.readGameModeNbt(nbtCompound);
                 String dimension=nbtCompound.getString("Dimension","minecraft:overworld");
                 dimension=dimension.substring(dimension.indexOf(':')+1);
-                String fakeDimension;
-                if(dimension.equals(END))fakeDimension=idEnd.toString();
-                else if(dimension.equals(NETHER))fakeDimension=idNether.toString();
-                else fakeDimension=id.toString();
-                save(server,serverPlayerEntity,true,fakeDimension);
-                cnt++;
+                String fakeDimension=null;
+                switch (dimension) {
+                    case END -> {
+                        if (!isSinglet) fakeDimension = idEnd.toString();
+                    }
+                    case NETHER -> {
+                        if (!isSinglet) fakeDimension = idNether.toString();
+                    }
+                    case OVERWORLD -> fakeDimension = id.toString();
+                }
+                if(fakeDimension!=null)
+                {
+                    save(server,serverPlayerEntity,true,fakeDimension);
+                    cnt++;
+                }
             }
             int finalCnt = cnt;
             source.sendFeedback(()-> Text.literal("Fetched "+ finalCnt +" player data."),false);
@@ -281,12 +305,15 @@ public class ImportWorld {
             deleteFolder(target);
             target.toFile().mkdirs();
             Path targetOverworld=target.resolve(id.getPath());
-            Path targetNether=target.resolve(idNether.getPath());
-            Path targetEnd=target.resolve(idEnd.getPath());
-            Path sourceNether=path.resolve("DIM-1");
-            Path sourceEnd=path.resolve("DIM1");
-            copyFolder(sourceNether,targetNether);
-            copyFolder(sourceEnd,targetEnd);
+            if(!isSinglet)
+            {
+                Path targetNether=target.resolve(idNether.getPath());
+                Path targetEnd=target.resolve(idEnd.getPath());
+                Path sourceNether=path.resolve("DIM-1");
+                Path sourceEnd=path.resolve("DIM1");
+                copyFolder(sourceNether,targetNether);
+                copyFolder(sourceEnd,targetEnd);
+            }
             targetOverworld.toFile().mkdirs();
             copyFolder(path.resolve(DATA),targetOverworld.resolve(DATA));
             copyFolder(path.resolve(POI),targetOverworld.resolve(POI));
@@ -303,12 +330,14 @@ public class ImportWorld {
         }
         for(Map.Entry<RegistryKey<DimensionOptions>,DimensionOptions> entry:worldGenSettings.dimensionOptionsRegistryHolder().dimensions().entrySet())
         {
-            RegistryKey<DimensionOptions> registryKey;
+            RegistryKey<DimensionOptions> registryKey=null;
             String imported=entry.getKey().getValue().getPath();
-            if(imported.equals(OVERWORLD))registryKey=RegistryKey.of(RegistryKeys.DIMENSION,id);
-            else if(imported.equals(NETHER))registryKey=RegistryKey.of(RegistryKeys.DIMENSION,idNether);
-            else registryKey=RegistryKey.of(RegistryKeys.DIMENSION,idEnd);
-            newDimensions.put(registryKey,entry.getValue());
+            switch (imported) {
+                case OVERWORLD -> registryKey = RegistryKey.of(RegistryKeys.DIMENSION, id);
+                case NETHER -> {if(!isSinglet)registryKey = RegistryKey.of(RegistryKeys.DIMENSION, idNether);}
+                case END -> {if(!isSinglet)registryKey = RegistryKey.of(RegistryKeys.DIMENSION, idEnd);}
+            }
+            if(registryKey!=null)newDimensions.put(registryKey,entry.getValue());
         }
         source.sendFeedback(()-> Text.literal("Dimension options stored."),false);
         source.sendFeedback(()-> Text.literal("Now you can restart to apply all changes."),false);
