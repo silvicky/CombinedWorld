@@ -6,6 +6,7 @@
     "AbstractFireBlockMixin",
     "EndPortalBlockMixin",
     "NetherPortalBlockMixin",
+    "PersistentStateManagerMixin",
     "SaveLoadingMixin",
     "ServerWorldMixin",
     "WorldGenSettingsMixin"
