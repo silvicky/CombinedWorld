@@ -85,10 +85,19 @@ public class StateSaver extends PersistentState {
             this.gamemode = gamemode;
         }
         public static final Codec<Pair<ItemStack,Byte>> SLOT_CODEC=Codec.pair(ItemStack.CODEC.orElse(null),Codec.BYTE.fieldOf("Slot").codec());
-        private static <A,B> ArrayList<Pair<A,B>> listToArrayList(List<Pair<A,B>> src)
+        public static boolean isNonNull(Object o)
         {
-            ArrayList<Pair<A,B>> ret=new ArrayList<>();
-            for(Pair<A,B> i:src)if(i!=null&&i.getFirst()!=null&&i.getSecond()!=null)ret.add(i);
+            if(o==null)return false;
+            if(o instanceof Pair)
+            {
+                return isNonNull(((Pair<?, ?>) o).getFirst())&&isNonNull(((Pair<?, ?>) o).getSecond());
+            }
+            return true;
+        }
+        public static <T> ArrayList<T> listToArrayList(List<T> src)
+        {
+            ArrayList<T> ret=new ArrayList<>();
+            for(T i:src)if(isNonNull(i))ret.add(i);
             return ret;
         }
         public static final Codec<StorageInfo> CODEC= RecordCodecBuilder.create((instance) ->
