@@ -13,6 +13,7 @@ import net.minecraft.world.PersistentStateType;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
@@ -22,6 +23,13 @@ import static io.silvicky.item.StateSaver.*;
 @Mixin(PersistentStateManager.class)
 public abstract class PersistentStateManagerMixin {
     @Shadow @Final private DataFixer dataFixer;
+    @Unique
+    private static byte playerEquipmentSlotFix(byte i)
+    {
+        if(i==-106)return 40;
+        if(i<36)return i;
+        return (byte) (i-64);
+    }
     @Inject(method = "readFromFile",at= @At(value = "INVOKE", target = "Lnet/minecraft/registry/RegistryWrapper$WrapperLookup;getOps(Lcom/mojang/serialization/DynamicOps;)Lnet/minecraft/registry/RegistryOps;",shift = At.Shift.AFTER))
     public <T extends PersistentState> void inject1(PersistentStateType<T> type, CallbackInfoReturnable<T> cir, @Local NbtCompound nbtCompound)
     {
@@ -60,7 +68,7 @@ public abstract class PersistentStateManagerMixin {
                         byte slot= item.getByte(SLOT).get();
                         item.remove(SLOT);
                         item=(NbtCompound) dataFixer.update(TypeReferences.ITEM_STACK,new Dynamic<>(NbtOps.INSTANCE, item),lastVersion,currentVersion).getValue();
-                        item.putByte(SLOT,slot);
+                        item.putByte(SLOT,playerEquipmentSlotFix(slot));
                         newInventory.add(item);
                     }
                     savedDat.put(INVENTORY,newInventory);
