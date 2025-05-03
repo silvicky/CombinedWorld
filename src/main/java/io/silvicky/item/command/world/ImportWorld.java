@@ -1,4 +1,4 @@
-package io.silvicky.item.command;
+package io.silvicky.item.command.world;
 
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.Command;

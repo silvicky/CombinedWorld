@@ -1,4 +1,4 @@
-package io.silvicky.item.command;
+package io.silvicky.item.command.list;
 
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static io.silvicky.item.InventoryManager.DIMENSION;
-import static io.silvicky.item.command.ListWorldPlayers.listToString;
+import static io.silvicky.item.command.list.ListWorldPlayers.listToString;
 import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
 

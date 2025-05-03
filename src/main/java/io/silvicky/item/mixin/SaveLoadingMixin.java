@@ -1,6 +1,6 @@
 package io.silvicky.item.mixin;
 
-import io.silvicky.item.command.ImportWorld;
+import io.silvicky.item.command.world.ImportWorld;
 import net.minecraft.registry.DynamicRegistryManager;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.resource.DataConfiguration;

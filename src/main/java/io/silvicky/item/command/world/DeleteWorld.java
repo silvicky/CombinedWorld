@@ -1,4 +1,4 @@
-package io.silvicky.item.command;
+package io.silvicky.item.command.world;
 
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
@@ -18,9 +18,9 @@ import java.util.Iterator;
 import java.util.List;
 
 import static io.silvicky.item.InventoryManager.*;
-import static io.silvicky.item.command.ImportWorld.*;
-import static io.silvicky.item.command.ListWorldPlayers.getListOfPlayers;
-import static io.silvicky.item.command.ListWorldPlayers.listToString;
+import static io.silvicky.item.command.world.ImportWorld.*;
+import static io.silvicky.item.command.list.ListWorldPlayers.getListOfPlayers;
+import static io.silvicky.item.command.list.ListWorldPlayers.listToString;
 import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
 public class DeleteWorld {
@@ -152,7 +152,7 @@ public class DeleteWorld {
                 Path targetEnd=target.resolve(idEnd.getPath());
                 deleteFolder(targetNether);
                 deleteFolder(targetEnd);
-            };
+            }
             target.toFile().delete();
             source.sendFeedback(()-> Text.literal("Deleted save files."),false);
         }

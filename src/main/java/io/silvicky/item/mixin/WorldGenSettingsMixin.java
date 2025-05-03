@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 import java.util.HashMap;
 import java.util.Map;
 
-import static io.silvicky.item.command.ImportWorld.*;
+import static io.silvicky.item.command.world.ImportWorld.*;
 
 @Mixin(WorldGenSettings.class)
 public class WorldGenSettingsMixin {

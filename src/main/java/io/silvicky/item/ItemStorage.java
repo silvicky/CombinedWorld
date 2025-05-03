@@ -2,6 +2,11 @@ package io.silvicky.item;
 
 import io.silvicky.item.cfg.JSONConfig;
 import io.silvicky.item.command.*;
+import io.silvicky.item.command.list.ListDimensionPlayers;
+import io.silvicky.item.command.list.ListGroupPlayers;
+import io.silvicky.item.command.list.ListWorldPlayers;
+import io.silvicky.item.command.world.DeleteWorld;
+import io.silvicky.item.command.world.ImportWorld;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
