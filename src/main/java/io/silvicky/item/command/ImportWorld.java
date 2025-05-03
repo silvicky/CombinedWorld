@@ -146,6 +146,14 @@ public class ImportWorld {
                 return Command.SINGLE_SUCCESS;
             }
         }
+        for(RegistryKey<DimensionOptions> i:newDimensions.keySet())
+        {
+            if(i.getValue().equals(id))
+            {
+                source.sendFeedback(()-> Text.literal("ERR: A dimension with such ID already exists!"),false);
+                return Command.SINGLE_SUCCESS;
+            }
+        }
         for(ServerWorld i:server.getWorlds())
         {
             if(i.getRegistryKey().getValue().getNamespace().equals(id.getNamespace()))
