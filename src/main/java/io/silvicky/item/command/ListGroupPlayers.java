@@ -8,9 +8,11 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static io.silvicky.item.InventoryManager.DIMENSION;
+import static io.silvicky.item.command.ListWorldPlayers.listToString;
 import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
 
@@ -31,21 +33,16 @@ public class ListGroupPlayers {
     }
     public static int listPlayers(ServerCommandSource source, ServerWorld dimension)
     {
-        int cnt=0;
-        StringBuilder tot= new StringBuilder();
-        List<ServerPlayerEntity> players=source.getServer().getPlayerManager().getPlayerList();
-        for(ServerPlayerEntity player:players)
+        List<String> players=new ArrayList<>();
+        for(ServerPlayerEntity player:source.getServer().getPlayerManager().getPlayerList())
         {
             if(player.
                     getServerWorld().getRegistryKey().getValue().getNamespace().equals(dimension.getRegistryKey().getValue().getNamespace()))
             {
-                cnt++;
-                if(cnt!=1)tot.append(", ");
-                tot.append(player.getName().getString());
+                players.add(player.getName().getString());
             }
         }
-        int finalCnt = cnt;
-        source.sendFeedback(()-> Text.literal("There are now "+ finalCnt +" players in "+dimension.getRegistryKey().getValue().getNamespace()+" : "+tot),false);
+        source.sendFeedback(()-> Text.literal("There are now "+ players.size() +" players in "+dimension.getRegistryKey().getValue().getNamespace()+" : "+listToString(players)),false);
         return Command.SINGLE_SUCCESS;
     }
 }

@@ -49,6 +49,7 @@ import static net.minecraft.server.command.CommandManager.literal;
 public class ImportWorld {
     public static RegistryWrapper.WrapperLookup wrapper;
     public static HashMap<RegistryKey<DimensionOptions>,DimensionOptions> newDimensions=new HashMap<>();
+    public static HashSet<RegistryKey<DimensionOptions>> deletedDimensions=new HashSet<>();
     private static StateSaver stateSaver;
     private static ArrayList<Identifier> identifiers;
     private static boolean firstType=true;
@@ -66,7 +67,7 @@ public class ImportWorld {
                         .requires(source -> source.hasPermissionLevel(4))
                                 .executes(context->help(context.getSource()))
                                         .then(argument(DIMENSION_ID, IdentifierArgumentType.identifier())
-                                                .executes(context -> {id=IdentifierArgumentType.getIdentifier(context,DIMENSION_ID);return importWorld(context.getSource(), Paths.get(FabricLoader.getInstance().getGameDir().toString(),"imported"));})));
+                                                .executes(context -> importWorld(context.getSource(), Paths.get(FabricLoader.getInstance().getGameDir().toString(),"imported"),IdentifierArgumentType.getIdentifier(context,DIMENSION_ID)))));
     }
     private static int help(ServerCommandSource source)
     {
@@ -137,7 +138,7 @@ public class ImportWorld {
         newDimensions.entrySet().removeIf(entry -> identifiers.contains(entry.getKey().getValue()));
         rollbackWorld();
     }
-    public static int importWorld(ServerCommandSource source, Path path)
+    public static int importWorld(ServerCommandSource source, Path path, Identifier idTmp)
     {
         if(firstType)
         {
@@ -147,6 +148,7 @@ public class ImportWorld {
         }
         server=source.getServer();
         stateSaver=StateSaver.getServerState(server);
+        id=Identifier.of(getDimensionId(idTmp.toString()));
         for(ServerWorld i:server.getWorlds())
         {
             if(i.getRegistryKey().getValue().equals(id))
@@ -179,7 +181,6 @@ public class ImportWorld {
                 return Command.SINGLE_SUCCESS;
             }
         }
-        id=Identifier.of(getDimensionId(id.toString()));
         identifiers=new ArrayList<>();
         identifiers.add(id);
         final boolean isSinglet= !id.getPath().endsWith(OVERWORLD);
