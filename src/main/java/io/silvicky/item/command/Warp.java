@@ -27,8 +27,16 @@ public class Warp {
     {
         dispatcher.register(
                 literal("warp")
-                        .then(argument(DIMENSION, DimensionArgumentType.dimension())
-                            .executes(context -> warp(context.getSource(),DimensionArgumentType.getDimensionArgument(context,DIMENSION)))));
+                        .executes(context->help(context.getSource()))
+                                .then(argument(DIMENSION, DimensionArgumentType.dimension())
+                                        .executes(context -> warp(context.getSource(),DimensionArgumentType.getDimensionArgument(context,DIMENSION)))));
+    }
+    private static int help(ServerCommandSource source)
+    {
+        source.sendFeedback(()-> Text.literal("Usage: /warp <dimension>"),false);
+        source.sendFeedback(()-> Text.literal("Go to that world."),false);
+        source.sendFeedback(()-> Text.literal("Only works when executed by a player."),false);
+        return Command.SINGLE_SUCCESS;
     }
     public static int warp(ServerCommandSource source, ServerWorld dimension) throws CommandSyntaxException {
         ServerPlayerEntity player=source.getPlayer();

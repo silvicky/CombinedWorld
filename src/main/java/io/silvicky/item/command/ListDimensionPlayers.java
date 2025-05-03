@@ -19,8 +19,15 @@ public class ListDimensionPlayers {
     {
         dispatcher.register(
                 literal("listdimensionplayers")
-                        .then(argument(DIMENSION, DimensionArgumentType.dimension())
-                                .executes(context -> listPlayers(context.getSource(),DimensionArgumentType.getDimensionArgument(context,DIMENSION)))));
+                        .executes(context->help(context.getSource()))
+                                .then(argument(DIMENSION, DimensionArgumentType.dimension())
+                                        .executes(context -> listPlayers(context.getSource(),DimensionArgumentType.getDimensionArgument(context,DIMENSION)))));
+    }
+    private static int help(ServerCommandSource source)
+    {
+        source.sendFeedback(()-> Text.literal("Usage: /listdimensionplayers <dimension>"),false);
+        source.sendFeedback(()-> Text.literal("Get players in that dimension."),false);
+        return Command.SINGLE_SUCCESS;
     }
     public static int listPlayers(ServerCommandSource source, ServerWorld dimension)
     {

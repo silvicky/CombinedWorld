@@ -66,9 +66,19 @@ public class ImportWorld {
     {
         dispatcher.register(
                 literal("importworld")
-                        .then(argument(DIMENSION_ID, IdentifierArgumentType.identifier())
-                                .requires(source -> source.hasPermissionLevel(4))
-                                        .executes(context -> {id=IdentifierArgumentType.getIdentifier(context,DIMENSION_ID);return importWorld(context.getSource(), Paths.get(FabricLoader.getInstance().getGameDir().toString(),"imported"));})));
+                        .requires(source -> source.hasPermissionLevel(4))
+                                .executes(context->help(context.getSource()))
+                                        .then(argument(DIMENSION_ID, IdentifierArgumentType.identifier())
+                                                .executes(context -> {id=IdentifierArgumentType.getIdentifier(context,DIMENSION_ID);return importWorld(context.getSource(), Paths.get(FabricLoader.getInstance().getGameDir().toString(),"imported"));})));
+    }
+    private static int help(ServerCommandSource source)
+    {
+        source.sendFeedback(()-> Text.literal("Usage: /importworld <id>"),false);
+        source.sendFeedback(()-> Text.literal("Import the world in /imported and give it id of <id>."),false);
+        source.sendFeedback(()-> Text.literal("<id> must end with overworld, and its namespace mustn't be used in other dimensions."),false);
+        source.sendFeedback(()-> Text.literal("Currently only vanilla worlds are supported."),false);
+        source.sendFeedback(()-> Text.literal("After importing, restart the whole game to apply changes."),false);
+        return Command.SINGLE_SUCCESS;
     }
     private static void rollbackSeed()
     {
