@@ -3,6 +3,7 @@ package io.silvicky.item;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.datafixer.DataFixTypes;
 import net.minecraft.entity.boss.dragon.EnderDragonFight;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
@@ -16,6 +17,7 @@ import net.minecraft.world.World;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Objects;
 
 import static io.silvicky.item.InventoryManager.DIMENSION;
@@ -44,7 +46,7 @@ public class StateSaver extends PersistentState {
             ItemStorage.MOD_ID,
             StateSaver::new,
             CODEC,
-            null
+            DataFixTypes.PLAYER
     );
 
     public static StateSaver getServerState(MinecraftServer server) {
@@ -82,15 +84,20 @@ public class StateSaver extends PersistentState {
             this.air = air;
             this.gamemode = gamemode;
         }
-        public static final Codec<Pair<ItemStack,Byte>> SLOT_CODEC=Codec.pair(ItemStack.CODEC,Codec.BYTE.fieldOf("Slot").codec());
-
+        public static final Codec<Pair<ItemStack,Byte>> SLOT_CODEC=Codec.pair(ItemStack.CODEC.orElse(null),Codec.BYTE.fieldOf("Slot").codec());
+        private static <A,B> ArrayList<Pair<A,B>> listToArrayList(List<Pair<A,B>> src)
+        {
+            ArrayList<Pair<A,B>> ret=new ArrayList<>();
+            for(Pair<A,B> i:src)if(i!=null&&i.getFirst()!=null&&i.getSecond()!=null)ret.add(i);
+            return ret;
+        }
         public static final Codec<StorageInfo> CODEC= RecordCodecBuilder.create((instance) ->
                 instance.group
                         (
                                 Codec.STRING.fieldOf(PLAYER).forGetter((info)->info.player),
                                 Codec.STRING.fieldOf(DIMENSION).forGetter((info)->info.dimension),
-                                SLOT_CODEC.listOf().xmap(ArrayList::new, list->list).fieldOf("inventory").orElse(new ArrayList<>()).forGetter((info)->info.inventory),
-                                SLOT_CODEC.listOf().xmap(ArrayList::new, list->list).fieldOf("ender").orElse(new ArrayList<>()).forGetter((info)->info.ender),
+                                SLOT_CODEC.listOf().xmap(StorageInfo::listToArrayList, list->list).fieldOf("inventory").orElse(new ArrayList<>()).forGetter((info)->info.inventory),
+                                SLOT_CODEC.listOf().xmap(StorageInfo::listToArrayList, list->list).fieldOf("ender").orElse(new ArrayList<>()).forGetter((info)->info.ender),
                                 Codec.INT.fieldOf("xp").orElse(0).forGetter((info)->info.xp),
                                 Codec.FLOAT.fieldOf("hp").orElse(20f).forGetter((info)->info.hp),
                                 Codec.INT.fieldOf("food").orElse(20).forGetter((info)->info.food),
