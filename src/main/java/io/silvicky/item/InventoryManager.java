@@ -60,7 +60,7 @@ public class InventoryManager {
     }
     public static void savePos(ServerPlayerEntity player, StateSaver stateSaver, String fakeDimension)
     {
-        stateSaver.posList.add(new PositionInfo
+        stateSaver.posList.add(new StateSaver.PositionInfo
                 (
                         player.getUuidAsString(),
                         getDimensionId(fakeDimension),
@@ -118,7 +118,7 @@ public class InventoryManager {
     }
     public static void saveInventory(ServerPlayerEntity player,StateSaver stateSaver,boolean tmp,String fakeDimension)
     {
-        stateSaver.nbtList.add(new StorageInfo
+        stateSaver.nbtList.add(new StateSaver.StorageInfo
                 (
                         player.getUuidAsString(),
                         fakeDimension.substring(0,fakeDimension.indexOf(':')),
@@ -143,11 +143,11 @@ public class InventoryManager {
     }
     public static void loadPos(MinecraftServer server,ServerPlayerEntity player,ServerWorld targetDimension,StateSaver stateSaver) throws CommandSyntaxException {
         targetDimension=toOverworld(server,targetDimension);
-        Iterator<PositionInfo> iterator=stateSaver.posList.iterator();
-        PositionInfo n=null;
+        Iterator<StateSaver.PositionInfo> iterator=stateSaver.posList.iterator();
+        StateSaver.PositionInfo n=null;
         while (iterator.hasNext())
         {
-            PositionInfo nt=iterator.next();
+            StateSaver.PositionInfo nt=iterator.next();
             if(!(nt.player.equals(player.getUuidAsString())&&nt.dimension.equals(getDimensionId(targetDimension))))continue;
             iterator.remove();
             LOGGER.info("Fetched position data!");
@@ -183,11 +183,11 @@ public class InventoryManager {
         }
     }
     public static void loadInventory(ServerPlayerEntity player,ServerWorld targetDimension,StateSaver stateSaver) throws CommandSyntaxException {
-        Iterator<StorageInfo> iterator=stateSaver.nbtList.iterator();
-        StorageInfo n=null;
+        Iterator<StateSaver.StorageInfo> iterator=stateSaver.nbtList.iterator();
+        StateSaver.StorageInfo n=null;
         while (iterator.hasNext())
         {
-            StorageInfo nt=iterator.next();
+            StateSaver.StorageInfo nt=iterator.next();
             if(!(nt.player.equals(player.getUuidAsString())
                     &&nt.dimension.equals(targetDimension.getRegistryKey().getValue().getNamespace())))
                     continue;
