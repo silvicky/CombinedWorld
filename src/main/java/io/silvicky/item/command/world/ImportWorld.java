@@ -329,7 +329,7 @@ public class ImportWorld {
         }
         source.sendFeedback(()-> Text.literal("Dimension options stored."),false);
         source.sendFeedback(()-> Text.literal("Now you can restart to apply all changes."),false);
-        source.sendFeedback(()-> Text.literal("If you are on an integrated server(client) DO NOT ENTER THIS WORLD AGAIN BEFORE RESTARTING YOUR GAME OR YOUR SAVE WOULD BE DESTROYED!!!"),false);
+        if(!source.getServer().isDedicated())source.sendFeedback(()-> Text.literal("DO NOT ENTER THIS WORLD AGAIN BEFORE RESTARTING YOUR GAME OR YOUR SAVE WOULD BE DESTROYED!!!"),false);
         return Command.SINGLE_SUCCESS;
     }
 }
