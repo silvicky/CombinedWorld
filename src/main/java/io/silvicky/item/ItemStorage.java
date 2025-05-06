@@ -1,11 +1,13 @@
 package io.silvicky.item;
 
 import io.silvicky.item.cfg.JSONConfig;
-import io.silvicky.item.command.*;
 import io.silvicky.item.command.list.ListDimensionPlayers;
 import io.silvicky.item.command.list.ListGroupPlayers;
 import io.silvicky.item.command.list.ListWorldPlayers;
+import io.silvicky.item.command.warp.Warp;
+import io.silvicky.item.command.warp.WarpTp;
 import io.silvicky.item.command.world.DeleteWorld;
+import io.silvicky.item.command.world.ExportWorld;
 import io.silvicky.item.command.world.ImportWorld;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -32,6 +34,8 @@ public class ItemStorage implements ModInitializer {
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> ListGroupPlayers.register(dispatcher));
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> ImportWorld.register(dispatcher));
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> DeleteWorld.register(dispatcher));
+		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> ExportWorld.register(dispatcher));
+		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> WarpTp.register(dispatcher));
 		ServerPlayerEvents.AFTER_RESPAWN.register(OnRespawn::respawn);
 	}
 }

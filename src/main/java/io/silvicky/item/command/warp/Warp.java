@@ -1,4 +1,4 @@
-package io.silvicky.item.command;
+package io.silvicky.item.command.warp;
 
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
@@ -22,6 +22,8 @@ import static net.minecraft.server.command.CommandManager.literal;
 public class Warp {
     public static final SimpleCommandExceptionType ERR_DIMENSION_NOT_FOUND=new SimpleCommandExceptionType(new LiteralMessage("Target dimension NOT FOUND!"));
     public static final SimpleCommandExceptionType ERR_ITEM=new SimpleCommandExceptionType(new LiteralMessage("Item stack error(from version change, contact your admin)!"));
+    public static final SimpleCommandExceptionType ERR_NOT_BY_PLAYER=new SimpleCommandExceptionType(new LiteralMessage("This command must be executed by a player."));
+    public static final SimpleCommandExceptionType ERR_NOT_ONE_PLAYER=new SimpleCommandExceptionType(new LiteralMessage("Amount of player selected must be exactly one."));
 
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher)
     {
@@ -29,7 +31,7 @@ public class Warp {
                 literal("warp")
                         .executes(context->help(context.getSource()))
                                 .then(argument(DIMENSION, DimensionArgumentType.dimension())
-                                        .executes(context -> warp(context.getSource(),DimensionArgumentType.getDimensionArgument(context,DIMENSION)))));
+                                        .executes(context -> warp(context.getSource(),context.getSource().getPlayer(),DimensionArgumentType.getDimensionArgument(context,DIMENSION)))));
     }
     private static int help(ServerCommandSource source)
     {
@@ -38,13 +40,9 @@ public class Warp {
         source.sendFeedback(()-> Text.literal("Only works when executed by a player."),false);
         return Command.SINGLE_SUCCESS;
     }
-    public static int warp(ServerCommandSource source, ServerWorld dimension) throws CommandSyntaxException {
-        ServerPlayerEntity player=source.getPlayer();
-        if(player==null)
-        {
-            source.sendFeedback(()->Text.literal("This command must be executed by a player."),false);
-            return Command.SINGLE_SUCCESS;
-        }
+    public static int warp(ServerCommandSource source, ServerPlayerEntity player, ServerWorld dimension) throws CommandSyntaxException
+    {
+        if(player==null) throw ERR_NOT_BY_PLAYER.create();
         if(!getDimensionId(dimension).equals(getDimensionId(source.getWorld())))
         {
             LOGGER.info(Objects.requireNonNull(source.getPlayer()).getName().getString()+" goes to "+getDimensionId(dimension));

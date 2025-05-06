@@ -45,6 +45,18 @@ public class DeleteWorld {
         source.sendFeedback(()-> Text.literal("During the second stage, actual change would be done and no restart is needed."),false);
         return Command.SINGLE_SUCCESS;
     }
+    public static boolean notifyEvacuation(ServerCommandSource source, Identifier id)
+    {
+        List<String> players=getListOfPlayers(source.getServer(), id.toString());
+        if(!players.isEmpty())
+        {
+            source.sendFeedback(()-> Text.literal("Some players are still in that world:"),false);
+            source.sendFeedback(()-> Text.literal(listToString(players)),false);
+            source.sendFeedback(()-> Text.literal("Please evacuate them, otherwise undefined behavior might be observed."),false);
+            return true;
+        }
+        else return false;
+    }
     public static int deleteWorld(ServerCommandSource source,Identifier idTmp)
     {
         if(firstType)
@@ -69,14 +81,7 @@ public class DeleteWorld {
             idEnd = Identifier.of(id.getNamespace(), tmp1 + END);
         }
         MinecraftServer server=source.getServer();
-        List<String> players=getListOfPlayers(server, id.toString());
-        if(!players.isEmpty())
-        {
-            source.sendFeedback(()-> Text.literal("Some players are still in that world:"),false);
-            source.sendFeedback(()-> Text.literal(listToString(players)),false);
-            source.sendFeedback(()-> Text.literal("Please evacuate them, otherwise undefined behavior might be observed."),false);
-            return Command.SINGLE_SUCCESS;
-        }
+        if(notifyEvacuation(source,id)) return Command.SINGLE_SUCCESS;
         stateSaver=StateSaver.getServerState(server);
         if(server.getWorld(RegistryKey.of(RegistryKeys.WORLD,id))!=null)
         {
