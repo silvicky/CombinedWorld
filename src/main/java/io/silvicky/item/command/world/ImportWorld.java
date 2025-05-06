@@ -3,6 +3,9 @@ package io.silvicky.item.command.world;
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.LiteralMessage;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import com.mojang.serialization.Dynamic;
 import io.silvicky.item.StateSaver;
 import net.fabricmc.loader.api.FabricLoader;
@@ -60,6 +63,14 @@ public class ImportWorld {
     public static final String REGION="region";
     public static final String ENTITIES="entities";
     private static MinecraftServer server;
+    public static final SimpleCommandExceptionType ERR_DIMENSION_EXIST=new SimpleCommandExceptionType(new LiteralMessage("A dimension with such ID already exists!"));
+    public static final SimpleCommandExceptionType ERR_NAMESPACE_EXIST=new SimpleCommandExceptionType(new LiteralMessage("Currently we only accept new namespaces, otherwise collision happens."));
+    public static final SimpleCommandExceptionType ERR_FOLDER_NOT_EXIST=new SimpleCommandExceptionType(new LiteralMessage("A folder with that path does not exist!"));
+    public static final SimpleCommandExceptionType ERR_LEVEL_NOT_EXIST=new SimpleCommandExceptionType(new LiteralMessage("No level.dat was found!"));
+    public static final SimpleCommandExceptionType ERR_FAIL_TO_READ_LEVEL=new SimpleCommandExceptionType(new LiteralMessage("Failed to read level.dat!"));
+    public static final SimpleCommandExceptionType ERR_WORLD_GEN=new SimpleCommandExceptionType(new LiteralMessage("Failed to fetch WorldGenSettings!"));
+    public static final SimpleCommandExceptionType ERR_PLAYER=new SimpleCommandExceptionType(new LiteralMessage("Failed to fetch player data!"));
+    public static final SimpleCommandExceptionType ERR_SAVE=new SimpleCommandExceptionType(new LiteralMessage("Failed to copy save files!"));
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher)
     {
         dispatcher.register(
@@ -138,7 +149,7 @@ public class ImportWorld {
         newDimensions.entrySet().removeIf(entry -> identifiers.contains(entry.getKey().getValue()));
         rollbackWorld();
     }
-    public static int importWorld(ServerCommandSource source, Path path, Identifier idTmp)
+    public static int importWorld(ServerCommandSource source, Path path, Identifier idTmp) throws CommandSyntaxException
     {
         if(firstType)
         {
@@ -151,35 +162,19 @@ public class ImportWorld {
         id=Identifier.of(getDimensionId(idTmp.toString()));
         for(ServerWorld i:server.getWorlds())
         {
-            if(i.getRegistryKey().getValue().equals(id))
-            {
-                source.sendFeedback(()-> Text.literal("ERR: A dimension with such ID already exists!"),false);
-                return Command.SINGLE_SUCCESS;
-            }
+            if(i.getRegistryKey().getValue().equals(id)) throw ERR_DIMENSION_EXIST.create();
         }
         for(RegistryKey<DimensionOptions> i:newDimensions.keySet())
         {
-            if(i.getValue().equals(id))
-            {
-                source.sendFeedback(()-> Text.literal("ERR: A dimension with such ID already exists!"),false);
-                return Command.SINGLE_SUCCESS;
-            }
+            if(i.getValue().equals(id)) throw ERR_DIMENSION_EXIST.create();
         }
         for(ServerWorld i:server.getWorlds())
         {
-            if(i.getRegistryKey().getValue().getNamespace().equals(id.getNamespace()))
-            {
-                source.sendFeedback(()-> Text.literal("ERR: Currently we only accept new namespaces, otherwise collision happens."),false);
-                return Command.SINGLE_SUCCESS;
-            }
+            if(i.getRegistryKey().getValue().getNamespace().equals(id.getNamespace())) throw ERR_NAMESPACE_EXIST.create();
         }
         for(RegistryKey<DimensionOptions> i:newDimensions.keySet())
         {
-            if(i.getValue().getNamespace().equals(id.getNamespace()))
-            {
-                source.sendFeedback(()-> Text.literal("ERR: Currently we only accept new namespaces, otherwise collision happens."),false);
-                return Command.SINGLE_SUCCESS;
-            }
+            if(i.getValue().getNamespace().equals(id.getNamespace())) throw ERR_NAMESPACE_EXIST.create();
         }
         identifiers=new ArrayList<>();
         identifiers.add(id);
@@ -194,11 +189,7 @@ public class ImportWorld {
             identifiers.add(idNether);
             identifiers.add(idEnd);
         }
-        if(!(path.toFile().exists()&&path.toFile().isDirectory()))
-        {
-            source.sendFeedback(()-> Text.literal("ERR: A folder with that path does not exist!"),false);
-            return Command.SINGLE_SUCCESS;
-        }
+        if(!(path.toFile().exists()&&path.toFile().isDirectory())) throw ERR_FOLDER_NOT_EXIST.create();
         Path levelDat=null;
         for(File i:path.toFile().listFiles())
         {
@@ -208,18 +199,13 @@ public class ImportWorld {
                 break;
             }
         }
-        if(levelDat==null)
-        {
-            source.sendFeedback(()-> Text.literal("ERR: No level.dat was found!"),false);
-            return Command.SINGLE_SUCCESS;
-        }
+        if(levelDat==null) throw ERR_LEVEL_NOT_EXIST.create();
         Dynamic<?> levelDynamic;
         try{levelDynamic= LevelStorage.readLevelProperties(levelDat, Schemas.getFixer());}
         catch(Exception e)
         {
             e.printStackTrace();
-            source.sendFeedback(()-> Text.literal("ERR: Failed to read level.dat!"),false);
-            return Command.SINGLE_SUCCESS;
+            throw ERR_FAIL_TO_READ_LEVEL.create();
         }
         WorldGenSettings worldGenSettings;
         try
@@ -230,8 +216,7 @@ public class ImportWorld {
         catch(Exception e)
         {
             e.printStackTrace();
-            source.sendFeedback(()-> Text.literal("ERR: Failed to fetch WorldGenSettings!"),false);
-            return Command.SINGLE_SUCCESS;
+            throw ERR_WORLD_GEN.create();
         }
         source.sendFeedback(()-> Text.literal("Fetched WorldGenSettings."),false);
         long seed= worldGenSettings.generatorOptions().getSeed();
@@ -295,9 +280,8 @@ public class ImportWorld {
         catch(Exception e)
         {
             e.printStackTrace();
-            source.sendFeedback(()-> Text.literal("ERR: Failed to fetch player data!"),false);
             rollbackPlayer();
-            return Command.SINGLE_SUCCESS;
+            throw ERR_PLAYER.create();
         }
         source.sendFeedback(()-> Text.literal("We're'bout to copy the save files, you can go to have a rest now..."),false);
         try
@@ -325,9 +309,8 @@ public class ImportWorld {
         catch(Exception e)
         {
             e.printStackTrace();
-            source.sendFeedback(()-> Text.literal("ERR: Failed to copy save files!"),false);
             rollbackWorld();
-            return Command.SINGLE_SUCCESS;
+            throw ERR_SAVE.create();
         }
         for(Map.Entry<RegistryKey<DimensionOptions>,DimensionOptions> entry:worldGenSettings.dimensionOptionsRegistryHolder().dimensions().entrySet())
         {
