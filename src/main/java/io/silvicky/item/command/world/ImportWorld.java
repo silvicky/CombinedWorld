@@ -4,6 +4,7 @@ import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.LiteralMessage;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import com.mojang.serialization.Dynamic;
@@ -58,6 +59,7 @@ public class ImportWorld {
     private static boolean firstType=true;
     private static Identifier id;
     public static final String DIMENSION_ID="dimension_id";
+    public static final String DIMENSION_PATH="path";
     public static final String DATA="data";
     public static final String POI="poi";
     public static final String REGION="region";
@@ -76,14 +78,16 @@ public class ImportWorld {
         dispatcher.register(
                 literal("importworld")
                         .requires(source -> source.hasPermissionLevel(4))
-                                .executes(context->help(context.getSource()))
-                                        .then(argument(DIMENSION_ID, IdentifierArgumentType.identifier())
-                                                .executes(context -> importWorld(context.getSource(), Paths.get(FabricLoader.getInstance().getGameDir().toString(),"imported"),IdentifierArgumentType.getIdentifier(context,DIMENSION_ID)))));
+                        .executes(context->help(context.getSource()))
+                        .then(argument(DIMENSION_ID, IdentifierArgumentType.identifier())
+                                .executes(context -> importWorld(context.getSource(), Paths.get(FabricLoader.getInstance().getGameDir().toString(),"imported"),IdentifierArgumentType.getIdentifier(context,DIMENSION_ID)))
+                                .then(argument(DIMENSION_PATH, StringArgumentType.greedyString())
+                                        .executes(context -> importWorld(context.getSource(), Paths.get(StringArgumentType.getString(context,DIMENSION_PATH)) ,IdentifierArgumentType.getIdentifier(context,DIMENSION_ID))))));
     }
     private static int help(ServerCommandSource source)
     {
-        source.sendFeedback(()-> Text.literal("Usage: /importworld <id>"),false);
-        source.sendFeedback(()-> Text.literal("Import the world in /imported and give it id of <id>."),false);
+        source.sendFeedback(()-> Text.literal("Usage: /importworld <id> [<path>]"),false);
+        source.sendFeedback(()-> Text.literal("Import the world in <path>(default <game_root>/imported) and give it id of <id>."),false);
         source.sendFeedback(()-> Text.literal("Namespace of <id> mustn't be used in other dimensions to prevent collision."),false);
         source.sendFeedback(()-> Text.literal("If <id> ends with overworld/the_nether/the_end, world would be imported as a vanilla triplet."),false);
         source.sendFeedback(()-> Text.literal("Otherwise, world would be imported as a singlet and only overworld would be imported."),false);
