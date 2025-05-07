@@ -27,11 +27,14 @@ public class StateSaver extends PersistentState {
     public final ArrayList<StorageInfo> nbtList;
     public final ArrayList<PositionInfo> posList;
     public final HashMap<Identifier, EnderDragonFight.Data> dragonFight;
+    public final HashMap<Identifier, WarpRestrictionInfo> restrictionInfoHashMap;
     public final HashMap<Identifier, Long> seed;
     public static final String INVENTORY="inventory";
     public static final String SAVED="saved";
     public static final String ENDER="ender";
     public static final String SLOT="Slot";
+    public static final String LEVEL="level";
+    public static final String REASON="reason";
     public static final Codec<StateSaver> CODEC= RecordCodecBuilder.create((instance)->
             instance.group
                     (
@@ -42,10 +45,12 @@ public class StateSaver extends PersistentState {
                         Codec.unboundedMap(Identifier.CODEC, EnderDragonFight.Data.CODEC).xmap(HashMap::new,map->map).fieldOf("dragon").orElse(new HashMap<>()).forGetter((stateSaver ->
                                 stateSaver.dragonFight)),
                         Codec.unboundedMap(Identifier.CODEC, Codec.LONG).xmap(HashMap::new,map->map).fieldOf("seed").orElse(new HashMap<>()).forGetter((stateSaver ->
-                                stateSaver.seed))
+                                stateSaver.seed)),
+                        Codec.unboundedMap(Identifier.CODEC, WarpRestrictionInfo.CODEC).xmap(HashMap::new,map->map).fieldOf("restriction").orElse(new HashMap<>()).forGetter((stateSaver ->
+                                stateSaver.restrictionInfoHashMap))
                     ).apply(instance,StateSaver::new));
-    public StateSaver(ArrayList<StorageInfo> nbtList,ArrayList<PositionInfo> posList,HashMap<Identifier,EnderDragonFight.Data> dragonFight,HashMap<Identifier,Long> seed){this.nbtList=nbtList;this.posList=posList;this.dragonFight=dragonFight;this.seed=seed;}
-    public StateSaver(){this(new ArrayList<>(),new ArrayList<>(),new HashMap<>(),new HashMap<>());}
+    public StateSaver(ArrayList<StorageInfo> nbtList,ArrayList<PositionInfo> posList,HashMap<Identifier,EnderDragonFight.Data> dragonFight,HashMap<Identifier,Long> seed,HashMap<Identifier,WarpRestrictionInfo> restrictionInfoHashMap){this.nbtList=nbtList;this.posList=posList;this.dragonFight=dragonFight;this.seed=seed;this.restrictionInfoHashMap=restrictionInfoHashMap;}
+    public StateSaver(){this(new ArrayList<>(),new ArrayList<>(),new HashMap<>(),new HashMap<>(),new HashMap<>());}
     private static final PersistentStateType<StateSaver> type = new PersistentStateType<>(
             ItemStorage.MOD_ID,
             StateSaver::new,
@@ -150,5 +155,20 @@ public class StateSaver extends PersistentState {
                                 VEC_3_D_CODEC.fieldOf("pos").forGetter((info)->info.pos)
 
                         ).apply(instance, PositionInfo::new));
+    }
+    public static class WarpRestrictionInfo
+    {
+        public String reason;
+        public static final String DEFAULT_REASON="no reason specified";
+        public int level;
+        public static final int INFINITE=Integer.MAX_VALUE;
+        public WarpRestrictionInfo(String reason,int level){this.reason=reason;this.level=level;}
+        public static final Codec<WarpRestrictionInfo> CODEC= RecordCodecBuilder.create((instance) ->
+                instance.group
+                        (
+                                Codec.STRING.fieldOf(REASON).orElse(DEFAULT_REASON).forGetter((info)->info.reason),
+                                Codec.INT.fieldOf(LEVEL).orElse(INFINITE).forGetter((info)->info.level)
+
+                        ).apply(instance, WarpRestrictionInfo::new));
     }
 }
