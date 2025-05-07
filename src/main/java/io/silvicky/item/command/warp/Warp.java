@@ -9,6 +9,7 @@ import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import io.silvicky.item.StateSaver;
 import net.minecraft.command.argument.DimensionArgumentType;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -58,29 +59,31 @@ public class Warp {
     public static int warp(ServerCommandSource source, ServerPlayerEntity player, ServerWorld dimension) throws CommandSyntaxException
     {
         if(player==null) throw ERR_NOT_BY_PLAYER.create();
-        StateSaver stateSaver=StateSaver.getServerState(source.getServer());
+        ServerWorld from=player.getServerWorld();
+        MinecraftServer server=source.getServer();
+        StateSaver stateSaver=StateSaver.getServerState(server);
         StateSaver.WarpRestrictionInfo info=stateSaver.restrictionInfoHashMap.get(Identifier.of(getDimensionId(dimension)));
         if(info!=null&&!source.hasPermissionLevel(info.level))
         {
             throw ERR_WARP_FORBIDDEN.create(info.reason);
         }
-        if(!getDimensionId(dimension).equals(getDimensionId(source.getWorld())))
+        if(!getDimensionId(dimension).equals(getDimensionId(from)))
         {
-            LOGGER.info(Objects.requireNonNull(source.getPlayer()).getName().getString()+" goes to "+getDimensionId(dimension));
-            if(!dimension.getRegistryKey().getValue().getNamespace().equals(source.getWorld().getRegistryKey().getValue().getNamespace()))
+            LOGGER.info(player.getName().getString()+" goes to "+getDimensionId(dimension));
+            if(!dimension.getRegistryKey().getValue().getNamespace().equals(from.getRegistryKey().getValue().getNamespace()))
             {
                 player.clearStatusEffects();
-                save(source.getServer(),player);
-                try{load(source.getServer(),player,dimension);}
+                save(server,player);
+                try{load(server,player,dimension);}
                 catch(Exception e)
                 {
-                    loadInventory(player,source.getWorld(), StateSaver.getServerState(source.getServer()));
+                    loadInventory(player,from, StateSaver.getServerState(server));
                     throw e;
                 }
             }
             else
             {
-                directWarp(source.getServer(),player,dimension);
+                directWarp(server,player,dimension);
             }
             source.sendFeedback(()-> Text.literal("Teleported to "+getDimensionId(dimension)+"!"),false);
         }
