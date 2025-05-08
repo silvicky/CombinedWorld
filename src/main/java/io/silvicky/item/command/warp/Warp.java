@@ -58,6 +58,10 @@ public class Warp {
     }
     public static int warp(ServerCommandSource source, ServerPlayerEntity player, ServerWorld dimension) throws CommandSyntaxException
     {
+        return warp(source,player,dimension,false);
+    }
+    public static int warp(ServerCommandSource source, ServerPlayerEntity player, ServerWorld dimension, boolean silent) throws CommandSyntaxException
+    {
         if(player==null) throw ERR_NOT_BY_PLAYER.create();
         ServerWorld from=player.getServerWorld();
         MinecraftServer server=source.getServer();
@@ -85,11 +89,11 @@ public class Warp {
             {
                 directWarp(server,player,dimension);
             }
-            source.sendFeedback(()-> Text.literal("Teleported to "+getDimensionId(dimension)+"!"),false);
+            if(!silent)source.sendFeedback(()-> Text.literal("Teleported to "+getDimensionId(dimension)+"!"),false);
         }
         else
         {
-            source.sendFeedback(()->Text.literal("Nothing happened."),false);
+            if(!silent)source.sendFeedback(()->Text.literal("Nothing happened."),false);
         }
         return Command.SINGLE_SUCCESS;
     }
