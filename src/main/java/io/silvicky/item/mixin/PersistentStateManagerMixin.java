@@ -18,6 +18,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import static io.silvicky.item.InventoryManager.playerInventorySize;
 import static io.silvicky.item.StateSaver.*;
 
 @Mixin(PersistentStateManager.class)
@@ -27,7 +28,8 @@ public abstract class PersistentStateManagerMixin {
     private static byte playerEquipmentSlotFix(byte i)
     {
         if(i==-106)return 40;
-        if(i<36)return i;
+        if(i<0)return (byte) (i+64);//for my own ignorance
+        if(i<playerInventorySize)return i;
         return (byte) (i-64);
     }
     @Inject(method = "readFromFile",at= @At(value = "INVOKE", target = "Lnet/minecraft/registry/RegistryWrapper$WrapperLookup;getOps(Lcom/mojang/serialization/DynamicOps;)Lnet/minecraft/registry/RegistryOps;",shift = At.Shift.AFTER))
