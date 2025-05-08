@@ -28,6 +28,7 @@ public abstract class PersistentStateManagerMixin {
     private static byte playerEquipmentSlotFix(byte i)
     {
         if(i==-106)return 40;
+        if(i<0)return (byte) (i+64);//for my own ignorance
         if(i<playerInventorySize)return i;
         return (byte) (i-64);
     }
