@@ -68,11 +68,12 @@ public class Evacuate
             {
                 try
                 {
-                    ServerPlayerEntity player=loadFakePlayer(i.toPath());
+                    ServerPlayerEntity player=loadFakePlayer(i.toPath(),source.getServer());
                     //TODO
                 }
-                catch (IOException e)
+                catch (Exception e)
                 {
+                    e.printStackTrace();
                     throw new RuntimeException(e);
                 }
             }

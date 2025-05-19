@@ -153,7 +153,7 @@ public class ImportWorld {
         newDimensions.entrySet().removeIf(entry -> identifiers.contains(entry.getKey().getValue()));
         rollbackWorld();
     }
-    public static ServerPlayerEntity loadFakePlayer(NbtCompound compound)
+    public static ServerPlayerEntity loadFakePlayer(NbtCompound compound, MinecraftServer server)
     {
         ConnectedClientData connectedClientData = ConnectedClientData.createDefault(new GameProfile(compound.get("UUID", Uuids.INT_STREAM_CODEC).orElseThrow(), "tmp"), false);
         ServerWorld world=server.getWorld(RegistryKey.of(RegistryKeys.WORLD,Identifier.of(compound.getString("Dimension",server.getOverworld().getRegistryKey().getValue().toString()))));
@@ -165,11 +165,11 @@ public class ImportWorld {
         serverPlayerEntity.readGameModeNbt(compound);
         return serverPlayerEntity;
     }
-    public static ServerPlayerEntity loadFakePlayer(Path path) throws IOException
+    public static ServerPlayerEntity loadFakePlayer(Path path, MinecraftServer server) throws IOException
     {
         NbtCompound nbtCompound=NbtIo.readCompressed(path, NbtSizeTracker.ofUnlimitedBytes());
         nbtCompound= DataFixTypes.PLAYER.update(Schemas.getFixer(),nbtCompound, NbtHelper.getDataVersion(nbtCompound,-1));
-        return loadFakePlayer(nbtCompound);
+        return loadFakePlayer(nbtCompound,server);
     }
     public static int importWorld(ServerCommandSource source, Path path, Identifier idTmp) throws CommandSyntaxException
     {
@@ -273,7 +273,7 @@ public class ImportWorld {
 
                 NbtCompound nbtCompound=NbtIo.readCompressed(i.toPath(), NbtSizeTracker.ofUnlimitedBytes());
                 nbtCompound= DataFixTypes.PLAYER.update(Schemas.getFixer(),nbtCompound, NbtHelper.getDataVersion(nbtCompound,-1));
-                ServerPlayerEntity serverPlayerEntity=loadFakePlayer(nbtCompound);
+                ServerPlayerEntity serverPlayerEntity=loadFakePlayer(nbtCompound,server);
                 String dimension=nbtCompound.getString("Dimension","minecraft:overworld");
                 Identifier identifier=Identifier.of(dimension);
                 if(!identifier.getNamespace().equals("minecraft"))continue;
