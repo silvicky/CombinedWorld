@@ -4,16 +4,21 @@ import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.command.argument.DimensionArgumentType;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
+import net.minecraft.util.WorldSavePath;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
 
 import static io.silvicky.item.InventoryManager.DIMENSION;
 import static io.silvicky.item.InventoryManager.getDimensionId;
 import static io.silvicky.item.command.warp.Warp.warp;
 import static io.silvicky.item.command.warp.WarpTp.TARGET;
+import static io.silvicky.item.command.world.ImportWorld.loadFakePlayer;
 import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
 
@@ -58,7 +63,20 @@ public class Evacuate
         }
         if(!online)
         {
-//TODO
+            Path playerData=source.getServer().getSavePath(WorldSavePath.PLAYERDATA);
+            for(File i:playerData.toFile().listFiles())
+            {
+                try
+                {
+                    ServerPlayerEntity player=loadFakePlayer(i.toPath());
+                    //TODO
+                }
+                catch (IOException e)
+                {
+                    throw new RuntimeException(e);
+                }
+            }
+
         }
         int finalCnt = cnt;
         source.sendFeedback(()->Text.literal("Evacuated "+ finalCnt +" players."),false);

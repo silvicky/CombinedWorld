@@ -153,6 +153,24 @@ public class ImportWorld {
         newDimensions.entrySet().removeIf(entry -> identifiers.contains(entry.getKey().getValue()));
         rollbackWorld();
     }
+    public static ServerPlayerEntity loadFakePlayer(NbtCompound compound)
+    {
+        ConnectedClientData connectedClientData = ConnectedClientData.createDefault(new GameProfile(compound.get("UUID", Uuids.INT_STREAM_CODEC).orElseThrow(), "tmp"), false);
+        ServerWorld world=server.getWorld(RegistryKey.of(RegistryKeys.WORLD,Identifier.of(compound.getString("Dimension",server.getOverworld().getRegistryKey().getValue().toString()))));
+        if(world==null)world=server.getOverworld();
+        ServerPlayerEntity serverPlayerEntity = new ServerPlayerEntity(
+                server, world, connectedClientData.gameProfile(), connectedClientData.syncedOptions()
+        );
+        serverPlayerEntity.readNbt(compound);
+        serverPlayerEntity.readGameModeNbt(compound);
+        return serverPlayerEntity;
+    }
+    public static ServerPlayerEntity loadFakePlayer(Path path) throws IOException
+    {
+        NbtCompound nbtCompound=NbtIo.readCompressed(path, NbtSizeTracker.ofUnlimitedBytes());
+        nbtCompound= DataFixTypes.PLAYER.update(Schemas.getFixer(),nbtCompound, NbtHelper.getDataVersion(nbtCompound,-1));
+        return loadFakePlayer(nbtCompound);
+    }
     public static int importWorld(ServerCommandSource source, Path path, Identifier idTmp) throws CommandSyntaxException
     {
         if(firstType)
@@ -252,16 +270,14 @@ public class ImportWorld {
             for (File i : playerData.toFile().listFiles())
             {
                 if (!i.getPath().endsWith(".dat")) continue;
+
                 NbtCompound nbtCompound=NbtIo.readCompressed(i.toPath(), NbtSizeTracker.ofUnlimitedBytes());
                 nbtCompound= DataFixTypes.PLAYER.update(Schemas.getFixer(),nbtCompound, NbtHelper.getDataVersion(nbtCompound,-1));
-                ConnectedClientData connectedClientData = ConnectedClientData.createDefault(new GameProfile(nbtCompound.get("UUID", Uuids.INT_STREAM_CODEC).get(), "tmp"), false);
-                ServerPlayerEntity serverPlayerEntity = new ServerPlayerEntity(
-                        server, server.getOverworld(), connectedClientData.gameProfile(), connectedClientData.syncedOptions()
-                );
-                serverPlayerEntity.readNbt(nbtCompound);
-                serverPlayerEntity.readGameModeNbt(nbtCompound);
+                ServerPlayerEntity serverPlayerEntity=loadFakePlayer(nbtCompound);
                 String dimension=nbtCompound.getString("Dimension","minecraft:overworld");
-                dimension=dimension.substring(dimension.indexOf(':')+1);
+                Identifier identifier=Identifier.of(dimension);
+                if(!identifier.getNamespace().equals("minecraft"))continue;
+                dimension=identifier.getPath();
                 String fakeDimension=null;
                 switch (dimension) {
                     case END -> {
