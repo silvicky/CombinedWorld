@@ -4,6 +4,7 @@ import io.silvicky.item.cfg.JSONConfig;
 import io.silvicky.item.command.list.ListDimensionPlayers;
 import io.silvicky.item.command.list.ListGroupPlayers;
 import io.silvicky.item.command.list.ListWorldPlayers;
+import io.silvicky.item.command.utility.PackMe;
 import io.silvicky.item.command.warp.BanWarp;
 import io.silvicky.item.command.warp.Evacuate;
 import io.silvicky.item.command.warp.Warp;
@@ -34,6 +35,7 @@ public class ItemStorage implements ModInitializer {
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> WarpTp.register(dispatcher));
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> BanWarp.register(dispatcher));
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> Evacuate.register(dispatcher));
+		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> PackMe.register(dispatcher));
 		ServerPlayerEvents.AFTER_RESPAWN.register(OnRespawn::respawn);
 	}
 }

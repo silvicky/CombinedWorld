@@ -6,11 +6,16 @@ import com.mojang.brigadier.Message;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import com.mojang.datafixers.util.Pair;
+import net.minecraft.component.Component;
+import net.minecraft.component.ComponentChanges;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.ContainerComponent;
 import net.minecraft.datafixer.DataFixTypes;
 import net.minecraft.datafixer.Schemas;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.EnderChestInventory;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtHelper;
 import net.minecraft.nbt.NbtIo;
@@ -21,6 +26,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ConnectedClientData;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Uuids;
 import net.minecraft.util.math.BlockPos;
@@ -64,8 +70,11 @@ public class Util
     public static final String CORD="coordination";
     public static final String TARGET="target";
     public static final String MOD_ID = "ItemStorage";
+    public static final Text INVENTORY_ITEMS=Text.literal("Inventory Items");
+    public static final Text ENDER_ITEMS=Text.literal("Ender Items");
     public static final Logger LOGGER = LoggerFactory.getLogger("item-storage");
     public static final int playerInventorySize=41;
+    public static final int chestSize=27;
     public static final SimpleCommandExceptionType ERR_DIMENSION_NOT_FOUND=new SimpleCommandExceptionType(new LiteralMessage("Target dimension NOT FOUND!"));
     public static final SimpleCommandExceptionType ERR_ITEM=new SimpleCommandExceptionType(new LiteralMessage("Item stack error(from version change, contact your admin)!"));
     public static final SimpleCommandExceptionType ERR_NOT_BY_PLAYER=new SimpleCommandExceptionType(new LiteralMessage("This command must be executed by a player."));
@@ -246,5 +255,41 @@ public class Util
                 Identifier.of(world.getRegistryKey().getValue().getNamespace(),
                         overworldId.substring(overworldId.indexOf(":")+1))));
         return (sw!=null?sw:world);
+    }
+    public static ArrayList<Pair<ItemStack,Byte>> enId(List<ItemStack> source)
+    {
+        ArrayList<Pair<ItemStack,Byte>> ret=new ArrayList<>();
+        for(byte i=0;i<source.size();i++)
+        {
+            ret.add(new Pair<>(source.get(i),i));
+        }
+        return ret;
+    }
+    public static ArrayList<ItemStack> deId(List<Pair<ItemStack,Byte>> source)
+    {
+        ArrayList<ItemStack> ret=new ArrayList<>();
+        for(Pair<ItemStack,Byte> i:source)ret.add(i.getFirst());
+        return ret;
+    }
+    public static ItemStack packMono(List<ItemStack> source, Text name)
+    {
+        ItemStack ret=new ItemStack(Items.CHEST);
+        ret.applyChanges(ComponentChanges.builder().add(Component.of(DataComponentTypes.CONTAINER,ContainerComponent.fromStacks(source))).build());
+        ret.applyChanges(ComponentChanges.builder().add(Component.of(DataComponentTypes.CUSTOM_NAME, name)).build());
+        return ret;
+    }
+    public static ArrayList<ItemStack> pack(List<ItemStack> source, Text name)
+    {
+        ArrayList<ItemStack> ret=new ArrayList<>();
+        for(byte bas=0;bas<source.size();bas+=chestSize)
+        {
+            ArrayList<ItemStack> tmp=new ArrayList<>();
+            for(byte i=bas;i<bas+chestSize&&i<source.size();i++)
+            {
+                tmp.add(source.get(i));
+            }
+            ret.add(packMono(tmp,name));
+        }
+        return ret;
     }
 }
