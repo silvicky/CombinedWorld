@@ -7,7 +7,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import java.io.*;
 import java.nio.file.Paths;
 
-import static io.silvicky.item.ItemStorage.LOGGER;
+import static io.silvicky.item.common.Util.*;
 class Cfg
 {
     public boolean useStorage=true;

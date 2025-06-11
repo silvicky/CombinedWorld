@@ -19,16 +19,12 @@ import net.minecraft.world.TeleportTarget;
 
 import java.util.Collection;
 
-import static io.silvicky.item.InventoryManager.DIMENSION;
-import static io.silvicky.item.command.warp.Warp.ERR_NOT_ONE_PLAYER;
+import static io.silvicky.item.common.Util.*;
 import static io.silvicky.item.command.warp.Warp.warp;
 import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
 
 public class WarpTp {
-    public static String PLAYER="player";
-    public static String CORD="coordination";
-    public static String TARGET="target";
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher)
     {
         dispatcher.register(
@@ -37,16 +33,16 @@ public class WarpTp {
                         .executes(context->help(context.getSource()))
                         .then(argument(DIMENSION, DimensionArgumentType.dimension())
                                 .then(argument(CORD, Vec3ArgumentType.vec3())
-                                        .executes(context -> warpTp(context.getSource(),DimensionArgumentType.getDimensionArgument(context,DIMENSION),Vec3ArgumentType.getVec3(context,CORD)))))
+                                        .executes(context -> warpTp(context.getSource(),DimensionArgumentType.getDimensionArgument(context,DIMENSION),Vec3ArgumentType.getVec3(context, CORD)))))
                         .then(argument(TARGET, EntityArgumentType.entity())
-                                .executes(context -> warpTp(context.getSource(),EntityArgumentType.getEntity(context,TARGET))))
+                                .executes(context -> warpTp(context.getSource(),EntityArgumentType.getEntity(context, TARGET))))
                         .then(argument(PLAYER, GameProfileArgumentType.gameProfile())
                                 .then(argument(DIMENSION, DimensionArgumentType.dimension())
-                                        .executes(context -> warpTp(context.getSource(),GameProfileArgumentType.getProfileArgument(context,PLAYER),DimensionArgumentType.getDimensionArgument(context,DIMENSION)))
+                                        .executes(context -> warpTp(context.getSource(),GameProfileArgumentType.getProfileArgument(context, PLAYER),DimensionArgumentType.getDimensionArgument(context,DIMENSION)))
                                         .then(argument(CORD, Vec3ArgumentType.vec3())
-                                                .executes(context -> warpTp(context.getSource(),GameProfileArgumentType.getProfileArgument(context,PLAYER),DimensionArgumentType.getDimensionArgument(context,DIMENSION),Vec3ArgumentType.getVec3(context,CORD)))))
+                                                .executes(context -> warpTp(context.getSource(),GameProfileArgumentType.getProfileArgument(context, PLAYER),DimensionArgumentType.getDimensionArgument(context,DIMENSION),Vec3ArgumentType.getVec3(context, CORD)))))
                                 .then(argument(TARGET, EntityArgumentType.entity())
-                                        .executes(context -> warpTp(context.getSource(),GameProfileArgumentType.getProfileArgument(context,PLAYER),EntityArgumentType.getEntity(context,TARGET)))))
+                                        .executes(context -> warpTp(context.getSource(),GameProfileArgumentType.getProfileArgument(context, PLAYER),EntityArgumentType.getEntity(context, TARGET)))))
         );
     }
     private static int help(ServerCommandSource source)

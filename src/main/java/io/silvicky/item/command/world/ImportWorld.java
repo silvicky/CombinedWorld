@@ -1,12 +1,9 @@
 package io.silvicky.item.command.world;
 
-import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.LiteralMessage;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import com.mojang.serialization.Dynamic;
 import io.silvicky.item.StateSaver;
 import net.fabricmc.loader.api.FabricLoader;
@@ -24,12 +21,10 @@ import net.minecraft.registry.RegistryOps;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ConnectedClientData;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.Uuids;
 import net.minecraft.util.WorldSavePath;
 import net.minecraft.world.dimension.DimensionOptions;
 import net.minecraft.world.dimension.DimensionTypes;
@@ -37,16 +32,15 @@ import net.minecraft.world.level.WorldGenSettings;
 import net.minecraft.world.level.storage.LevelStorage;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.file.*;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.util.*;
-import java.util.stream.Stream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 
-import static io.silvicky.item.InventoryManager.*;
-import static io.silvicky.item.ItemStorage.LOGGER;
-import static java.nio.file.Files.copy;
-import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
+import static io.silvicky.item.InventoryManager.save;
+import static io.silvicky.item.common.Util.*;
 import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
 
@@ -58,21 +52,8 @@ public class ImportWorld {
     private static ArrayList<Identifier> identifiers;
     private static boolean firstType=true;
     private static Identifier id;
-    public static final String DIMENSION_ID="dimension_id";
-    public static final String DIMENSION_PATH="path";
-    public static final String DATA="data";
-    public static final String POI="poi";
-    public static final String REGION="region";
-    public static final String ENTITIES="entities";
     private static MinecraftServer server;
-    public static final SimpleCommandExceptionType ERR_DIMENSION_EXIST=new SimpleCommandExceptionType(new LiteralMessage("A dimension with such ID already exists!"));
-    public static final SimpleCommandExceptionType ERR_NAMESPACE_EXIST=new SimpleCommandExceptionType(new LiteralMessage("Currently we only accept new namespaces, otherwise collision happens."));
-    public static final SimpleCommandExceptionType ERR_FOLDER_NOT_EXIST=new SimpleCommandExceptionType(new LiteralMessage("A folder with that path does not exist!"));
-    public static final SimpleCommandExceptionType ERR_LEVEL_NOT_EXIST=new SimpleCommandExceptionType(new LiteralMessage("No level.dat was found!"));
-    public static final SimpleCommandExceptionType ERR_FAIL_TO_READ_LEVEL=new SimpleCommandExceptionType(new LiteralMessage("Failed to read level.dat!"));
-    public static final SimpleCommandExceptionType ERR_WORLD_GEN=new SimpleCommandExceptionType(new LiteralMessage("Failed to fetch WorldGenSettings!"));
-    public static final SimpleCommandExceptionType ERR_PLAYER=new SimpleCommandExceptionType(new LiteralMessage("Failed to fetch player data!"));
-    public static final SimpleCommandExceptionType ERR_SAVE=new SimpleCommandExceptionType(new LiteralMessage("Failed to copy save files!"));
+
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher)
     {
         dispatcher.register(
@@ -80,9 +61,9 @@ public class ImportWorld {
                         .requires(source -> source.hasPermissionLevel(4))
                         .executes(context->help(context.getSource()))
                         .then(argument(DIMENSION_ID, IdentifierArgumentType.identifier())
-                                .executes(context -> importWorld(context.getSource(), Paths.get(FabricLoader.getInstance().getGameDir().toString(),"imported"),IdentifierArgumentType.getIdentifier(context,DIMENSION_ID)))
+                                .executes(context -> importWorld(context.getSource(), Paths.get(FabricLoader.getInstance().getGameDir().toString(),"imported"),IdentifierArgumentType.getIdentifier(context, DIMENSION_ID)))
                                 .then(argument(DIMENSION_PATH, StringArgumentType.greedyString())
-                                        .executes(context -> importWorld(context.getSource(), Paths.get(StringArgumentType.getString(context,DIMENSION_PATH)) ,IdentifierArgumentType.getIdentifier(context,DIMENSION_ID))))));
+                                        .executes(context -> importWorld(context.getSource(), Paths.get(StringArgumentType.getString(context, DIMENSION_PATH)) ,IdentifierArgumentType.getIdentifier(context, DIMENSION_ID))))));
     }
     private static int help(ServerCommandSource source)
     {
@@ -110,37 +91,12 @@ public class ImportWorld {
         stateSaver.nbtList.removeIf(storageInfo -> storageInfo.dimension.equals(id.getNamespace()));
         rollbackDragon();
     }
-    public static void deleteFolder(Path path) throws IOException {
-        if(!path.toFile().exists())return;
-        Files.walkFileTree(path, new SimpleFileVisitor<>() {
-            @Override
-            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                Files.delete(file);
-                return FileVisitResult.CONTINUE;
-            }
 
-            @Override
-            public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-                Files.delete(dir);
-                return FileVisitResult.CONTINUE;
-            }
-        });
-    }
-    public static void copyFolder(Path src, Path dest) throws IOException {
-        try (Stream<Path> stream = Files.walk(src)) {
-            stream.forEach(source -> {
-                try {
-                    copy(source, dest.resolve(src.relativize(source)),REPLACE_EXISTING);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            });
-        }
-    }
     private static void rollbackWorld()
     {
         Path target = server.getSavePath(WorldSavePath.ROOT).resolve("dimensions").resolve(id.getNamespace());
-        try{deleteFolder(target);}
+        try{
+            deleteFolder(target);}
         catch (Exception e)
         {
             e.printStackTrace();
@@ -153,24 +109,7 @@ public class ImportWorld {
         newDimensions.entrySet().removeIf(entry -> identifiers.contains(entry.getKey().getValue()));
         rollbackWorld();
     }
-    public static ServerPlayerEntity loadFakePlayer(NbtCompound compound, MinecraftServer server)
-    {
-        ConnectedClientData connectedClientData = ConnectedClientData.createDefault(new GameProfile(compound.get("UUID", Uuids.INT_STREAM_CODEC).orElseThrow(), "tmp"), false);
-        ServerWorld world=server.getWorld(RegistryKey.of(RegistryKeys.WORLD,Identifier.of(compound.getString("Dimension",server.getOverworld().getRegistryKey().getValue().toString()))));
-        if(world==null)world=server.getOverworld();
-        ServerPlayerEntity serverPlayerEntity = new ServerPlayerEntity(
-                server, world, connectedClientData.gameProfile(), connectedClientData.syncedOptions()
-        );
-        serverPlayerEntity.readNbt(compound);
-        serverPlayerEntity.readGameModeNbt(compound);
-        return serverPlayerEntity;
-    }
-    public static ServerPlayerEntity loadFakePlayer(Path path, MinecraftServer server) throws IOException
-    {
-        NbtCompound nbtCompound=NbtIo.readCompressed(path, NbtSizeTracker.ofUnlimitedBytes());
-        nbtCompound= DataFixTypes.PLAYER.update(Schemas.getFixer(),nbtCompound, NbtHelper.getDataVersion(nbtCompound,-1));
-        return loadFakePlayer(nbtCompound,server);
-    }
+
     public static int importWorld(ServerCommandSource source, Path path, Identifier idTmp) throws CommandSyntaxException
     {
         if(firstType)
@@ -273,7 +212,7 @@ public class ImportWorld {
 
                 NbtCompound nbtCompound=NbtIo.readCompressed(i.toPath(), NbtSizeTracker.ofUnlimitedBytes());
                 nbtCompound= DataFixTypes.PLAYER.update(Schemas.getFixer(),nbtCompound, NbtHelper.getDataVersion(nbtCompound,-1));
-                ServerPlayerEntity serverPlayerEntity=loadFakePlayer(nbtCompound,server);
+                ServerPlayerEntity serverPlayerEntity= loadFakePlayer(nbtCompound,server);
                 String dimension=nbtCompound.getString("Dimension","minecraft:overworld");
                 Identifier identifier=Identifier.of(dimension);
                 if(!identifier.getNamespace().equals("minecraft"))continue;

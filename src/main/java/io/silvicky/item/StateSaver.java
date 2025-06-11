@@ -20,8 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 
-import static io.silvicky.item.InventoryManager.DIMENSION;
-import static io.silvicky.item.InventoryManager.PLAYER;
+import static io.silvicky.item.common.Util.*;
 
 public class StateSaver extends PersistentState {
     public final ArrayList<StorageInfo> nbtList;
@@ -29,12 +28,6 @@ public class StateSaver extends PersistentState {
     public final HashMap<Identifier, EnderDragonFight.Data> dragonFight;
     public final HashMap<Identifier, WarpRestrictionInfo> restrictionInfoHashMap;
     public final HashMap<Identifier, Long> seed;
-    public static final String INVENTORY="inventory";
-    public static final String SAVED="saved";
-    public static final String ENDER="ender";
-    public static final String SLOT="Slot";
-    public static final String LEVEL="level";
-    public static final String REASON="reason";
     public static final Codec<StateSaver> CODEC= RecordCodecBuilder.create((instance)->
             instance.group
                     (
@@ -52,7 +45,7 @@ public class StateSaver extends PersistentState {
     public StateSaver(ArrayList<StorageInfo> nbtList,ArrayList<PositionInfo> posList,HashMap<Identifier,EnderDragonFight.Data> dragonFight,HashMap<Identifier,Long> seed,HashMap<Identifier,WarpRestrictionInfo> restrictionInfoHashMap){this.nbtList=nbtList;this.posList=posList;this.dragonFight=dragonFight;this.seed=seed;this.restrictionInfoHashMap=restrictionInfoHashMap;}
     public StateSaver(){this(new ArrayList<>(),new ArrayList<>(),new HashMap<>(),new HashMap<>(),new HashMap<>());}
     private static final PersistentStateType<StateSaver> type = new PersistentStateType<>(
-            ItemStorage.MOD_ID,
+            MOD_ID,
             StateSaver::new,
             CODEC,
             DataFixTypes.PLAYER

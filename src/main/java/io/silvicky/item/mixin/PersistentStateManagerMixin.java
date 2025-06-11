@@ -3,7 +3,6 @@ package io.silvicky.item.mixin;
 import com.llamalad7.mixinextras.sugar.Local;
 import com.mojang.datafixers.DataFixer;
 import com.mojang.serialization.Dynamic;
-import io.silvicky.item.ItemStorage;
 import net.minecraft.SharedConstants;
 import net.minecraft.datafixer.TypeReferences;
 import net.minecraft.nbt.*;
@@ -18,8 +17,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import static io.silvicky.item.InventoryManager.playerInventorySize;
-import static io.silvicky.item.StateSaver.*;
+import static io.silvicky.item.common.Util.*;
 
 @Mixin(PersistentStateManager.class)
 public abstract class PersistentStateManagerMixin {
@@ -35,7 +33,7 @@ public abstract class PersistentStateManagerMixin {
     @Inject(method = "readFromFile",at= @At(value = "INVOKE", target = "Lnet/minecraft/registry/RegistryWrapper$WrapperLookup;getOps(Lcom/mojang/serialization/DynamicOps;)Lnet/minecraft/registry/RegistryOps;",shift = At.Shift.AFTER))
     public <T extends PersistentState> void inject1(PersistentStateType<T> type, CallbackInfoReturnable<T> cir, @Local NbtCompound nbtCompound)
     {
-        if(!type.id().equals(ItemStorage.MOD_ID))return;
+        if(!type.id().equals(MOD_ID))return;
         final int lastVersion= NbtHelper.getDataVersion(nbtCompound,-1);
         final int currentVersion= SharedConstants.getGameVersion().getSaveVersion().getId();
         try

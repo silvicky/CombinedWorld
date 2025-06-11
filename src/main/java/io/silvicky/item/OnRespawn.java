@@ -3,7 +3,7 @@ package io.silvicky.item;
 import net.minecraft.server.network.ServerPlayerEntity;
 
 import static io.silvicky.item.InventoryManager.*;
-import static io.silvicky.item.ItemStorage.LOGGER;
+import static io.silvicky.item.common.Util.*;
 
 public class OnRespawn {
     public static void respawn(ServerPlayerEntity oldPlayer,ServerPlayerEntity newPlayer,boolean alive) {

@@ -10,8 +10,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
-import static io.silvicky.item.InventoryManager.NETHER;
-import static io.silvicky.item.InventoryManager.OVERWORLD;
+import static io.silvicky.item.common.Util.*;
 
 @Mixin(NetherPortalBlock.class)
 public class NetherPortalBlockMixin {

@@ -18,7 +18,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import static io.silvicky.item.InventoryManager.*;
+import static io.silvicky.item.common.Util.*;
 
 @Mixin(EndPortalBlock.class)
 public class EndPortalBlockMixin {
@@ -30,19 +30,19 @@ public class EndPortalBlockMixin {
         {
             return RegistryKey.of(RegistryKey.ofRegistry(registryKey0.getRegistry()),
                     Identifier.of(registryKey0.getValue().getNamespace(),
-                            path.substring(0,path.length()-9)+END));
+                            path.substring(0,path.length()-9)+ END));
         }
         else if(registryKey0.getValue().getPath().endsWith(NETHER))
         {
             return RegistryKey.of(RegistryKey.ofRegistry(registryKey0.getRegistry()),
                     Identifier.of(registryKey0.getValue().getNamespace(),
-                            path.substring(0,path.length()-10)+END));
+                            path.substring(0,path.length()-10)+ END));
         }
         else if(registryKey0.getValue().getPath().endsWith(END))
         {
             return RegistryKey.of(RegistryKey.ofRegistry(registryKey0.getRegistry()),
                     Identifier.of(registryKey0.getValue().getNamespace(),
-                            path.substring(0,path.length()-7)+OVERWORLD));
+                            path.substring(0,path.length()-7)+ OVERWORLD));
         }
         else
         {

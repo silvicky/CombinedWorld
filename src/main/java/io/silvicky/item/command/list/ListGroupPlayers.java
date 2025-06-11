@@ -11,8 +11,7 @@ import net.minecraft.text.Text;
 import java.util.ArrayList;
 import java.util.List;
 
-import static io.silvicky.item.InventoryManager.DIMENSION;
-import static io.silvicky.item.command.list.ListWorldPlayers.listToString;
+import static io.silvicky.item.common.Util.*;
 import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
 

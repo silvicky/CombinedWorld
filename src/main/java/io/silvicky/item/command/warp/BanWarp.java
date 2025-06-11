@@ -13,9 +13,7 @@ import net.minecraft.util.Identifier;
 
 import java.util.HashMap;
 
-import static io.silvicky.item.InventoryManager.DIMENSION;
-import static io.silvicky.item.InventoryManager.getDimensionId;
-import static io.silvicky.item.StateSaver.*;
+import static io.silvicky.item.common.Util.*;
 import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
 
@@ -30,22 +28,22 @@ public class BanWarp {
                                 .then(argument(DIMENSION,DimensionArgumentType.dimension())
                                         .executes(ctx->banWarp(ctx.getSource(),DimensionArgumentType.getDimensionArgument(ctx,DIMENSION)))
                                         .then(argument(LEVEL, IntegerArgumentType.integer())
-                                                .executes(ctx->banWarp(ctx.getSource(),DimensionArgumentType.getDimensionArgument(ctx,DIMENSION),IntegerArgumentType.getInteger(ctx,LEVEL)))
+                                                .executes(ctx->banWarp(ctx.getSource(),DimensionArgumentType.getDimensionArgument(ctx,DIMENSION),IntegerArgumentType.getInteger(ctx, LEVEL)))
                                                 .then(argument(REASON, StringArgumentType.greedyString())
-                                                        .executes(ctx->banWarp(ctx.getSource(),DimensionArgumentType.getDimensionArgument(ctx,DIMENSION),IntegerArgumentType.getInteger(ctx,LEVEL),StringArgumentType.getString(ctx,REASON)))))))
+                                                        .executes(ctx->banWarp(ctx.getSource(),DimensionArgumentType.getDimensionArgument(ctx,DIMENSION),IntegerArgumentType.getInteger(ctx, LEVEL),StringArgumentType.getString(ctx, REASON)))))))
                         .then(literal("bangroup")
                                 .then(argument(DIMENSION,DimensionArgumentType.dimension())
                                         .executes(ctx->banGroup(ctx.getSource(),DimensionArgumentType.getDimensionArgument(ctx,DIMENSION)))
                                         .then(argument(LEVEL, IntegerArgumentType.integer())
-                                                .executes(ctx->banGroup(ctx.getSource(),DimensionArgumentType.getDimensionArgument(ctx,DIMENSION),IntegerArgumentType.getInteger(ctx,LEVEL)))
+                                                .executes(ctx->banGroup(ctx.getSource(),DimensionArgumentType.getDimensionArgument(ctx,DIMENSION),IntegerArgumentType.getInteger(ctx, LEVEL)))
                                                 .then(argument(REASON, StringArgumentType.greedyString())
-                                                        .executes(ctx->banGroup(ctx.getSource(),DimensionArgumentType.getDimensionArgument(ctx,DIMENSION),IntegerArgumentType.getInteger(ctx,LEVEL),StringArgumentType.getString(ctx,REASON)))))))
+                                                        .executes(ctx->banGroup(ctx.getSource(),DimensionArgumentType.getDimensionArgument(ctx,DIMENSION),IntegerArgumentType.getInteger(ctx, LEVEL),StringArgumentType.getString(ctx, REASON)))))))
                         .then(literal("banall")
                                 .executes(ctx->banAll(ctx.getSource()))
                                 .then(argument(LEVEL, IntegerArgumentType.integer())
-                                        .executes(ctx->banAll(ctx.getSource(),IntegerArgumentType.getInteger(ctx,LEVEL)))
+                                        .executes(ctx->banAll(ctx.getSource(),IntegerArgumentType.getInteger(ctx, LEVEL)))
                                         .then(argument(REASON, StringArgumentType.greedyString())
-                                                .executes(ctx->banAll(ctx.getSource(),IntegerArgumentType.getInteger(ctx,LEVEL),StringArgumentType.getString(ctx,REASON))))))
+                                                .executes(ctx->banAll(ctx.getSource(),IntegerArgumentType.getInteger(ctx, LEVEL),StringArgumentType.getString(ctx, REASON))))))
                         .then(literal("lift")
                                 .then(argument(DIMENSION,DimensionArgumentType.dimension())
                                         .executes(ctx->liftBan(ctx.getSource(),DimensionArgumentType.getDimensionArgument(ctx,DIMENSION)))))

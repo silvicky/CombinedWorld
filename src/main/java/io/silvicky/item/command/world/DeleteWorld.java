@@ -17,10 +17,8 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 
-import static io.silvicky.item.InventoryManager.*;
 import static io.silvicky.item.command.world.ImportWorld.*;
-import static io.silvicky.item.command.list.ListWorldPlayers.getListOfPlayers;
-import static io.silvicky.item.command.list.ListWorldPlayers.listToString;
+import static io.silvicky.item.common.Util.*;
 import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
 public class DeleteWorld {
@@ -34,7 +32,7 @@ public class DeleteWorld {
                         .requires(source -> source.hasPermissionLevel(4))
                         .executes(context->help(context.getSource()))
                         .then(argument(DIMENSION_ID, IdentifierArgumentType.identifier())
-                                .executes(context -> deleteWorld(context.getSource(),IdentifierArgumentType.getIdentifier(context,DIMENSION_ID)))));
+                                .executes(context -> deleteWorld(context.getSource(),IdentifierArgumentType.getIdentifier(context, DIMENSION_ID)))));
     }
     private static int help(ServerCommandSource source)
     {

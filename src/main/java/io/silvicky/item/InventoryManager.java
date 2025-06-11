@@ -1,10 +1,6 @@
 package io.silvicky.item;
 
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import com.mojang.datafixers.util.Pair;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.inventory.EnderChestInventory;
-import net.minecraft.item.ItemStack;
 import net.minecraft.network.packet.s2c.play.GameStateChangeS2CPacket;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.MinecraftServer;
@@ -16,44 +12,13 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.GameMode;
 import net.minecraft.world.TeleportTarget;
 
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 
-import static io.silvicky.item.ItemStorage.LOGGER;
-import static io.silvicky.item.command.warp.Warp.ERR_DIMENSION_NOT_FOUND;
-import static io.silvicky.item.command.warp.Warp.ERR_ITEM;
+import static io.silvicky.item.common.Util.*;
 import static io.silvicky.item.cfg.JSONConfig.useStorage;
 
 public class InventoryManager {
-    public static final String DIMENSION="dimension";
-    public static final String PLAYER="player";
-    public static final String OVERWORLD="overworld";
-    public static final String NETHER="the_nether";
-    public static final String END="the_end";
-    public static final int playerInventorySize=41;
-    public static String getDimensionId(ServerWorld world)
-    {
-        return getDimensionId(world.getRegistryKey().getValue().toString());
-    }
-    public static String getDimensionId(String id)
-    {
-        if(id.endsWith(NETHER))id=id.substring(0,id.length()-NETHER.length())+OVERWORLD;
-        if(id.endsWith(END))id=id.substring(0,id.length()-END.length())+OVERWORLD;
-        return id;
-    }
 
-    public static BlockPos transLoc(BlockPos sp,ServerWorld sw)
-    {
-        while((!sw.getBlockState(sp).isAir())||(!sw.getBlockState(sp.up()).isAir()))sp=sp.down();
-        while(sw.getBlockState(sp.down()).isAir()&&sp.getY()>sw.getBottomY())sp=sp.down();
-        if(sp.getY()==sw.getBottomY())
-        {
-            sp=sp.withY(sw.getLogicalHeight());
-            LOGGER.warn("Spawn point not found!");
-        }
-        return sp;
-    }
     public static void savePos(ServerPlayerEntity player, StateSaver stateSaver)
     {
         savePos(player,stateSaver,player.getServerWorld().getRegistryKey().getValue().toString());
@@ -68,50 +33,7 @@ public class InventoryManager {
                         player.getPos()
                 ));
     }
-    public static ArrayList<Pair<ItemStack,Byte>> inventoryToStack(PlayerInventory inventory)
-    {
-        ArrayList<Pair<ItemStack,Byte>> ret=new ArrayList<>();
-        for (int i = 0; i <playerInventorySize; i++) {
-            if (!inventory.getStack(i).isEmpty()) {
-                ret.add(new Pair<>(inventory.getStack(i),(byte)i));
-            }
-        }
-        return ret;
-    }
-    public static ArrayList<Pair<ItemStack,Byte>> enderToStack(EnderChestInventory inventory)
-    {
-        ArrayList<Pair<ItemStack,Byte>> ret=new ArrayList<>();
-        for(int i = 0; i < inventory.size(); ++i) {
-            ItemStack itemStack = inventory.getStack(i);
-            if (!itemStack.isEmpty()) {
-                ret.add(new Pair<>(itemStack,(byte) i));
-            }
-        }
-        return ret;
-    }
-    public static void stackToInventory(PlayerInventory inventory,List<Pair<ItemStack,Byte>> stack)
-    {
-        inventory.clear();
 
-        for (Pair<ItemStack, Byte> pair : stack) {
-            int j = pair.getSecond();
-            ItemStack itemStack = pair.getFirst();
-            if (j < playerInventorySize) {
-                inventory.setStack(j, itemStack);
-            }
-        }
-    }
-    public static void stackToEnder(EnderChestInventory inventory,List<Pair<ItemStack,Byte>> stack)
-    {
-        inventory.clear();
-
-        for (Pair<ItemStack, Byte> pair : stack) {
-            int j = pair.getSecond();
-            if (j < inventory.size()) {
-                inventory.setStack(j, pair.getFirst());
-            }
-        }
-    }
     public static void saveInventory(ServerPlayerEntity player,StateSaver stateSaver)
     {
         saveInventory(player,stateSaver,false,player.getServerWorld().getRegistryKey().getValue().toString());
@@ -142,7 +64,7 @@ public class InventoryManager {
         player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, GameMode.SURVIVAL.getIndex()));
     }
     public static void loadPos(MinecraftServer server,ServerPlayerEntity player,ServerWorld targetDimension,StateSaver stateSaver) throws CommandSyntaxException {
-        targetDimension=toOverworld(server,targetDimension);
+        targetDimension= toOverworld(server,targetDimension);
         Iterator<StateSaver.PositionInfo> iterator=stateSaver.posList.iterator();
         StateSaver.PositionInfo n=null;
         while (iterator.hasNext())
@@ -157,7 +79,7 @@ public class InventoryManager {
         if(n==null)
         {
             LOGGER.info("Entering a new world... Good luck to the pioneer!");
-            BlockPos sp=transLoc(targetDimension.getSpawnPos().withY(targetDimension.getLogicalHeight()-1),targetDimension);
+            BlockPos sp= transLoc(targetDimension.getSpawnPos().withY(targetDimension.getLogicalHeight()-1),targetDimension);
             TeleportTarget.PostDimensionTransition postDimensionTransition=TeleportTarget.NO_OP;
             TeleportTarget target = new TeleportTarget(targetDimension,sp.toCenterPos(), Vec3d.ZERO, 0f, 0f,postDimensionTransition);
             player.teleportTo(target);
@@ -198,7 +120,8 @@ public class InventoryManager {
         }
         if(n!=null)
         {
-            try{stackToInventory(player.getInventory(),n.inventory);
+            try{
+                stackToInventory(player.getInventory(),n.inventory);
             stackToEnder(player.getEnderChestInventory(),n.ender);}
             catch(Exception e)
             {
@@ -227,14 +150,7 @@ public class InventoryManager {
             player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, GameMode.SURVIVAL.getIndex()));
         }
     }
-    public static ServerWorld toOverworld(MinecraftServer server,ServerWorld world)
-    {
-        String overworldId=getDimensionId(world);
-        ServerWorld sw=server.getWorld(RegistryKey.of(RegistryKey.ofRegistry(world.getRegistryKey().getRegistry()),
-                Identifier.of(world.getRegistryKey().getValue().getNamespace(),
-                        overworldId.substring(overworldId.indexOf(":")+1))));
-        return (sw!=null?sw:world);
-    }
+
     public static void save(MinecraftServer server, ServerPlayerEntity player)
     {
         save(server,player,false,player.getServerWorld().getRegistryKey().getValue().toString());
