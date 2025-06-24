@@ -36,7 +36,7 @@ public class ListDimensionPlayers {
         for(ServerPlayerEntity player:source.getServer().getPlayerManager().getPlayerList())
         {
             if(player.
-                    getServerWorld().getRegistryKey().getValue().equals(dimension.getRegistryKey().getValue()))
+                    getWorld().getRegistryKey().getValue().equals(dimension.getRegistryKey().getValue()))
             {
                 players.add(player.getName().getString());
             }

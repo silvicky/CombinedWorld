@@ -35,7 +35,7 @@ public abstract class PersistentStateManagerMixin {
     {
         if(!type.id().equals(MOD_ID))return;
         final int lastVersion= NbtHelper.getDataVersion(nbtCompound,-1);
-        final int currentVersion= SharedConstants.getGameVersion().getSaveVersion().getId();
+        final int currentVersion= SharedConstants.getGameVersion().dataVersion().id();
         try
         {
             NbtCompound data=nbtCompound.getCompound("data").get();

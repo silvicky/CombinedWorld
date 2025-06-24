@@ -26,7 +26,10 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ConnectedClientData;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.storage.NbtReadView;
+import net.minecraft.storage.ReadView;
 import net.minecraft.text.Text;
+import net.minecraft.util.ErrorReporter;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Uuids;
 import net.minecraft.util.math.BlockPos;
@@ -138,8 +141,10 @@ public class Util
         ServerPlayerEntity serverPlayerEntity = new ServerPlayerEntity(
                 server, world, connectedClientData.gameProfile(), connectedClientData.syncedOptions()
         );
-        serverPlayerEntity.readNbt(compound);
-        serverPlayerEntity.readGameModeNbt(compound);
+        ErrorReporter.Logging logging = new ErrorReporter.Logging(serverPlayerEntity.getErrorReporterContext(), LOGGER);
+        ReadView readView = NbtReadView.create(logging, serverPlayerEntity.getRegistryManager(), compound);
+        serverPlayerEntity.readData(readView);
+        serverPlayerEntity.readGameModeData(readView);
         return serverPlayerEntity;
     }
 
@@ -180,7 +185,7 @@ public class Util
         ArrayList<String> ret=new ArrayList<>();
         for(ServerPlayerEntity player:players)
         {
-            if(getDimensionId(player.getServerWorld()).equals(dimension))
+            if(getDimensionId(player.getWorld()).equals(dimension))
             {
                 ret.add(player.getName().getString());
             }

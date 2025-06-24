@@ -40,7 +40,7 @@ public class Warp {
     public static int warp(ServerCommandSource source, ServerPlayerEntity player, ServerWorld dimension, boolean silent) throws CommandSyntaxException
     {
         if(player==null) throw ERR_NOT_BY_PLAYER.create();
-        ServerWorld from=player.getServerWorld();
+        ServerWorld from=player.getWorld();
         MinecraftServer server=source.getServer();
         StateSaver stateSaver=StateSaver.getServerState(server);
         StateSaver.WarpRestrictionInfo info=stateSaver.restrictionInfoHashMap.get(Identifier.of(getDimensionId(dimension)));

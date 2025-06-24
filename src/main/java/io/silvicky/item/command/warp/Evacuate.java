@@ -51,7 +51,7 @@ public class Evacuate
         int cnt=0;
         for(ServerPlayerEntity player:source.getServer().getPlayerManager().getPlayerList())
         {
-            if(getDimensionId(player.getServerWorld()).equals(getDimensionId(src)))
+            if(getDimensionId(player.getWorld()).equals(getDimensionId(src)))
             {
                 warp(source,player,dest,true);
                 cnt++;

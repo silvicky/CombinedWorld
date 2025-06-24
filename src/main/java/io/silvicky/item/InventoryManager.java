@@ -21,7 +21,7 @@ public class InventoryManager {
 
     public static void savePos(ServerPlayerEntity player, StateSaver stateSaver)
     {
-        savePos(player,stateSaver,player.getServerWorld().getRegistryKey().getValue().toString());
+        savePos(player,stateSaver,player.getWorld().getRegistryKey().getValue().toString());
     }
     public static void savePos(ServerPlayerEntity player, StateSaver stateSaver, String fakeDimension)
     {
@@ -36,7 +36,7 @@ public class InventoryManager {
 
     public static void saveInventory(ServerPlayerEntity player,StateSaver stateSaver)
     {
-        saveInventory(player,stateSaver,false,player.getServerWorld().getRegistryKey().getValue().toString());
+        saveInventory(player,stateSaver,false,player.getWorld().getRegistryKey().getValue().toString());
     }
     public static void saveInventory(ServerPlayerEntity player,StateSaver stateSaver,boolean tmp,String fakeDimension)
     {
@@ -153,7 +153,7 @@ public class InventoryManager {
 
     public static void save(MinecraftServer server, ServerPlayerEntity player)
     {
-        save(server,player,false,player.getServerWorld().getRegistryKey().getValue().toString());
+        save(server,player,false,player.getWorld().getRegistryKey().getValue().toString());
     }
     public static void save(MinecraftServer server, ServerPlayerEntity player,boolean tmp,String fakeDimension)
     {
