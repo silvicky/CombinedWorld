@@ -1,12 +1,11 @@
 package io.silvicky.item.mixin;
 
-import com.llamalad7.mixinextras.sugar.Local;
 import io.silvicky.item.StateSaver;
 import net.minecraft.network.packet.s2c.play.*;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.PlayerManager;
 import net.minecraft.server.WorldGenerationProgressListener;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.Identifier;
 import net.minecraft.world.border.WorldBorder;
 import net.minecraft.world.border.WorldBorderListener;
 import org.spongepowered.asm.mixin.Mixin;
@@ -32,6 +31,7 @@ public class MinecraftServerMixin
         StateSaver stateSaver=StateSaver.getServerState(server);
         for(ServerWorld serverWorld: server.getWorlds())
         {
+            if(serverWorld.getRegistryKey().getValue().equals(Identifier.of("minecraft:overworld")))continue;
             stateSaver.border.put(serverWorld.getRegistryKey().getValue(),serverWorld.getWorldBorder().write());
         }
     }

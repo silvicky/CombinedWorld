@@ -9,7 +9,6 @@ import net.minecraft.world.MutableWorldProperties;
 import net.minecraft.world.World;
 import net.minecraft.world.border.WorldBorder;
 import net.minecraft.world.dimension.DimensionType;
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -20,7 +19,8 @@ import static io.silvicky.item.common.PublicFields.*;
 @Mixin(World.class)
 public abstract class WorldMixin
 {
-    @Shadow @Final private WorldBorder border;
+    @Shadow
+    public WorldBorder border;
 
     @Inject(method = "<init>", at = @At("TAIL"))
     private void injected(MutableWorldProperties properties, RegistryKey<World> registryRef, DynamicRegistryManager registryManager, RegistryEntry<DimensionType> dimensionEntry, boolean isClient, boolean debugWorld, long seed, int maxChainedNeighborUpdates, CallbackInfo ci)
