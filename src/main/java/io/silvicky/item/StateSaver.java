@@ -28,6 +28,7 @@ public class StateSaver extends PersistentState {
     public final HashMap<Identifier, EnderDragonFight.Data> dragonFight;
     public final HashMap<Identifier, WarpRestrictionInfo> restrictionInfoHashMap;
     public final HashMap<Identifier, Long> seed;
+    public final HashMap<String, Integer> gamemode;
     public static final Codec<StateSaver> CODEC= RecordCodecBuilder.create((instance)->
             instance.group
                     (
@@ -40,10 +41,12 @@ public class StateSaver extends PersistentState {
                         Codec.unboundedMap(Identifier.CODEC, Codec.LONG).xmap(HashMap::new,map->map).fieldOf("seed").orElse(new HashMap<>()).forGetter((stateSaver ->
                                 stateSaver.seed)),
                         Codec.unboundedMap(Identifier.CODEC, WarpRestrictionInfo.CODEC).xmap(HashMap::new,map->map).fieldOf("restriction").orElse(new HashMap<>()).forGetter((stateSaver ->
-                                stateSaver.restrictionInfoHashMap))
+                                stateSaver.restrictionInfoHashMap)),
+                        Codec.unboundedMap(Codec.STRING, Codec.INT).xmap(HashMap::new,map->map).fieldOf("gamemode").orElse(new HashMap<>()).forGetter((stateSaver ->
+                                stateSaver.gamemode))
                     ).apply(instance,StateSaver::new));
-    public StateSaver(ArrayList<StorageInfo> nbtList,ArrayList<PositionInfo> posList,HashMap<Identifier,EnderDragonFight.Data> dragonFight,HashMap<Identifier,Long> seed,HashMap<Identifier,WarpRestrictionInfo> restrictionInfoHashMap){this.nbtList=nbtList;this.posList=posList;this.dragonFight=dragonFight;this.seed=seed;this.restrictionInfoHashMap=restrictionInfoHashMap;}
-    public StateSaver(){this(new ArrayList<>(),new ArrayList<>(),new HashMap<>(),new HashMap<>(),new HashMap<>());}
+    public StateSaver(ArrayList<StorageInfo> nbtList,ArrayList<PositionInfo> posList,HashMap<Identifier,EnderDragonFight.Data> dragonFight,HashMap<Identifier,Long> seed,HashMap<Identifier,WarpRestrictionInfo> restrictionInfoHashMap, HashMap<String, Integer> gamemode){this.nbtList=nbtList;this.posList=posList;this.dragonFight=dragonFight;this.seed=seed;this.restrictionInfoHashMap=restrictionInfoHashMap;this.gamemode=gamemode;}
+    public StateSaver(){this(new ArrayList<>(),new ArrayList<>(),new HashMap<>(),new HashMap<>(),new HashMap<>(),new HashMap<>());}
     private static final PersistentStateType<StateSaver> type = new PersistentStateType<>(
             MOD_ID,
             StateSaver::new,

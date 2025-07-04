@@ -168,6 +168,12 @@ public class ImportWorld {
             e.printStackTrace();
             throw ERR_FAIL_TO_READ_LEVEL.create();
         }
+        int gamemode=0;
+        try
+        {
+            gamemode=levelDynamic.get("GameType").asInt(0);
+        }
+        catch(Exception ignored){}
         WorldGenSettings worldGenSettings;
         try
         {
@@ -182,6 +188,7 @@ public class ImportWorld {
         source.sendFeedback(()-> Text.literal("Fetched WorldGenSettings."),false);
         long seed= worldGenSettings.generatorOptions().getSeed();
         stateSaver.seed.put(id,seed);
+        stateSaver.gamemode.put(id.getNamespace(),gamemode);
         if(!isSinglet)
         {
             stateSaver.seed.put(idNether, seed);

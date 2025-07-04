@@ -146,8 +146,9 @@ public class InventoryManager {
             player.getHungerManager().setFoodLevel(20);
             player.getHungerManager().setSaturationLevel(20);
             player.setAir(300);
-            player.interactionManager.changeGameMode(GameMode.SURVIVAL);
-            player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, GameMode.SURVIVAL.getIndex()));
+            int gamemode=stateSaver.gamemode.getOrDefault(targetDimension.getRegistryKey().getValue().getNamespace(),0);
+            player.interactionManager.changeGameMode(GameMode.byIndex(gamemode));
+            player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, gamemode));
         }
     }
 
