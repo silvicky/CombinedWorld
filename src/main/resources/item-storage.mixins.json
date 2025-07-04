@@ -5,11 +5,15 @@
   "mixins": [
     "AbstractFireBlockMixin",
     "EndPortalBlockMixin",
+    "MinecraftServerMixin",
     "NetherPortalBlockMixin",
     "PersistentStateManagerMixin",
+    "PlayerManagerMixin",
     "SaveLoadingMixin",
     "ServerWorldMixin",
-    "WorldGenSettingsMixin"
+    "WorldBorderCommandMixin",
+    "WorldGenSettingsMixin",
+    "WorldMixin"
   ],
   "injectors": {
     "defaultRequire": 1

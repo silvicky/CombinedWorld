@@ -20,6 +20,7 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtHelper;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtSizeTracker;
+import net.minecraft.network.packet.Packet;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.MinecraftServer;
@@ -296,5 +297,12 @@ public class Util
             ret.add(packMono(tmp,name));
         }
         return ret;
+    }
+    public static void sendToAllInWorld(ServerWorld world, Packet<?> packet)
+    {
+        for(ServerPlayerEntity player:world.getPlayers())
+        {
+            player.networkHandler.sendPacket(packet);
+        }
     }
 }
