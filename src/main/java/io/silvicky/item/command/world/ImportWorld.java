@@ -26,6 +26,7 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.WorldSavePath;
+import net.minecraft.world.border.WorldBorder;
 import net.minecraft.world.dimension.DimensionOptions;
 import net.minecraft.world.dimension.DimensionTypes;
 import net.minecraft.world.level.WorldGenSettings;
@@ -189,10 +190,13 @@ public class ImportWorld {
         long seed= worldGenSettings.generatorOptions().getSeed();
         stateSaver.seed.put(id,seed);
         stateSaver.gamemode.put(id.getNamespace(),gamemode);
+        stateSaver.border.put(id, WorldBorder.Properties.fromDynamic(levelDynamic,WorldBorder.DEFAULT_BORDER));
         if(!isSinglet)
         {
             stateSaver.seed.put(idNether, seed);
             stateSaver.seed.put(idEnd, seed);
+            stateSaver.border.put(idNether, WorldBorder.Properties.fromDynamic(levelDynamic,WorldBorder.DEFAULT_BORDER));
+            stateSaver.border.put(idEnd, WorldBorder.Properties.fromDynamic(levelDynamic,WorldBorder.DEFAULT_BORDER));
         }
         source.sendFeedback(()-> Text.literal("Seed configured."),false);
         try
