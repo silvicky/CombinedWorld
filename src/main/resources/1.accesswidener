@@ -27,3 +27,5 @@ accessible field net/minecraft/world/border/WorldBorder$Properties sizeLerpTime 
 mutable field net/minecraft/world/border/WorldBorder$Properties sizeLerpTime J
 accessible method net/minecraft/world/border/WorldBorder$Properties <init> (DDDDIIDJD)V
 accessible method net/minecraft/server/MinecraftServer createWorlds (Lnet/minecraft/server/WorldGenerationProgressListener;)V
+accessible method net/minecraft/server/network/ServerPlayerEntity writeGameModeData (Lnet/minecraft/storage/WriteView;)V
+accessible field net/minecraft/server/MinecraftServer saveHandler Lnet/minecraft/world/PlayerSaveHandler;

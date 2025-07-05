@@ -12,7 +12,9 @@ import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.ContainerComponent;
 import net.minecraft.datafixer.DataFixTypes;
 import net.minecraft.datafixer.Schemas;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.entity.player.PlayerPosition;
 import net.minecraft.inventory.EnderChestInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -21,19 +23,31 @@ import net.minecraft.nbt.NbtHelper;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtSizeTracker;
 import net.minecraft.network.packet.Packet;
+import net.minecraft.network.packet.s2c.play.DifficultyS2CPacket;
+import net.minecraft.network.packet.s2c.play.GameStateChangeS2CPacket;
+import net.minecraft.network.packet.s2c.play.PlayerAbilitiesS2CPacket;
+import net.minecraft.network.packet.s2c.play.PlayerRespawnS2CPacket;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.PlayerManager;
 import net.minecraft.server.network.ConnectedClientData;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.storage.NbtReadView;
+import net.minecraft.storage.NbtWriteView;
 import net.minecraft.storage.ReadView;
+import net.minecraft.storage.WriteView;
 import net.minecraft.text.Text;
 import net.minecraft.util.ErrorReporter;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Uuids;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.profiler.Profiler;
+import net.minecraft.util.profiler.Profilers;
+import net.minecraft.world.TeleportTarget;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -304,5 +318,13 @@ public class Util
         {
             player.networkHandler.sendPacket(packet);
         }
+    }
+    public static void fakeTeleportTo(ServerPlayerEntity player, TeleportTarget target)
+    {
+        player.setServerWorld(target.world());
+        player.setPosition(target.position());
+        player.setVelocity(target.velocity());
+        player.setYaw(target.yaw());
+        player.setPitch(target.pitch());
     }
 }

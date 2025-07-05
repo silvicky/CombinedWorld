@@ -9,6 +9,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.WorldSavePath;
+import net.minecraft.world.PlayerSaveHandler;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -48,13 +49,14 @@ public class Evacuate
             source.sendFeedback(()->Text.literal("Nothing happened."),false);
             return Command.SINGLE_SUCCESS;
         }
-        int cnt=0;
+        int cntOnline=0;
+        int cntOffline=0;
         for(ServerPlayerEntity player:source.getServer().getPlayerManager().getPlayerList())
         {
             if(getDimensionId(player.getWorld()).equals(getDimensionId(src)))
             {
                 warp(source,player,dest,true);
-                cnt++;
+                cntOnline++;
             }
         }
         if(!online)
@@ -62,10 +64,17 @@ public class Evacuate
             Path playerData=source.getServer().getSavePath(WorldSavePath.PLAYERDATA);
             for(File i:playerData.toFile().listFiles())
             {
+                if(i.getPath().endsWith("_old"))continue;
                 try
                 {
                     ServerPlayerEntity player=loadFakePlayer(i.toPath(),source.getServer());
-                    //TODO
+                    if(source.getServer().getPlayerManager().getPlayer(player.getUuid())!=null)continue;
+                    if(getDimensionId(player.getWorld()).equals(getDimensionId(src)))
+                    {
+                        warp(source,player,dest,true);
+                        source.getServer().saveHandler.savePlayerData(player);
+                        cntOffline++;
+                    }
                 }
                 catch (Exception e)
                 {
@@ -73,10 +82,11 @@ public class Evacuate
                     throw new RuntimeException(e);
                 }
             }
-
         }
-        int finalCnt = cnt;
-        source.sendFeedback(()->Text.literal("Evacuated "+ finalCnt +" players."),false);
+        int finalCnt = cntOnline+cntOffline;
+        int finalCntOnline = cntOnline;
+        int finalCntOffline=cntOffline;
+        source.sendFeedback(()->Text.literal(String.format("Evacuated %d players, %d online, %d offline.",finalCnt,finalCntOnline,finalCntOffline)),false);
         return Command.SINGLE_SUCCESS;
     }
 }

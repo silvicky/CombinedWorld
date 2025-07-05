@@ -61,7 +61,7 @@ public class InventoryManager {
         player.getHungerManager().setFoodLevel(20);
         player.getHungerManager().setSaturationLevel(5.0F);
         player.interactionManager.changeGameMode(GameMode.SURVIVAL);
-        player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, GameMode.SURVIVAL.getIndex()));
+        if(player.networkHandler!=null)player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, GameMode.SURVIVAL.getIndex()));
     }
     public static void loadPos(MinecraftServer server,ServerPlayerEntity player,ServerWorld targetDimension,StateSaver stateSaver) throws CommandSyntaxException {
         targetDimension= toOverworld(server,targetDimension);
@@ -82,7 +82,8 @@ public class InventoryManager {
             BlockPos sp= transLoc(targetDimension.getSpawnPos().withY(targetDimension.getLogicalHeight()-1),targetDimension);
             TeleportTarget.PostDimensionTransition postDimensionTransition=TeleportTarget.NO_OP;
             TeleportTarget target = new TeleportTarget(targetDimension,sp.toCenterPos(), Vec3d.ZERO, 0f, 0f,postDimensionTransition);
-            player.teleportTo(target);
+            if(player.networkHandler!=null)player.teleportTo(target);
+            else fakeTeleportTo(player,target);
         }
         else
         {
@@ -101,7 +102,8 @@ public class InventoryManager {
             TeleportTarget.PostDimensionTransition postDimensionTransition=TeleportTarget.NO_OP;
 
             TeleportTarget target = new TeleportTarget(sw2,sp.toCenterPos(), Vec3d.ZERO, 0f, 0f,postDimensionTransition);
-            player.teleportTo(target);
+            if(player.networkHandler!=null)player.teleportTo(target);
+            else fakeTeleportTo(player,target);
         }
     }
     public static void loadInventory(ServerPlayerEntity player,ServerWorld targetDimension,StateSaver stateSaver) throws CommandSyntaxException {
@@ -135,7 +137,7 @@ public class InventoryManager {
             player.getHungerManager().setSaturationLevel(n.food2);
             player.setAir(n.air);
             player.interactionManager.changeGameMode(GameMode.byIndex(n.gamemode));
-            player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, n.gamemode));
+            if(player.networkHandler!=null)player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, n.gamemode));
         }
         else
         {
@@ -148,7 +150,7 @@ public class InventoryManager {
             player.setAir(300);
             int gamemode=stateSaver.gamemode.getOrDefault(targetDimension.getRegistryKey().getValue().getNamespace(),0);
             player.interactionManager.changeGameMode(GameMode.byIndex(gamemode));
-            player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, gamemode));
+            if(player.networkHandler!=null)player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, gamemode));
         }
     }
 
