@@ -2,12 +2,15 @@ package io.silvicky.item.command.world;
 
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.silvicky.item.StateSaver;
+import net.minecraft.command.argument.DimensionArgumentType;
 import net.minecraft.command.argument.IdentifierArgumentType;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.WorldSavePath;
@@ -17,6 +20,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 
+import static io.silvicky.item.command.warp.BanWarp.banWarp;
 import static io.silvicky.item.command.warp.Evacuate.evacuate;
 import static io.silvicky.item.command.world.ImportWorld.*;
 import static io.silvicky.item.common.Util.*;
@@ -25,7 +29,7 @@ import static net.minecraft.server.command.CommandManager.literal;
 public class DeleteWorld {
     private static Identifier id;
     private static boolean firstType=true;
-    private static StateSaver stateSaver;
+
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher)
     {
         dispatcher.register(
@@ -33,13 +37,15 @@ public class DeleteWorld {
                         .requires(source -> source.hasPermissionLevel(4))
                         .executes(context->help(context.getSource()))
                         .then(argument(DIMENSION_ID, IdentifierArgumentType.identifier())
-                                .executes(context -> deleteWorld(context.getSource(),IdentifierArgumentType.getIdentifier(context, DIMENSION_ID)))));
+                                .then(argument(TARGET, DimensionArgumentType.dimension())
+                                    .executes(context -> deleteWorld(context.getSource(),IdentifierArgumentType.getIdentifier(context, DIMENSION_ID),DimensionArgumentType.getDimensionArgument(context,TARGET))))));
     }
     private static int help(ServerCommandSource source)
     {
-        source.sendFeedback(()-> Text.literal("Usage: /deleteworld <id>"),false);
+        source.sendFeedback(()-> Text.literal("Usage: /deleteworld <id> <target>"),false);
         source.sendFeedback(()-> Text.literal("Delete a world."),false);
         source.sendFeedback(()-> Text.literal("If <id> is a member of a triplet, all the triplet would be deleted."),false);
+        source.sendFeedback(()-> Text.literal("Any player (even offline) would be evacuated into <target>."),false);
         source.sendFeedback(()-> Text.literal("During the first stage, no actual change would be done until restart, when the dimension entries are deleted."),false);
         source.sendFeedback(()-> Text.literal("During the second stage, actual change would be done and no restart is needed."),false);
         return Command.SINGLE_SUCCESS;
@@ -56,7 +62,7 @@ public class DeleteWorld {
         }
         else return false;
     }
-    public static int deleteWorld(ServerCommandSource source,Identifier idTmp)
+    public static int deleteWorld(ServerCommandSource source, Identifier idTmp, ServerWorld safeZone) throws CommandSyntaxException
     {
         if(firstType)
         {
@@ -80,10 +86,17 @@ public class DeleteWorld {
             idEnd = Identifier.of(id.getNamespace(), tmp1 + END);
         }
         MinecraftServer server=source.getServer();
-        if(notifyEvacuation(source,id)) return Command.SINGLE_SUCCESS;
-        stateSaver=StateSaver.getServerState(server);
-        if(server.getWorld(RegistryKey.of(RegistryKeys.WORLD,id))!=null)
+        StateSaver stateSaver = StateSaver.getServerState(server);
+        ServerWorld src=server.getWorld(RegistryKey.of(RegistryKeys.WORLD,id));
+        if(src!=null)
         {
+            if(getDimensionId(id.toString()).equals(getDimensionId(safeZone)))
+            {
+                source.sendFeedback(()-> Text.literal("Target dimension cannot be the same as the one to be deleted."),false);
+                return Command.SINGLE_SUCCESS;
+            }
+            banWarp(source,src,StateSaver.WarpRestrictionInfo.INFINITE,"To be deleted.",true);
+            evacuate(source,src,safeZone,false);
             deletedDimensions.add(RegistryKey.of(RegistryKeys.DIMENSION,id));
             if(!isSinglet)
             {
