@@ -105,6 +105,7 @@ public class DeleteWorld {
             }
             source.sendFeedback(()-> Text.literal("Dimension options deleted."),false);
             source.sendFeedback(()-> Text.literal("First stage is done. Restart the game and type the same command again to continue."),false);
+            if(!source.getServer().isDedicated())source.sendFeedback(()-> Text.literal("DO NOT ENTER THIS WORLD AGAIN BEFORE RESTARTING YOUR GAME OR YOUR SAVE WOULD BE DESTROYED!!!"),false);
             return Command.SINGLE_SUCCESS;
         }
         try
