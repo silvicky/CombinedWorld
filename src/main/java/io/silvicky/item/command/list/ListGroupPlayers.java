@@ -36,7 +36,7 @@ public class ListGroupPlayers {
         for(ServerPlayerEntity player:source.getServer().getPlayerManager().getPlayerList())
         {
             if(player.
-                    getWorld().getRegistryKey().getValue().getNamespace().equals(dimension.getRegistryKey().getValue().getNamespace()))
+                    getEntityWorld().getRegistryKey().getValue().getNamespace().equals(dimension.getRegistryKey().getValue().getNamespace()))
             {
                 players.add(player.getName().getString());
             }

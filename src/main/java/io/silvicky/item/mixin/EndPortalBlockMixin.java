@@ -22,7 +22,7 @@ import static io.silvicky.item.common.Util.*;
 
 @Mixin(EndPortalBlock.class)
 public class EndPortalBlockMixin {
-    @ModifyVariable(method = "createTeleportTarget", at = @At(value = "STORE"),ordinal =0)
+    @ModifyVariable(method = "createTeleportTarget", at = @At(value = "STORE"),ordinal =1)
     private RegistryKey<World> injected(RegistryKey<World> registryKey, @Local(argsOnly = true) ServerWorld world) {
         RegistryKey<World> registryKey0=world.getRegistryKey();
         String path=registryKey0.getValue().getPath();
@@ -51,11 +51,11 @@ public class EndPortalBlockMixin {
     }
     @Inject(method = "createTeleportTarget",at = @At(value = "INVOKE_ASSIGN",  shift = At.Shift.AFTER, target = "Lnet/minecraft/server/world/ServerWorld;getServer()Lnet/minecraft/server/MinecraftServer;"), cancellable = true)
     private void injected3(ServerWorld world, Entity entity, BlockPos pos, CallbackInfoReturnable<TeleportTarget> cir
-    , @Local(ordinal = 0, argsOnly = true) ServerWorld serverWorl, @Local RegistryKey<World> registryKey)
+    , @Local(ordinal = 0, argsOnly = true) ServerWorld serverWorl, @Local(ordinal = 1) RegistryKey<World> registryKey)
     {
         ServerWorld serverWorld = world.getServer().getWorld(registryKey);
         boolean bl=registryKey.getValue().getPath().endsWith(END);
-        BlockPos blockPos = bl ? ServerWorld.END_SPAWN_POS : serverWorld.getSpawnPos();
+        BlockPos blockPos = bl ? ServerWorld.END_SPAWN_POS : serverWorld.getSpawnPoint().getPos();
         Vec3d vec3d = blockPos.toBottomCenterPos();
         if (bl) {
                 EndPlatformFeature.generate(serverWorld, BlockPos.ofFloored(vec3d).down(), true);

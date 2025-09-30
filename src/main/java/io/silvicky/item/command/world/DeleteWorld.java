@@ -111,13 +111,10 @@ public class DeleteWorld {
         try
         {
             stateSaver.seed.remove(id);
-            stateSaver.border.remove(id);
             stateSaver.restrictionInfoHashMap.remove(id);
             if (!isSinglet) {
                 stateSaver.seed.remove(idNether);
                 stateSaver.seed.remove(idEnd);
-                stateSaver.border.remove(idNether);
-                stateSaver.border.remove(idEnd);
                 stateSaver.restrictionInfoHashMap.remove(idNether);
                 stateSaver.restrictionInfoHashMap.remove(idEnd);
             }

@@ -14,7 +14,6 @@ import net.minecraft.world.PersistentState;
 import net.minecraft.world.PersistentStateManager;
 import net.minecraft.world.PersistentStateType;
 import net.minecraft.world.World;
-import net.minecraft.world.border.WorldBorder;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -24,27 +23,13 @@ import java.util.Objects;
 import static io.silvicky.item.common.Util.*;
 
 public class StateSaver extends PersistentState {
+    //TODO why list???
     public final ArrayList<StorageInfo> nbtList;
     public final ArrayList<PositionInfo> posList;
     public final HashMap<Identifier, EnderDragonFight.Data> dragonFight;
     public final HashMap<Identifier, WarpRestrictionInfo> restrictionInfoHashMap;
     public final HashMap<Identifier, Long> seed;
     public final HashMap<String, Integer> gamemode;
-    public final HashMap<Identifier, WorldBorder.Properties> border;
-    public static final Codec<WorldBorder.Properties> WORLD_BORDER_CODEC=RecordCodecBuilder.create((instance)->
-            instance.group(
-                    Codec.DOUBLE.fieldOf("BorderCenterX").forGetter((i)->i.centerX),
-                    Codec.DOUBLE.fieldOf("BorderCenterZ").forGetter((i)->i.centerZ),
-                    Codec.DOUBLE.fieldOf("BorderDamagePerBlock").forGetter((i)->i.damagePerBlock),
-                    Codec.DOUBLE.fieldOf("BorderSafeZone").forGetter((i)->i.safeZone),
-                    Codec.INT.fieldOf("BorderWarningBlocks").forGetter((i)->i.warningBlocks),
-                    Codec.INT.fieldOf("BorderWarningTime").forGetter((i)->i.warningTime),
-                    Codec.DOUBLE.fieldOf("BorderSize").forGetter((i)->i.size),
-                    Codec.LONG.fieldOf("BorderSizeLerpTime").forGetter((i)->i.sizeLerpTime),
-                    Codec.DOUBLE.fieldOf("BorderSizeLerpTarget").forGetter((i)->i.sizeLerpTarget)
-
-            ).apply(instance,WorldBorder.Properties::new)
-    );
     public static final Codec<StateSaver> CODEC= RecordCodecBuilder.create((instance)->
             instance.group
                     (
@@ -59,17 +44,14 @@ public class StateSaver extends PersistentState {
                         Codec.unboundedMap(Identifier.CODEC, WarpRestrictionInfo.CODEC).xmap(HashMap::new,map->map).fieldOf("restriction").orElse(new HashMap<>()).forGetter((stateSaver ->
                                 stateSaver.restrictionInfoHashMap)),
                         Codec.unboundedMap(Codec.STRING, Codec.INT).xmap(HashMap::new,map->map).fieldOf("gamemode").orElse(new HashMap<>()).forGetter((stateSaver ->
-                                stateSaver.gamemode)),
-                        Codec.unboundedMap(Identifier.CODEC, WORLD_BORDER_CODEC).xmap(HashMap::new,map->map).fieldOf("border").orElse(new HashMap<>()).forGetter((stateSaver ->
-                                stateSaver.border))
+                                stateSaver.gamemode))
                     ).apply(instance,StateSaver::new));
     public StateSaver(ArrayList<StorageInfo> nbtList,
                       ArrayList<PositionInfo> posList,
                       HashMap<Identifier,EnderDragonFight.Data> dragonFight,
                       HashMap<Identifier,Long> seed,
                       HashMap<Identifier,WarpRestrictionInfo> restrictionInfoHashMap,
-                      HashMap<String, Integer> gamemode,
-                      HashMap<Identifier, WorldBorder.Properties> border)
+                      HashMap<String, Integer> gamemode)
     {
         this.nbtList=nbtList;
         this.posList=posList;
@@ -77,13 +59,11 @@ public class StateSaver extends PersistentState {
         this.seed=seed;
         this.restrictionInfoHashMap=restrictionInfoHashMap;
         this.gamemode=gamemode;
-        this.border=border;
     }
     public StateSaver()
     {
         this(new ArrayList<>(),
                 new ArrayList<>(),
-                new HashMap<>(),
                 new HashMap<>(),
                 new HashMap<>(),
                 new HashMap<>(),

@@ -8,13 +8,10 @@
     "MinecraftServerMixin",
     "NetherPortalBlockMixin",
     "PersistentStateManagerMixin",
-    "PlayerManagerMixin",
     "SaveLoadingMixin",
     "ServerPlayerInteractionManagerMixin",
     "ServerWorldMixin",
-    "WorldBorderCommandMixin",
-    "WorldGenSettingsMixin",
-    "WorldMixin"
+    "WorldGenSettingsMixin"
   ],
   "injectors": {
     "defaultRequire": 1

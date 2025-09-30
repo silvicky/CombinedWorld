@@ -21,7 +21,7 @@ public class InventoryManager {
 
     public static void savePos(ServerPlayerEntity player, StateSaver stateSaver)
     {
-        savePos(player,stateSaver,player.getWorld().getRegistryKey().getValue().toString());
+        savePos(player,stateSaver,player.getEntityWorld().getRegistryKey().getValue().toString());
     }
     public static void savePos(ServerPlayerEntity player, StateSaver stateSaver, String fakeDimension)
     {
@@ -30,13 +30,13 @@ public class InventoryManager {
                         player.getUuidAsString(),
                         getDimensionId(fakeDimension),
                         fakeDimension,
-                        player.getPos()
+                        player.getEntityPos()
                 ));
     }
 
     public static void saveInventory(ServerPlayerEntity player,StateSaver stateSaver)
     {
-        saveInventory(player,stateSaver,false,player.getWorld().getRegistryKey().getValue().toString());
+        saveInventory(player,stateSaver,false,player.getEntityWorld().getRegistryKey().getValue().toString());
     }
     public static void saveInventory(ServerPlayerEntity player,StateSaver stateSaver,boolean tmp,String fakeDimension)
     {
@@ -79,7 +79,7 @@ public class InventoryManager {
         if(n==null)
         {
             LOGGER.info("Entering a new world... Good luck to the pioneer!");
-            BlockPos sp= transLoc(targetDimension.getSpawnPos().withY(targetDimension.getLogicalHeight()-1),targetDimension);
+            BlockPos sp= transLoc(targetDimension.getSpawnPoint().getPos().withY(targetDimension.getLogicalHeight()-1),targetDimension);
             TeleportTarget.PostDimensionTransition postDimensionTransition=TeleportTarget.NO_OP;
             TeleportTarget target = new TeleportTarget(targetDimension,sp.toCenterPos(), Vec3d.ZERO, 0f, 0f,postDimensionTransition);
             if(player.networkHandler!=null)player.teleportTo(target);
@@ -156,7 +156,7 @@ public class InventoryManager {
 
     public static void save(MinecraftServer server, ServerPlayerEntity player)
     {
-        save(server,player,false,player.getWorld().getRegistryKey().getValue().toString());
+        save(server,player,false,player.getEntityWorld().getRegistryKey().getValue().toString());
     }
     public static void save(MinecraftServer server, ServerPlayerEntity player,boolean tmp,String fakeDimension)
     {

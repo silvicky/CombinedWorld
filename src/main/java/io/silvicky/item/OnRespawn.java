@@ -7,11 +7,11 @@ import static io.silvicky.item.common.Util.*;
 
 public class OnRespawn {
     public static void respawn(ServerPlayerEntity oldPlayer,ServerPlayerEntity newPlayer,boolean alive) {
-        if(getDimensionId(oldPlayer.getWorld()).equals(getDimensionId(newPlayer.getWorld())))return;
-        if(oldPlayer.getWorld().getRegistryKey().getValue().getNamespace().equals(newPlayer.getWorld().getRegistryKey().getValue().getNamespace()))return;
-        StateSaver stateSaver=StateSaver.getServerState(oldPlayer.getServer());
+        if(getDimensionId(oldPlayer.getEntityWorld()).equals(getDimensionId(newPlayer.getEntityWorld())))return;
+        if(oldPlayer.getEntityWorld().getRegistryKey().getValue().getNamespace().equals(newPlayer.getEntityWorld().getRegistryKey().getValue().getNamespace()))return;
+        StateSaver stateSaver=StateSaver.getServerState(oldPlayer.getEntityWorld().getServer());
         if(alive) saveInventory(oldPlayer,stateSaver);
-        try{loadInventory(newPlayer,newPlayer.getWorld(),stateSaver);}
+        try{loadInventory(newPlayer,newPlayer.getEntityWorld(),stateSaver);}
         catch(Exception e){LOGGER.error(e.getMessage());}
     }
 }

@@ -1,6 +1,5 @@
 package io.silvicky.item.command.warp;
 
-import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -10,6 +9,7 @@ import net.minecraft.command.argument.GameProfileArgumentType;
 import net.minecraft.command.argument.Vec3ArgumentType;
 import net.minecraft.entity.Entity;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.PlayerConfigEntry;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -19,8 +19,8 @@ import net.minecraft.world.TeleportTarget;
 
 import java.util.Collection;
 
-import static io.silvicky.item.common.Util.*;
 import static io.silvicky.item.command.warp.Warp.warp;
+import static io.silvicky.item.common.Util.*;
 import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
 
@@ -53,16 +53,16 @@ public class WarpTp {
         source.sendFeedback(()-> Text.literal("Warp <player>(or yourself) to world of <dimension>(and subsequent teleport)"),false);
         return Command.SINGLE_SUCCESS;
     }
-    public static ServerPlayerEntity profileListToPlayer(MinecraftServer server, Collection<GameProfile> profileList) throws CommandSyntaxException {
+    public static ServerPlayerEntity profileListToPlayer(MinecraftServer server, Collection<PlayerConfigEntry> profileList) throws CommandSyntaxException {
         if(profileList.size()!=1) throw ERR_NOT_ONE_PLAYER.create();
-        GameProfile profile=profileList.stream().toList().getFirst();
-        return server.getPlayerManager().getPlayer(profile.getName());
+        PlayerConfigEntry profile=profileList.stream().toList().getFirst();
+        return server.getPlayerManager().getPlayer(profile.name());
     }
-    public static int warpTp(ServerCommandSource source, Collection<GameProfile> profileList, ServerWorld dimension) throws CommandSyntaxException
+    public static int warpTp(ServerCommandSource source, Collection<PlayerConfigEntry> profileList, ServerWorld dimension) throws CommandSyntaxException
     {
         return warp(source,profileListToPlayer(source.getServer(),profileList), dimension);
     }
-    public static int warpTp(ServerCommandSource source, Collection<GameProfile> profileList, ServerWorld dimension, Vec3d target) throws CommandSyntaxException
+    public static int warpTp(ServerCommandSource source, Collection<PlayerConfigEntry> profileList, ServerWorld dimension, Vec3d target) throws CommandSyntaxException
     {
         return warpTp(source,profileListToPlayer(source.getServer(),profileList),dimension,target);
     }
@@ -79,10 +79,10 @@ public class WarpTp {
     }
     public static int warpTp(ServerCommandSource source, Entity entity) throws CommandSyntaxException
     {
-        return warpTp(source, (ServerWorld) entity.getWorld(),entity.getPos());
+        return warpTp(source, (ServerWorld) entity.getEntityWorld(),entity.getEntityPos());
     }
-    public static int warpTp(ServerCommandSource source, Collection<GameProfile> profileList, Entity entity) throws CommandSyntaxException
+    public static int warpTp(ServerCommandSource source, Collection<PlayerConfigEntry> profileList, Entity entity) throws CommandSyntaxException
     {
-        return warpTp(source,profileList, (ServerWorld) entity.getWorld(),entity.getPos());
+        return warpTp(source,profileList, (ServerWorld) entity.getEntityWorld(),entity.getEntityPos());
     }
 }

@@ -9,13 +9,12 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.WorldSavePath;
-import net.minecraft.world.PlayerSaveHandler;
 
 import java.io.File;
 import java.nio.file.Path;
 
-import static io.silvicky.item.common.Util.*;
 import static io.silvicky.item.command.warp.Warp.warp;
+import static io.silvicky.item.common.Util.*;
 import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
 
@@ -53,7 +52,7 @@ public class Evacuate
         int cntOffline=0;
         for(ServerPlayerEntity player:source.getServer().getPlayerManager().getPlayerList())
         {
-            if(getDimensionId(player.getWorld()).equals(getDimensionId(src)))
+            if(getDimensionId(player.getEntityWorld()).equals(getDimensionId(src)))
             {
                 warp(source,player,dest,true);
                 cntOnline++;
@@ -69,7 +68,7 @@ public class Evacuate
                 {
                     ServerPlayerEntity player=loadFakePlayer(i.toPath(),source.getServer());
                     if(source.getServer().getPlayerManager().getPlayer(player.getUuid())!=null)continue;
-                    if(getDimensionId(player.getWorld()).equals(getDimensionId(src)))
+                    if(getDimensionId(player.getEntityWorld()).equals(getDimensionId(src)))
                     {
                         warp(source,player,dest,true);
                         source.getServer().saveHandler.savePlayerData(player);
