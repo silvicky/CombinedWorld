@@ -5,7 +5,6 @@
   "mixins": [
     "AbstractFireBlockMixin",
     "EndPortalBlockMixin",
-    "MinecraftServerMixin",
     "NetherPortalBlockMixin",
     "PersistentStateManagerMixin",
     "SaveLoadingMixin",
