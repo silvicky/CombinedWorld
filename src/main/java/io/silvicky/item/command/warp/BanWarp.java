@@ -6,6 +6,8 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import io.silvicky.item.StateSaver;
 import net.minecraft.command.argument.DimensionArgumentType;
+import net.minecraft.command.permission.Permission;
+import net.minecraft.command.permission.PermissionLevel;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
@@ -22,7 +24,7 @@ public class BanWarp {
     {
         dispatcher.register(
                 literal("banwarp")
-                        .requires(context-> context.hasPermissionLevel(2))
+                        .requires(context-> context.getPermissions().hasPermission(new Permission.Level(PermissionLevel.GAMEMASTERS)))
                         .executes(context->help(context.getSource()))
                         .then(literal("ban")
                                 .then(argument(DIMENSION,DimensionArgumentType.dimension())

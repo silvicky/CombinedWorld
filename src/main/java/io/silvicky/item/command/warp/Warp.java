@@ -5,6 +5,8 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.silvicky.item.StateSaver;
 import net.minecraft.command.argument.DimensionArgumentType;
+import net.minecraft.command.permission.Permission;
+import net.minecraft.command.permission.PermissionLevel;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -44,7 +46,7 @@ public class Warp {
         MinecraftServer server=source.getServer();
         StateSaver stateSaver=StateSaver.getServerState(server);
         StateSaver.WarpRestrictionInfo info=stateSaver.restrictionInfoHashMap.get(Identifier.of(getDimensionId(dimension)));
-        if(info!=null&&!source.hasPermissionLevel(info.level))
+        if(info!=null&&(info.level>4||!source.getPermissions().hasPermission(new Permission.Level(PermissionLevel.fromLevel(info.level)))))
         {
             throw ERR_WARP_FORBIDDEN.create(info.reason);
         }

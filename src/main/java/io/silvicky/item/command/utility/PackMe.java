@@ -2,6 +2,8 @@ package io.silvicky.item.command.utility;
 
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
+import net.minecraft.command.permission.Permission;
+import net.minecraft.command.permission.PermissionLevel;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -9,15 +11,15 @@ import net.minecraft.text.Text;
 
 import java.util.List;
 
-import static net.minecraft.server.command.CommandManager.literal;
 import static io.silvicky.item.common.Util.*;
+import static net.minecraft.server.command.CommandManager.literal;
 public class PackMe
 {
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher)
     {
         dispatcher.register(
                 literal("packme")
-                        .requires(source -> source.hasPermissionLevel(2))
+                        .requires(source -> source.getPermissions().hasPermission(new Permission.Level(PermissionLevel.GAMEMASTERS)))
                         .executes(context->help(context.getSource()))
                         .then(literal("inv")
                                 .executes(context -> packInv(context.getSource().getPlayerOrThrow())))

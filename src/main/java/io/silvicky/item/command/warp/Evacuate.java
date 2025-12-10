@@ -4,6 +4,8 @@ import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.command.argument.DimensionArgumentType;
+import net.minecraft.command.permission.Permission;
+import net.minecraft.command.permission.PermissionLevel;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -24,7 +26,7 @@ public class Evacuate
     {
         dispatcher.register(
                 literal("evacuate")
-                        .requires(ctx-> ctx.hasPermissionLevel(2))
+                        .requires(ctx-> ctx.getPermissions().hasPermission(new Permission.Level(PermissionLevel.GAMEMASTERS)))
                                 .executes(context->help(context.getSource()))
                                 .then(literal("online")
                                         .then(argument(DIMENSION, DimensionArgumentType.dimension())

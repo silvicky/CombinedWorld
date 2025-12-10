@@ -6,6 +6,8 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.silvicky.item.StateSaver;
 import net.minecraft.command.argument.DimensionArgumentType;
 import net.minecraft.command.argument.IdentifierArgumentType;
+import net.minecraft.command.permission.Permission;
+import net.minecraft.command.permission.PermissionLevel;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.MinecraftServer;
@@ -34,7 +36,7 @@ public class DeleteWorld {
     {
         dispatcher.register(
                 literal("deleteworld")
-                        .requires(source -> source.hasPermissionLevel(4))
+                        .requires(source -> source.getPermissions().hasPermission(new Permission.Level(PermissionLevel.OWNERS)))
                         .executes(context->help(context.getSource()))
                         .then(argument(DIMENSION_ID, IdentifierArgumentType.identifier())
                                 .then(argument(TARGET, DimensionArgumentType.dimension())

@@ -7,6 +7,8 @@ import net.minecraft.command.argument.DimensionArgumentType;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.command.argument.GameProfileArgumentType;
 import net.minecraft.command.argument.Vec3ArgumentType;
+import net.minecraft.command.permission.Permission;
+import net.minecraft.command.permission.PermissionLevel;
 import net.minecraft.entity.Entity;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.PlayerConfigEntry;
@@ -29,7 +31,7 @@ public class WarpTp {
     {
         dispatcher.register(
                 literal("warptp")
-                        .requires(source -> source.hasPermissionLevel(2))
+                        .requires(source -> source.getPermissions().hasPermission(new Permission.Level(PermissionLevel.GAMEMASTERS)))
                         .executes(context->help(context.getSource()))
                         .then(argument(DIMENSION, DimensionArgumentType.dimension())
                                 .then(argument(CORD, Vec3ArgumentType.vec3())

@@ -8,6 +8,8 @@ import com.mojang.serialization.Dynamic;
 import io.silvicky.item.StateSaver;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.command.argument.IdentifierArgumentType;
+import net.minecraft.command.permission.Permission;
+import net.minecraft.command.permission.PermissionLevel;
 import net.minecraft.datafixer.DataFixTypes;
 import net.minecraft.datafixer.Schemas;
 import net.minecraft.entity.boss.dragon.EnderDragonFight;
@@ -58,7 +60,7 @@ public class ImportWorld {
     {
         dispatcher.register(
                 literal("importworld")
-                        .requires(source -> source.hasPermissionLevel(4))
+                        .requires(source -> source.getPermissions().hasPermission(new Permission.Level(PermissionLevel.OWNERS)))
                         .executes(context->help(context.getSource()))
                         .then(argument(DIMENSION_ID, IdentifierArgumentType.identifier())
                                 .executes(context -> importWorld(context.getSource(), Paths.get(FabricLoader.getInstance().getGameDir().toString(),"imported"),IdentifierArgumentType.getIdentifier(context, DIMENSION_ID)))

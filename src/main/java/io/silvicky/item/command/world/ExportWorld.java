@@ -4,6 +4,8 @@ import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import io.silvicky.item.StateSaver;
 import net.minecraft.command.argument.DimensionArgumentType;
+import net.minecraft.command.permission.Permission;
+import net.minecraft.command.permission.PermissionLevel;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.world.ServerWorld;
@@ -22,7 +24,7 @@ public class ExportWorld {
     {
         dispatcher.register(
                 literal("exportworld")
-                        .requires(source -> source.hasPermissionLevel(4))
+                        .requires(source -> source.getPermissions().hasPermission(new Permission.Level(PermissionLevel.OWNERS)))
                         .executes(context->help(context.getSource()))
                         .then(argument(DIMENSION_ID, DimensionArgumentType.dimension())
                                 .executes(context -> exportWorld(context.getSource(),DimensionArgumentType.getDimensionArgument(context, DIMENSION_ID)))));
