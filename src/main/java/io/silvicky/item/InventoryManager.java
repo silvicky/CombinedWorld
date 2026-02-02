@@ -12,6 +12,7 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.GameMode;
 import net.minecraft.world.TeleportTarget;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 
 import static io.silvicky.item.common.Util.*;
@@ -37,6 +38,30 @@ public class InventoryManager {
     public static void saveInventory(ServerPlayerEntity player,StateSaver stateSaver)
     {
         saveInventory(player,stateSaver,false,player.getEntityWorld().getRegistryKey().getValue().toString());
+    }
+    public static void saveInventoryDead(ServerPlayerEntity player,StateSaver stateSaver)
+    {
+        stateSaver.nbtList.add(new StateSaver.StorageInfo
+                (
+                        player.getUuidAsString(),
+                        player.getEntityWorld().getRegistryKey().getValue().getNamespace(),
+                        new ArrayList<>(),
+                        enderToStack(player.getEnderChestInventory()),
+                        0,
+                        20.0F,
+                        20,
+                        5.0F,
+                        300,
+                        player.interactionManager.getGameMode().getIndex()
+                ));
+        player.getInventory().clear();
+        player.getEnderChestInventory().clear();
+        player.setExperiencePoints(0);
+        player.setHealth(20.0F);
+        player.getHungerManager().setFoodLevel(20);
+        player.getHungerManager().setSaturationLevel(5.0F);
+        player.interactionManager.changeGameMode(GameMode.SURVIVAL);
+        if(player.networkHandler!=null)player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, GameMode.SURVIVAL.getIndex()));
     }
     public static void saveInventory(ServerPlayerEntity player,StateSaver stateSaver,boolean tmp,String fakeDimension)
     {

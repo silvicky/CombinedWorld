@@ -11,6 +11,7 @@ public class OnRespawn {
         if(oldPlayer.getEntityWorld().getRegistryKey().getValue().getNamespace().equals(newPlayer.getEntityWorld().getRegistryKey().getValue().getNamespace()))return;
         StateSaver stateSaver=StateSaver.getServerState(oldPlayer.getEntityWorld().getServer());
         if(alive) saveInventory(oldPlayer,stateSaver);
+        else saveInventoryDead(oldPlayer,stateSaver);
         try{loadInventory(newPlayer,newPlayer.getEntityWorld(),stateSaver);}
         catch(Exception e){LOGGER.error(e.getMessage());}
     }
