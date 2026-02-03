@@ -15,17 +15,14 @@ import net.minecraft.world.PersistentStateManager;
 import net.minecraft.world.PersistentStateType;
 import net.minecraft.world.World;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 import static io.silvicky.item.common.Util.*;
 
 public class StateSaver extends PersistentState {
     //TODO why list???
-    public final ArrayList<StorageInfo> nbtList;
-    public final ArrayList<PositionInfo> posList;
+    public final LinkedList<StorageInfo> nbtList;
+    public final LinkedList<PositionInfo> posList;
     public final HashMap<Identifier, EnderDragonFight.Data> dragonFight;
     public final HashMap<Identifier, WarpRestrictionInfo> restrictionInfoHashMap;
     public final HashMap<Identifier, Long> seed;
@@ -33,9 +30,9 @@ public class StateSaver extends PersistentState {
     public static final Codec<StateSaver> CODEC= RecordCodecBuilder.create((instance)->
             instance.group
                     (
-                        StorageInfo.CODEC.listOf().xmap(ArrayList::new, list->list).fieldOf(SAVED).orElse(new ArrayList<>()).forGetter((stateSaver)->
+                        StorageInfo.CODEC.listOf().xmap(LinkedList::new, list->list).fieldOf(SAVED).orElse(new LinkedList<>()).forGetter((stateSaver)->
                                 stateSaver.nbtList),
-                        PositionInfo.CODEC.listOf().xmap(ArrayList::new,list->list).fieldOf("pos").orElse(new ArrayList<>()).forGetter((stateSaver)->
+                        PositionInfo.CODEC.listOf().xmap(LinkedList::new,list->list).fieldOf("pos").orElse(new LinkedList<>()).forGetter((stateSaver)->
                                 stateSaver.posList),
                         Codec.unboundedMap(Identifier.CODEC, EnderDragonFight.Data.CODEC).xmap(HashMap::new,map->map).fieldOf("dragon").orElse(new HashMap<>()).forGetter((stateSaver ->
                                 stateSaver.dragonFight)),
@@ -46,8 +43,8 @@ public class StateSaver extends PersistentState {
                         Codec.unboundedMap(Codec.STRING, Codec.INT).xmap(HashMap::new,map->map).fieldOf("gamemode").orElse(new HashMap<>()).forGetter((stateSaver ->
                                 stateSaver.gamemode))
                     ).apply(instance,StateSaver::new));
-    public StateSaver(ArrayList<StorageInfo> nbtList,
-                      ArrayList<PositionInfo> posList,
+    public StateSaver(LinkedList<StorageInfo> nbtList,
+                      LinkedList<PositionInfo> posList,
                       HashMap<Identifier,EnderDragonFight.Data> dragonFight,
                       HashMap<Identifier,Long> seed,
                       HashMap<Identifier,WarpRestrictionInfo> restrictionInfoHashMap,
@@ -62,8 +59,8 @@ public class StateSaver extends PersistentState {
     }
     public StateSaver()
     {
-        this(new ArrayList<>(),
-                new ArrayList<>(),
+        this(new LinkedList<>(),
+                new LinkedList<>(),
                 new HashMap<>(),
                 new HashMap<>(),
                 new HashMap<>(),
