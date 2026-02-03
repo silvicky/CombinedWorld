@@ -28,6 +28,7 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.WorldSavePath;
+import net.minecraft.world.WorldProperties;
 import net.minecraft.world.dimension.DimensionOptions;
 import net.minecraft.world.dimension.DimensionTypes;
 import net.minecraft.world.level.WorldGenSettings;
@@ -210,6 +211,18 @@ public class ImportWorld {
         {
             e.printStackTrace();
             source.sendFeedback(()-> Text.literal("Failed to fetch dragon fight... but not a big deal."),false);
+        }
+        try
+        {
+            //TODO is it even possible to spawn into non-overworld dimensions?
+            WorldProperties.SpawnPoint spawn=WorldProperties.SpawnPoint.CODEC.parse(levelDynamic.get("spawn").orElseEmptyMap()).getOrThrow();
+            stateSaver.spawn.put(id, spawn.getPos());
+            source.sendFeedback(() -> Text.literal("Configured spawn point."), false);
+        }
+        catch(Exception e)
+        {
+            e.printStackTrace();
+            source.sendFeedback(()-> Text.literal("Failed to fetch spawn point... but not a big deal."),false);
         }
         Path playerData=path.resolve("playerdata");
         try

@@ -9,6 +9,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.PersistentState;
 import net.minecraft.world.PersistentStateManager;
@@ -27,6 +28,7 @@ public class StateSaver extends PersistentState {
     public final HashMap<Identifier, WarpRestrictionInfo> restrictionInfoHashMap;
     public final HashMap<Identifier, Long> seed;
     public final HashMap<String, Integer> gamemode;
+    public final HashMap<Identifier, BlockPos> spawn;
     public static final Codec<StateSaver> CODEC= RecordCodecBuilder.create((instance)->
             instance.group
                     (
@@ -41,14 +43,17 @@ public class StateSaver extends PersistentState {
                         Codec.unboundedMap(Identifier.CODEC, WarpRestrictionInfo.CODEC).xmap(HashMap::new,map->map).fieldOf("restriction").orElse(new HashMap<>()).forGetter((stateSaver ->
                                 stateSaver.restrictionInfoHashMap)),
                         Codec.unboundedMap(Codec.STRING, Codec.INT).xmap(HashMap::new,map->map).fieldOf("gamemode").orElse(new HashMap<>()).forGetter((stateSaver ->
-                                stateSaver.gamemode))
+                                stateSaver.gamemode)),
+                        Codec.unboundedMap(Identifier.CODEC, BlockPos.CODEC).xmap(HashMap::new,map->map).fieldOf("spawn").orElse(new HashMap<>()).forGetter((stateSaver ->
+                                stateSaver.spawn))
                     ).apply(instance,StateSaver::new));
     public StateSaver(LinkedList<StorageInfo> nbtList,
                       LinkedList<PositionInfo> posList,
                       HashMap<Identifier,EnderDragonFight.Data> dragonFight,
                       HashMap<Identifier,Long> seed,
                       HashMap<Identifier,WarpRestrictionInfo> restrictionInfoHashMap,
-                      HashMap<String, Integer> gamemode)
+                      HashMap<String, Integer> gamemode,
+                      HashMap<Identifier,BlockPos> spawn)
     {
         this.nbtList=nbtList;
         this.posList=posList;
@@ -56,11 +61,13 @@ public class StateSaver extends PersistentState {
         this.seed=seed;
         this.restrictionInfoHashMap=restrictionInfoHashMap;
         this.gamemode=gamemode;
+        this.spawn=spawn;
     }
     public StateSaver()
     {
         this(new LinkedList<>(),
                 new LinkedList<>(),
+                new HashMap<>(),
                 new HashMap<>(),
                 new HashMap<>(),
                 new HashMap<>(),

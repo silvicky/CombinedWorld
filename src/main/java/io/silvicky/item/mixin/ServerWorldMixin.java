@@ -7,8 +7,10 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.SaveProperties;
 import net.minecraft.world.World;
+import net.minecraft.world.WorldProperties;
 import net.minecraft.world.dimension.DimensionTypes;
 import net.minecraft.world.gen.GeneratorOptions;
 import org.objectweb.asm.Opcodes;
@@ -97,5 +99,28 @@ public abstract class ServerWorldMixin {
         Identifier cur=target.getRegistryKey().getValue();
         if(seedMap.containsKey(cur))return seedMap.get(cur);
         return instance.getSeed();
+    }
+    @Redirect(method="getSpawnPoint",at= @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;getSpawnPoint()Lnet/minecraft/world/WorldProperties$SpawnPoint;"))
+    private WorldProperties.SpawnPoint inject9(MinecraftServer instance)
+    {
+        ServerWorld target=(ServerWorld) (Object)this;
+        if(target.equals(instance.getOverworld()))return instance.getSpawnPoint();
+        HashMap<Identifier, BlockPos> spawn=StateSaver.getServerState(instance).spawn;
+        Identifier cur=target.getRegistryKey().getValue();
+        if(spawn.containsKey(cur))return WorldProperties.SpawnPoint.create(target.getRegistryKey(),spawn.get(cur),0,0);
+        return instance.getSpawnPoint();
+    }
+    @Redirect(method="setSpawnPoint",at= @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;setSpawnPoint(Lnet/minecraft/world/WorldProperties$SpawnPoint;)V"))
+    private void inject10(MinecraftServer instance, WorldProperties.SpawnPoint spawnPoint)
+    {
+        ServerWorld target=(ServerWorld) (Object)this;
+        if(target.equals(instance.getOverworld()))
+        {
+            instance.setSpawnPoint(spawnPoint);
+            return;
+        }
+        HashMap<Identifier, BlockPos> spawn=StateSaver.getServerState(instance).spawn;
+        Identifier cur=target.getRegistryKey().getValue();
+        spawn.put(cur,spawnPoint.getPos());
     }
 }
