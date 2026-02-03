@@ -15,7 +15,6 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
 import static io.silvicky.item.InventoryManager.loadPos;
-import static io.silvicky.item.InventoryManager.savePos;
 import static io.silvicky.item.common.Util.*;
 import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
@@ -53,13 +52,11 @@ public class Warp {
         }
         if(!getDimensionId(dimension).equals(getDimensionId(from)))
         {
-            //TODO fix this
             LOGGER.info(player.getName().getString()+" goes to "+ getDimensionId(dimension));
             if(!dimension.getRegistryKey().getValue().getNamespace().equals(from.getRegistryKey().getValue().getNamespace()))
             {
                 player.clearStatusEffects();
             }
-            savePos(player,stateSaver);
             loadPos(server, player, dimension, stateSaver);
             if(!silent)source.sendFeedback(()-> Text.literal("Teleported to "+ getDimensionId(dimension)+"!"),false);
         }

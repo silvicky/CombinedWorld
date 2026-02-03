@@ -178,11 +178,6 @@ public class InventoryManager {
             if(player.networkHandler!=null)player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, gamemode));
         }
     }
-
-    public static void save(MinecraftServer server, ServerPlayerEntity player)
-    {
-        save(server,player,false,player.getEntityWorld().getRegistryKey().getValue().toString());
-    }
     public static void save(MinecraftServer server, ServerPlayerEntity player,boolean tmp,String fakeDimension)
     {
         StateSaver stateSaver=StateSaver.getServerState(server);
