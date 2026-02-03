@@ -108,7 +108,7 @@ public class InventoryManager {
             TeleportTarget.PostDimensionTransition postDimensionTransition=TeleportTarget.NO_OP;
             TeleportTarget target = new TeleportTarget(targetDimension,sp.toCenterPos(), Vec3d.ZERO, 0f, 0f,postDimensionTransition);
             if(player.networkHandler!=null)player.teleportTo(target);
-            else fakeTeleportTo(player,target);
+            else fakeTeleportTo(player,target,stateSaver);
         }
         else
         {
@@ -128,7 +128,7 @@ public class InventoryManager {
 
             TeleportTarget target = new TeleportTarget(sw2,sp.toCenterPos(), Vec3d.ZERO, 0f, 0f,postDimensionTransition);
             if(player.networkHandler!=null)player.teleportTo(target);
-            else fakeTeleportTo(player,target);
+            else fakeTeleportTo(player,target,stateSaver);
         }
     }
     public static void loadInventory(ServerPlayerEntity player,ServerWorld targetDimension,StateSaver stateSaver) throws CommandSyntaxException {

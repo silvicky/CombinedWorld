@@ -6,6 +6,7 @@ import com.mojang.brigadier.Message;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import com.mojang.datafixers.util.Pair;
+import io.silvicky.item.StateSaver;
 import net.minecraft.component.Component;
 import net.minecraft.component.ComponentChanges;
 import net.minecraft.component.DataComponentTypes;
@@ -49,6 +50,9 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import static io.silvicky.item.InventoryManager.loadInventory;
+import static io.silvicky.item.InventoryManager.saveInventory;
+import static io.silvicky.item.cfg.JSONConfig.useStorage;
 import static java.nio.file.Files.copy;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 
@@ -305,12 +309,33 @@ public class Util
             player.networkHandler.sendPacket(packet);
         }
     }
-    public static void fakeTeleportTo(ServerPlayerEntity player, TeleportTarget target)
+    public static void fakeTeleportTo(ServerPlayerEntity player, TeleportTarget teleportTarget, StateSaver stateSaver)
     {
-        player.setServerWorld(target.world());
-        player.setPosition(target.position());
-        player.setVelocity(target.velocity());
-        player.setYaw(target.yaw());
-        player.setPitch(target.pitch());
+        Identifier source=player.getEntityWorld().getRegistryKey().getValue();
+        Identifier target=teleportTarget.world().getRegistryKey().getValue();
+        if(!source.getNamespace().equals(target.getNamespace()))
+        {
+            if(useStorage)saveInventory(player, stateSaver);
+        }
+        player.setServerWorld(teleportTarget.world());
+        player.setPosition(teleportTarget.position());
+        player.setVelocity(teleportTarget.velocity());
+        player.setYaw(teleportTarget.yaw());
+        player.setPitch(teleportTarget.pitch());
+        if(!source.getNamespace().equals(target.getNamespace()))
+        {
+            if(useStorage)
+            {
+                try
+                {
+                    loadInventory(player, teleportTarget.world(), stateSaver);
+                }
+                catch(Exception e)
+                {
+                    //TODO Any way to rollback?
+                    throw new RuntimeException(e);
+                }
+            }
+        }
     }
 }
