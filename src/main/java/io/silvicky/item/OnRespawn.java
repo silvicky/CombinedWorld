@@ -12,7 +12,11 @@ public class OnRespawn {
         StateSaver stateSaver=StateSaver.getServerState(oldPlayer.getEntityWorld().getServer());
         if(alive) saveInventory(oldPlayer,stateSaver);
         else saveInventoryDead(oldPlayer,stateSaver);
-        try{loadInventory(newPlayer,newPlayer.getEntityWorld(),stateSaver);}
-        catch(Exception e){LOGGER.error(e.getMessage());}
+        try
+        {
+            loadInventory(newPlayer, newPlayer.getEntityWorld(), stateSaver);
+            loadPos(newPlayer.getEntityWorld().getServer(), newPlayer, newPlayer.getEntityWorld(), StateSaver.getServerState(newPlayer.getEntityWorld().getServer()));
+        }
+        catch(Exception e){throw new RuntimeException(e);}
     }
 }

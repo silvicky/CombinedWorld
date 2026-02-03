@@ -8,6 +8,7 @@
     "NetherPortalBlockMixin",
     "PersistentStateManagerMixin",
     "SaveLoadingMixin",
+    "ServerPlayerEntityMixin",
     "ServerPlayerInteractionManagerMixin",
     "ServerWorldMixin",
     "WorldGenSettingsMixin"

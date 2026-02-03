@@ -8,3 +8,4 @@ mutable field net/minecraft/world/World registryKey Lnet/minecraft/registry/Regi
 accessible method net/minecraft/server/MinecraftServer createWorlds ()V
 accessible method net/minecraft/server/network/ServerPlayerEntity writeGameModeData (Lnet/minecraft/storage/WriteView;)V
 accessible field net/minecraft/server/MinecraftServer saveHandler Lnet/minecraft/world/PlayerSaveHandler;
+accessible method net/minecraft/server/network/ServerPlayerEntity worldChanged (Lnet/minecraft/server/world/ServerWorld;)V

@@ -189,17 +189,4 @@ public class InventoryManager {
         savePos(player,stateSaver,fakeDimension);
         if(useStorage)saveInventory(player,stateSaver,tmp,fakeDimension);
     }
-    public static void load(MinecraftServer server, ServerPlayerEntity player, ServerWorld targetDimension) throws CommandSyntaxException {
-        StateSaver stateSaver=StateSaver.getServerState(server);
-        if(useStorage)
-        {
-            loadInventory(player,targetDimension,stateSaver);
-        }
-        loadPos(server, player, targetDimension, stateSaver);
-    }
-    public static void directWarp(MinecraftServer server,ServerPlayerEntity player,ServerWorld targetDimension) throws CommandSyntaxException {
-        StateSaver stateSaver=StateSaver.getServerState(server);
-        savePos(player,stateSaver);
-        loadPos(server, player, targetDimension, stateSaver);
-    }
 }

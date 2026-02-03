@@ -66,20 +66,19 @@ public class WarpTp {
     }
     public static int warpTp(ServerCommandSource source, Collection<PlayerConfigEntry> profileList, ServerWorld dimension, Vec3d target) throws CommandSyntaxException
     {
-        return warpTp(source,profileListToPlayer(source.getServer(),profileList),dimension,target);
+        return warpTp(profileListToPlayer(source.getServer(),profileList),dimension,target);
     }
-    public static int warpTp(ServerCommandSource source, ServerPlayerEntity player, ServerWorld dimension, Vec3d target) throws CommandSyntaxException
+    public static int warpTp(ServerPlayerEntity player, ServerWorld dimension, Vec3d target)
     {
-        warp(source,player,dimension);
         TeleportTarget tpTarget = new TeleportTarget(dimension, target, Vec3d.ZERO, 0f, 0f,TeleportTarget.NO_OP);
         player.teleportTo(tpTarget);
         return Command.SINGLE_SUCCESS;
     }
-    public static int warpTp(ServerCommandSource source, ServerWorld dimension, Vec3d target) throws CommandSyntaxException
+    public static int warpTp(ServerCommandSource source, ServerWorld dimension, Vec3d target)
     {
-        return warpTp(source,source.getPlayer(),dimension,target);
+        return warpTp(source.getPlayer(),dimension,target);
     }
-    public static int warpTp(ServerCommandSource source, Entity entity) throws CommandSyntaxException
+    public static int warpTp(ServerCommandSource source, Entity entity)
     {
         return warpTp(source, (ServerWorld) entity.getEntityWorld(),entity.getEntityPos());
     }
