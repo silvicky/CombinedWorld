@@ -53,6 +53,7 @@ public class Warp {
         }
         if(!getDimensionId(dimension).equals(getDimensionId(from)))
         {
+            //TODO fix this
             LOGGER.info(player.getName().getString()+" goes to "+ getDimensionId(dimension));
             if(!dimension.getRegistryKey().getValue().getNamespace().equals(from.getRegistryKey().getValue().getNamespace()))
             {

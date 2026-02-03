@@ -52,6 +52,7 @@ public class Evacuate
         }
         int cntOnline=0;
         int cntOffline=0;
+        int cntFailed=0;
         for(ServerPlayerEntity player:source.getServer().getPlayerManager().getPlayerList())
         {
             if(getDimensionId(player.getEntityWorld()).equals(getDimensionId(src)))
@@ -80,14 +81,15 @@ public class Evacuate
                 catch (Exception e)
                 {
                     e.printStackTrace();
-                    throw new RuntimeException(e);
+                    cntFailed++;
                 }
             }
         }
         int finalCnt = cntOnline+cntOffline;
         int finalCntOnline = cntOnline;
         int finalCntOffline=cntOffline;
-        source.sendFeedback(()->Text.literal(String.format("Evacuated %d players, %d online, %d offline.",finalCnt,finalCntOnline,finalCntOffline)),false);
+        int finalCntFailed=cntFailed;
+        source.sendFeedback(()->Text.literal(String.format("Evacuated %d players, %d online, %d offline. %d Failed.",finalCnt,finalCntOnline,finalCntOffline,finalCntFailed)),false);
         return Command.SINGLE_SUCCESS;
     }
 }
