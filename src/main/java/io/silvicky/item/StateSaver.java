@@ -9,6 +9,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
@@ -29,6 +30,7 @@ public class StateSaver extends PersistentState {
     public final HashMap<String, Integer> gamemode;
     private final HashMap<Identifier, BlockPos> spawn;
     public final HashMap<Identifier, WorldProperties.SpawnPoint> worldSpawn;
+    public final HashMap<Identifier, HashMap<String, ServerPlayerEntity.Respawn>> respawn;
     private static final Codec<StateSaver> CODEC= RecordCodecBuilder.create((instance)->
             instance.group
                     (
@@ -47,7 +49,9 @@ public class StateSaver extends PersistentState {
                         Codec.unboundedMap(Identifier.CODEC, BlockPos.CODEC).xmap(HashMap::new,map->map).fieldOf("spawn").orElse(new HashMap<>()).forGetter((stateSaver ->
                                 stateSaver.spawn)),
                         Codec.unboundedMap(Identifier.CODEC, WorldProperties.SpawnPoint.CODEC).xmap(HashMap::new,map->map).fieldOf("world_spawn").orElse(new HashMap<>()).forGetter((stateSaver ->
-                                stateSaver.worldSpawn))
+                                stateSaver.worldSpawn)),
+                        Codec.unboundedMap(Identifier.CODEC, Codec.unboundedMap(Codec.STRING,ServerPlayerEntity.Respawn.CODEC).xmap(HashMap::new,map->map)).xmap(HashMap::new, map->map).fieldOf("respawn").orElse(new HashMap<>()).forGetter((stateSaver ->
+                                stateSaver.respawn))
                     ).apply(instance,StateSaver::new));
     private StateSaver(LinkedList<StorageInfo> nbtList,
                       LinkedList<PositionInfo> posList,
@@ -56,7 +60,8 @@ public class StateSaver extends PersistentState {
                       HashMap<Identifier,WarpRestrictionInfo> restrictionInfoHashMap,
                       HashMap<String, Integer> gamemode,
                       HashMap<Identifier,BlockPos> spawn,
-                      HashMap<Identifier, WorldProperties.SpawnPoint> worldSpawn)
+                      HashMap<Identifier, WorldProperties.SpawnPoint> worldSpawn,
+                      HashMap<Identifier, HashMap<String, ServerPlayerEntity.Respawn>> respawn)
     {
         this.nbtList=nbtList;
         this.posList=posList;
@@ -66,11 +71,13 @@ public class StateSaver extends PersistentState {
         this.gamemode=gamemode;
         this.spawn=spawn;
         this.worldSpawn=worldSpawn;
+        this.respawn=respawn;
     }
     private StateSaver()
     {
         this(new LinkedList<>(),
                 new LinkedList<>(),
+                new HashMap<>(),
                 new HashMap<>(),
                 new HashMap<>(),
                 new HashMap<>(),
@@ -104,7 +111,6 @@ public class StateSaver extends PersistentState {
         state.update();
         return state;
     }
-
     public static class StorageInfo {
         public String player;
         public String dimension;

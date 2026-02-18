@@ -9,3 +9,7 @@ accessible method net/minecraft/server/MinecraftServer createWorlds ()V
 accessible method net/minecraft/server/network/ServerPlayerEntity writeGameModeData (Lnet/minecraft/storage/WriteView;)V
 accessible field net/minecraft/server/MinecraftServer saveHandler Lnet/minecraft/world/PlayerSaveHandler;
 accessible method net/minecraft/server/network/ServerPlayerEntity worldChanged (Lnet/minecraft/server/world/ServerWorld;)V
+accessible field net/minecraft/server/network/ServerPlayerEntity SET_SPAWN_TEXT Lnet/minecraft/text/Text;
+accessible field net/minecraft/server/network/ServerPlayerEntity respawn Lnet/minecraft/server/network/ServerPlayerEntity$Respawn;
+mutable field net/minecraft/server/network/ServerPlayerEntity respawn Lnet/minecraft/server/network/ServerPlayerEntity$Respawn;
+accessible method net/minecraft/world/TeleportTarget getWorldSpawnPos (Lnet/minecraft/server/world/ServerWorld;Lnet/minecraft/entity/Entity;)Lnet/minecraft/util/math/Vec3d;
