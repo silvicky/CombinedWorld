@@ -3,11 +3,12 @@ package io.silvicky.item.mixin;
 import com.llamalad7.mixinextras.sugar.Local;
 import io.silvicky.item.StateSaver;
 import net.minecraft.entity.boss.dragon.EnderDragonFight;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.SaveProperties;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldProperties;
@@ -23,6 +24,8 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 
 import java.util.HashMap;
 import java.util.List;
+
+import static io.silvicky.item.common.Util.getDimensionId;
 
 @Mixin(ServerWorld.class)
 public abstract class ServerWorldMixin {
@@ -103,24 +106,24 @@ public abstract class ServerWorldMixin {
     @Redirect(method="getSpawnPoint",at= @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;getSpawnPoint()Lnet/minecraft/world/WorldProperties$SpawnPoint;"))
     private WorldProperties.SpawnPoint inject9(MinecraftServer instance)
     {
-        ServerWorld target=(ServerWorld) (Object)this;
-        if(target.equals(instance.getOverworld()))return instance.getSpawnPoint();
-        HashMap<Identifier, BlockPos> spawn=StateSaver.getServerState(instance).spawn;
-        Identifier cur=target.getRegistryKey().getValue();
-        if(spawn.containsKey(cur))return WorldProperties.SpawnPoint.create(target.getRegistryKey(),spawn.get(cur),0,0);
-        return instance.getSpawnPoint();
+        Identifier target=((ServerWorld) (Object)this).getRegistryKey().getValue();
+        if(getDimensionId(target).equals(instance.getOverworld().getRegistryKey().getValue()))
+        {
+            return instance.getSpawnPoint();
+        }
+        HashMap<Identifier, WorldProperties.SpawnPoint> spawn=StateSaver.getServerState(instance).worldSpawn;
+        WorldProperties.SpawnPoint defaultSpawn=instance.getSpawnPoint();
+        return spawn.getOrDefault(target, WorldProperties.SpawnPoint.create(RegistryKey.of(RegistryKeys.WORLD,target),defaultSpawn.getPos(),defaultSpawn.yaw(),defaultSpawn.pitch()));
     }
     @Redirect(method="setSpawnPoint",at= @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;setSpawnPoint(Lnet/minecraft/world/WorldProperties$SpawnPoint;)V"))
     private void inject10(MinecraftServer instance, WorldProperties.SpawnPoint spawnPoint)
     {
-        ServerWorld target=(ServerWorld) (Object)this;
-        if(target.equals(instance.getOverworld()))
+        Identifier target=((ServerWorld) (Object)this).getRegistryKey().getValue();
+        if(getDimensionId(target).equals(instance.getOverworld().getRegistryKey().getValue()))
         {
             instance.setSpawnPoint(spawnPoint);
             return;
         }
-        HashMap<Identifier, BlockPos> spawn=StateSaver.getServerState(instance).spawn;
-        Identifier cur=target.getRegistryKey().getValue();
-        spawn.put(cur,spawnPoint.getPos());
+        StateSaver.getServerState(instance).worldSpawn.put(target,spawnPoint);
     }
 }

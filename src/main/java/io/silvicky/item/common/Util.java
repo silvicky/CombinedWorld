@@ -171,7 +171,10 @@ public class Util
         if(id.endsWith(END))id=id.substring(0,id.length()- END.length())+ OVERWORLD;
         return id;
     }
-
+    public static Identifier getDimensionId(Identifier id)
+    {
+        return Identifier.of(id.getNamespace(),getDimensionId(id.getPath()));
+    }
     public static BlockPos transLoc(BlockPos sp, ServerWorld sw)
     {
         while((!sw.getBlockState(sp).isAir())||(!sw.getBlockState(sp.up()).isAir()))sp=sp.down();

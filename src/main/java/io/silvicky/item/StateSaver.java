@@ -6,15 +6,14 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.datafixer.DataFixTypes;
 import net.minecraft.entity.boss.dragon.EnderDragonFight;
 import net.minecraft.item.ItemStack;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.PersistentState;
-import net.minecraft.world.PersistentStateManager;
-import net.minecraft.world.PersistentStateType;
-import net.minecraft.world.World;
+import net.minecraft.world.*;
 
 import java.util.*;
 
@@ -28,8 +27,9 @@ public class StateSaver extends PersistentState {
     public final HashMap<Identifier, WarpRestrictionInfo> restrictionInfoHashMap;
     public final HashMap<Identifier, Long> seed;
     public final HashMap<String, Integer> gamemode;
-    public final HashMap<Identifier, BlockPos> spawn;
-    public static final Codec<StateSaver> CODEC= RecordCodecBuilder.create((instance)->
+    private final HashMap<Identifier, BlockPos> spawn;
+    public final HashMap<Identifier, WorldProperties.SpawnPoint> worldSpawn;
+    private static final Codec<StateSaver> CODEC= RecordCodecBuilder.create((instance)->
             instance.group
                     (
                         StorageInfo.CODEC.listOf().xmap(LinkedList::new, list->list).fieldOf(SAVED).orElse(new LinkedList<>()).forGetter((stateSaver)->
@@ -45,15 +45,18 @@ public class StateSaver extends PersistentState {
                         Codec.unboundedMap(Codec.STRING, Codec.INT).xmap(HashMap::new,map->map).fieldOf("gamemode").orElse(new HashMap<>()).forGetter((stateSaver ->
                                 stateSaver.gamemode)),
                         Codec.unboundedMap(Identifier.CODEC, BlockPos.CODEC).xmap(HashMap::new,map->map).fieldOf("spawn").orElse(new HashMap<>()).forGetter((stateSaver ->
-                                stateSaver.spawn))
+                                stateSaver.spawn)),
+                        Codec.unboundedMap(Identifier.CODEC, WorldProperties.SpawnPoint.CODEC).xmap(HashMap::new,map->map).fieldOf("world_spawn").orElse(new HashMap<>()).forGetter((stateSaver ->
+                                stateSaver.worldSpawn))
                     ).apply(instance,StateSaver::new));
-    public StateSaver(LinkedList<StorageInfo> nbtList,
+    private StateSaver(LinkedList<StorageInfo> nbtList,
                       LinkedList<PositionInfo> posList,
                       HashMap<Identifier,EnderDragonFight.Data> dragonFight,
                       HashMap<Identifier,Long> seed,
                       HashMap<Identifier,WarpRestrictionInfo> restrictionInfoHashMap,
                       HashMap<String, Integer> gamemode,
-                      HashMap<Identifier,BlockPos> spawn)
+                      HashMap<Identifier,BlockPos> spawn,
+                      HashMap<Identifier, WorldProperties.SpawnPoint> worldSpawn)
     {
         this.nbtList=nbtList;
         this.posList=posList;
@@ -62,11 +65,13 @@ public class StateSaver extends PersistentState {
         this.restrictionInfoHashMap=restrictionInfoHashMap;
         this.gamemode=gamemode;
         this.spawn=spawn;
+        this.worldSpawn=worldSpawn;
     }
-    public StateSaver()
+    private StateSaver()
     {
         this(new LinkedList<>(),
                 new LinkedList<>(),
+                new HashMap<>(),
                 new HashMap<>(),
                 new HashMap<>(),
                 new HashMap<>(),
@@ -80,7 +85,14 @@ public class StateSaver extends PersistentState {
             CODEC,
             DataFixTypes.PLAYER
     );
-
+    private void update()
+    {
+        for(Map.Entry<Identifier, BlockPos> posEntry:spawn.entrySet())
+        {
+            worldSpawn.put(getDimensionId(posEntry.getKey()), WorldProperties.SpawnPoint.create(RegistryKey.of(RegistryKeys.WORLD,posEntry.getKey()),posEntry.getValue(),0,0));
+        }
+        spawn.clear();
+    }
     public static StateSaver getServerState(MinecraftServer server) {
         return getServerState(Objects.requireNonNull(server.getWorld(World.OVERWORLD)));
     }
@@ -89,6 +101,7 @@ public class StateSaver extends PersistentState {
         PersistentStateManager persistentStateManager = world.getPersistentStateManager();
         StateSaver state = persistentStateManager.getOrCreate(type);
         state.markDirty();
+        state.update();
         return state;
     }
 

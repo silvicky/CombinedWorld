@@ -214,9 +214,13 @@ public class ImportWorld {
         }
         try
         {
-            //TODO is it even possible to spawn into non-overworld dimensions?
             WorldProperties.SpawnPoint spawn=WorldProperties.SpawnPoint.CODEC.parse(levelDynamic.get("spawn").orElseEmptyMap()).getOrThrow();
-            stateSaver.spawn.put(id, spawn.getPos());
+            String spawnWorldPath=spawn.getDimension().getValue().getPath();
+            Identifier spawnWorld;
+            if(spawnWorldPath.endsWith(END))spawnWorld=idEnd;
+            else if(spawnWorldPath.endsWith(NETHER))spawnWorld=idNether;
+            else spawnWorld=id;
+            stateSaver.worldSpawn.put(id, WorldProperties.SpawnPoint.create(RegistryKey.of(RegistryKeys.WORLD,spawnWorld),spawn.getPos(),spawn.yaw(),spawn.pitch()));
             source.sendFeedback(() -> Text.literal("Configured spawn point."), false);
         }
         catch(Exception e)
