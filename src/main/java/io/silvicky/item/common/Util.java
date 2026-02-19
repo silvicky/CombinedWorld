@@ -67,6 +67,7 @@ public class Util
     public static final String ENTITIES="entities";
     public static final String INVENTORY="inventory";
     public static final String SAVED="saved";
+    public static final String SAVED_MAP="saved_map";
     public static final String ENDER="ender";
     public static final String SLOT="Slot";
     public static final String LEVEL="level";

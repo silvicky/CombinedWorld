@@ -91,7 +91,7 @@ public class ImportWorld {
     private static void rollbackPlayer()
     {
         stateSaver.posMap.remove(id);
-        stateSaver.nbtList.removeIf(storageInfo -> storageInfo.dimension.equals(id.getNamespace()));
+        stateSaver.savedMap.remove(id.getNamespace());
         rollbackDragon();
     }
 

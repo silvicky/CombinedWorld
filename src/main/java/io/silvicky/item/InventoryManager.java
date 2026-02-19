@@ -15,10 +15,9 @@ import net.minecraft.world.TeleportTarget;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 
-import static io.silvicky.item.common.Util.*;
 import static io.silvicky.item.cfg.JSONConfig.useStorage;
+import static io.silvicky.item.common.Util.*;
 
 public class InventoryManager {
 
@@ -44,10 +43,9 @@ public class InventoryManager {
     }
     public static void saveInventoryDead(ServerPlayerEntity player,StateSaver stateSaver)
     {
-        stateSaver.nbtList.add(new StateSaver.StorageInfo
+        stateSaver.savedMap.computeIfAbsent(player.getEntityWorld().getRegistryKey().getValue().getNamespace(),i->new HashMap<>())
+                .put(player.getUuidAsString(),new StateSaver.StorageInfoNew
                 (
-                        player.getUuidAsString(),
-                        player.getEntityWorld().getRegistryKey().getValue().getNamespace(),
                         new ArrayList<>(),
                         enderToStack(player.getEnderChestInventory()),
                         0,
@@ -68,10 +66,9 @@ public class InventoryManager {
     }
     public static void saveInventory(ServerPlayerEntity player,StateSaver stateSaver,boolean tmp,String fakeDimension)
     {
-        stateSaver.nbtList.add(new StateSaver.StorageInfo
-                (
-                        player.getUuidAsString(),
-                        fakeDimension.substring(0,fakeDimension.indexOf(':')),
+        stateSaver.savedMap.computeIfAbsent(Identifier.of(fakeDimension).getNamespace(),i->new HashMap<>())
+                .put(player.getUuidAsString(),new StateSaver.StorageInfoNew
+                        (
                         inventoryToStack(player.getInventory()),
                         enderToStack(player.getEnderChestInventory()),
                         player.totalExperience,
@@ -119,37 +116,26 @@ public class InventoryManager {
         }
     }
     public static void loadInventory(ServerPlayerEntity player,ServerWorld targetDimension,StateSaver stateSaver) throws CommandSyntaxException {
-        Iterator<StateSaver.StorageInfo> iterator=stateSaver.nbtList.iterator();
-        StateSaver.StorageInfo n=null;
-        while (iterator.hasNext())
-        {
-            StateSaver.StorageInfo nt=iterator.next();
-            if(!(nt.player.equals(player.getUuidAsString())
-                    &&nt.dimension.equals(targetDimension.getRegistryKey().getValue().getNamespace())))
-                    continue;
-            iterator.remove();
-            LOGGER.info("Fetched inventory!");
-            if(n!=null)LOGGER.warn("Duplicated data found! Discarding old data, but this should not happen...");
-            n=nt;
-        }
+        StateSaver.StorageInfoNew n=stateSaver.savedMap
+                .computeIfAbsent(targetDimension.getRegistryKey().getValue().getNamespace(),i->new HashMap<>())
+                .get(player.getUuidAsString());
         if(n!=null)
         {
             try{
-                stackToInventory(player.getInventory(),n.inventory);
-            stackToEnder(player.getEnderChestInventory(),n.ender);}
+                stackToInventory(player.getInventory(),n.inventory());
+            stackToEnder(player.getEnderChestInventory(),n.ender());}
             catch(Exception e)
             {
                 LOGGER.error(e.getMessage());
-                stateSaver.nbtList.add(n);
                 throw ERR_ITEM.create();
             }
-            player.setExperiencePoints(n.xp);
-            player.setHealth(n.hp);
-            player.getHungerManager().setFoodLevel(n.food);
-            player.getHungerManager().setSaturationLevel(n.food2);
-            player.setAir(n.air);
-            player.interactionManager.changeGameMode(GameMode.byIndex(n.gamemode));
-            if(player.networkHandler!=null)player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, n.gamemode));
+            player.setExperiencePoints(n.xp());
+            player.setHealth(n.hp());
+            player.getHungerManager().setFoodLevel(n.food());
+            player.getHungerManager().setSaturationLevel(n.saturation());
+            player.setAir(n.air());
+            player.interactionManager.changeGameMode(GameMode.byIndex(n.gamemode()));
+            if(player.networkHandler!=null)player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, n.gamemode()));
         }
         else
         {

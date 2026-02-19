@@ -144,7 +144,7 @@ public class DeleteWorld {
         {
             Set<String> removedPlayers = stateSaver.posMap.getOrDefault(id,new HashMap<>()).keySet();
             int cnt = removedPlayers.size();
-            stateSaver.nbtList.removeIf(i -> removedPlayers.contains(i.player) && i.dimension.equals(id.getNamespace()));
+            for(String i:removedPlayers)stateSaver.savedMap.getOrDefault(id.getNamespace(),new HashMap<>()).remove(i);
             source.sendFeedback(() -> Text.literal("Deleted " + cnt + " player data."), false);
         }
         catch(Exception e)

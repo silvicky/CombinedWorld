@@ -74,6 +74,17 @@ public abstract class PersistentStateManagerMixin {
             fixSavedDat((NbtCompound) i,lastVersion,currentVersion);
         }
     }
+    @Unique
+    private void fixSavedMap(NbtCompound saved, int lastVersion, int currentVersion)
+    {
+        for (NbtElement i : saved.values())
+        {
+            for(NbtElement j:((NbtCompound)i).values())
+            {
+                fixSavedDat((NbtCompound) j, lastVersion, currentVersion);
+            }
+        }
+    }
     @Inject(method = "readFromFile",at= @At(value = "INVOKE", target = "Lnet/minecraft/registry/RegistryWrapper$WrapperLookup;getOps(Lcom/mojang/serialization/DynamicOps;)Lnet/minecraft/registry/RegistryOps;",shift = At.Shift.AFTER))
     public <T extends PersistentState> void inject1(PersistentStateType<T> type, CallbackInfoReturnable<T> cir, @Local NbtCompound nbtCompound)
     {
@@ -82,11 +93,21 @@ public abstract class PersistentStateManagerMixin {
         final int currentVersion= SharedConstants.getGameVersion().dataVersion().id();
         try
         {
-            NbtCompound data=nbtCompound.getCompound("data").orElseThrow();
-            NbtList saved=data.getList(SAVED).orElseThrow();
-            fixSaved(saved,lastVersion,currentVersion);
+            NbtCompound data = nbtCompound.getCompound("data").orElseThrow();
+            try
+            {
+                NbtList saved = data.getList(SAVED).orElseThrow();
+                fixSaved(saved, lastVersion, currentVersion);
+            }
+            catch (Exception ignored) {}
+            try
+            {
+                NbtCompound saved = data.getCompound(SAVED_MAP).orElseThrow();
+                fixSavedMap(saved, lastVersion, currentVersion);
+            }
+            catch (Exception ignored) {}
         }
-        catch(Exception ignored) {}
+        catch (Exception ignored){}
         NbtHelper.putDataVersion(nbtCompound,currentVersion);
     }
 }

@@ -22,10 +22,10 @@ import java.util.*;
 import static io.silvicky.item.common.Util.*;
 
 public class StateSaver extends PersistentState {
-    //TODO why list???
-    public final LinkedList<StorageInfo> nbtList;
+    private final LinkedList<StorageInfo> nbtList;
     private final LinkedList<PositionInfo> posList;
     public final HashMap<Identifier,HashMap<String,PositionInfoNew>> posMap;
+    public final HashMap<String,HashMap<String,StorageInfoNew>> savedMap;
     public final HashMap<Identifier, EnderDragonFight.Data> dragonFight;
     public final HashMap<Identifier, WarpRestrictionInfo> restrictionInfoHashMap;
     public final HashMap<Identifier, Long> seed;
@@ -33,6 +33,7 @@ public class StateSaver extends PersistentState {
     private final HashMap<Identifier, BlockPos> spawn;
     public final HashMap<Identifier, WorldProperties.SpawnPoint> worldSpawn;
     public final HashMap<Identifier, HashMap<String, ServerPlayerEntity.Respawn>> respawn;
+    public static final Codec<Pair<ItemStack,Byte>> SLOT_CODEC=Codec.pair(ItemStack.CODEC.orElse(null),Codec.BYTE.fieldOf(SLOT).codec());
     private static final Codec<StateSaver> CODEC= RecordCodecBuilder.create((instance)->
             instance.group
                     (
@@ -42,6 +43,8 @@ public class StateSaver extends PersistentState {
                                 stateSaver.posList),
                         Codec.unboundedMap(Identifier.CODEC, Codec.unboundedMap(Codec.STRING,PositionInfoNew.CODEC).xmap(HashMap::new,map->map)).xmap(HashMap::new,map->map).fieldOf("pos_map").orElse(new HashMap<>()).forGetter((stateSaver)->
                                 stateSaver.posMap),
+                        Codec.unboundedMap(Codec.STRING, Codec.unboundedMap(Codec.STRING,StorageInfoNew.CODEC).xmap(HashMap::new,map->map)).xmap(HashMap::new,map->map).fieldOf(SAVED_MAP).orElse(new HashMap<>()).forGetter((stateSaver)->
+                                stateSaver.savedMap),
                         Codec.unboundedMap(Identifier.CODEC, EnderDragonFight.Data.CODEC).xmap(HashMap::new,map->map).fieldOf("dragon").orElse(new HashMap<>()).forGetter((stateSaver ->
                                 stateSaver.dragonFight)),
                         Codec.unboundedMap(Identifier.CODEC, Codec.LONG).xmap(HashMap::new,map->map).fieldOf("seed").orElse(new HashMap<>()).forGetter((stateSaver ->
@@ -59,7 +62,8 @@ public class StateSaver extends PersistentState {
                     ).apply(instance,StateSaver::new));
     private StateSaver(LinkedList<StorageInfo> nbtList,
                       LinkedList<PositionInfo> posList,
-                      HashMap<Identifier,HashMap<String,PositionInfoNew>> posMap,
+                       HashMap<Identifier,HashMap<String,PositionInfoNew>> posMap,
+                       HashMap<String,HashMap<String,StorageInfoNew>> savedMap,
                       HashMap<Identifier,EnderDragonFight.Data> dragonFight,
                       HashMap<Identifier,Long> seed,
                       HashMap<Identifier,WarpRestrictionInfo> restrictionInfoHashMap,
@@ -71,6 +75,7 @@ public class StateSaver extends PersistentState {
         this.nbtList=nbtList;
         this.posList=posList;
         this.posMap=posMap;
+        this.savedMap=savedMap;
         this.dragonFight=dragonFight;
         this.seed=seed;
         this.restrictionInfoHashMap=restrictionInfoHashMap;
@@ -83,6 +88,7 @@ public class StateSaver extends PersistentState {
     {
         this(new LinkedList<>(),
                 new LinkedList<>(),
+                new HashMap<>(),
                 new HashMap<>(),
                 new HashMap<>(),
                 new HashMap<>(),
@@ -119,6 +125,21 @@ public class StateSaver extends PersistentState {
                             ));
         }
         posList.clear();
+        for(StorageInfo storageInfo:nbtList)
+        {
+            savedMap.computeIfAbsent(storageInfo.dimension,i->new HashMap<>())
+                    .put(storageInfo.player,new StorageInfoNew(
+                            storageInfo.inventory,
+                            storageInfo.ender,
+                            storageInfo.xp,
+                            storageInfo.hp,
+                            storageInfo.food,
+                            storageInfo.food2,
+                            storageInfo.air,
+                            storageInfo.gamemode
+                    ));
+        }
+        nbtList.clear();
     }
     public static StateSaver getServerState(MinecraftServer server) {
         return getServerState(Objects.requireNonNull(server.getWorld(World.OVERWORLD)));
@@ -131,7 +152,7 @@ public class StateSaver extends PersistentState {
         state.update();
         return state;
     }
-    public static class StorageInfo {
+    private static class StorageInfo {
         public String player;
         public String dimension;
         public ArrayList<Pair<ItemStack,Byte>> inventory;
@@ -155,7 +176,6 @@ public class StateSaver extends PersistentState {
             this.air = air;
             this.gamemode = gamemode;
         }
-        public static final Codec<Pair<ItemStack,Byte>> SLOT_CODEC=Codec.pair(ItemStack.CODEC.orElse(null),Codec.BYTE.fieldOf(SLOT).codec());
         public static final Codec<StorageInfo> CODEC= RecordCodecBuilder.create((instance) ->
                 instance.group
                         (
@@ -171,6 +191,30 @@ public class StateSaver extends PersistentState {
                                 Codec.INT.fieldOf("gamemode").orElse(0).forGetter((info)->info.gamemode)
 
                         ).apply(instance, StorageInfo::new));
+    }
+    public record StorageInfoNew(
+            ArrayList<Pair<ItemStack,Byte>> inventory,
+            ArrayList<Pair<ItemStack,Byte>> ender,
+            int xp,
+            float hp,
+            int food,
+            float saturation,
+            int air,
+            int gamemode
+    ) {
+        public static final Codec<StorageInfoNew> CODEC= RecordCodecBuilder.create((instance) ->
+                instance.group
+                        (
+                                SLOT_CODEC.listOf().xmap(Util::listToArrayList, list->list).fieldOf(INVENTORY).forGetter((info)->info.inventory),
+                                SLOT_CODEC.listOf().xmap(Util::listToArrayList, list->list).fieldOf(ENDER).forGetter((info)->info.ender),
+                                Codec.INT.fieldOf("xp").forGetter((info)->info.xp),
+                                Codec.FLOAT.fieldOf("hp").forGetter((info)->info.hp),
+                                Codec.INT.fieldOf("food").forGetter((info)->info.food),
+                                Codec.FLOAT.fieldOf("food2").forGetter((info)->info.saturation),
+                                Codec.INT.fieldOf("air").forGetter((info)->info.air),
+                                Codec.INT.fieldOf("gamemode").forGetter((info)->info.gamemode)
+
+                        ).apply(instance, StorageInfoNew::new));
     }
     public record PositionInfoNew(Identifier dimension, Vec3d pos, Vec3d velocity, float yaw, float pitch)
     {
