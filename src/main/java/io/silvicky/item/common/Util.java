@@ -341,4 +341,21 @@ public class Util
             }
         }
     }
+
+    public static boolean isNonNull(Object o)
+    {
+        if(o==null)return false;
+        if(o instanceof Pair)
+        {
+            return isNonNull(((Pair<?, ?>) o).getFirst())&&isNonNull(((Pair<?, ?>) o).getSecond());
+        }
+        return true;
+    }
+
+    public static <T> ArrayList<T> listToArrayList(List<T> src)
+    {
+        ArrayList<T> ret=new ArrayList<>();
+        for(T i:src)if(isNonNull(i))ret.add(i);
+        return ret;
+    }
 }
