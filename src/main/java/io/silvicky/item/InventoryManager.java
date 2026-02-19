@@ -3,6 +3,7 @@ package io.silvicky.item;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.network.packet.s2c.play.GameStateChangeS2CPacket;
 import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -13,6 +14,7 @@ import net.minecraft.world.GameMode;
 import net.minecraft.world.TeleportTarget;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 
 import static io.silvicky.item.common.Util.*;
@@ -26,13 +28,14 @@ public class InventoryManager {
     }
     public static void savePos(ServerPlayerEntity player, StateSaver stateSaver, String fakeDimension)
     {
-        stateSaver.posList.add(new StateSaver.PositionInfo
-                (
-                        player.getUuidAsString(),
-                        getDimensionId(fakeDimension),
-                        fakeDimension,
-                        player.getEntityPos()
-                ));
+        stateSaver.posMap
+                .computeIfAbsent(getDimensionId(Identifier.of(fakeDimension)),i->new HashMap<>())
+                .put(player.getUuidAsString(),new StateSaver.PositionInfoNew(
+                        Identifier.of(fakeDimension),
+                        player.getEntityPos(),
+                        player.getVelocity(),
+                        player.getYaw(),
+                        player.getPitch()));
     }
 
     public static void saveInventory(ServerPlayerEntity player,StateSaver stateSaver)
@@ -90,17 +93,9 @@ public class InventoryManager {
     }
     public static void loadPos(MinecraftServer server,ServerPlayerEntity player,ServerWorld targetDimension,StateSaver stateSaver) throws CommandSyntaxException {
         targetDimension= toOverworld(server,targetDimension);
-        Iterator<StateSaver.PositionInfo> iterator=stateSaver.posList.iterator();
-        StateSaver.PositionInfo n=null;
-        while (iterator.hasNext())
-        {
-            StateSaver.PositionInfo nt=iterator.next();
-            if(!(nt.player.equals(player.getUuidAsString())&&nt.dimension.equals(getDimensionId(targetDimension))))continue;
-            iterator.remove();
-            LOGGER.info("Fetched position data!");
-            if(n!=null)LOGGER.warn("Duplicated data found! Discarding old data, but this should not happen...");
-            n=nt;
-        }
+        StateSaver.PositionInfoNew n=stateSaver.posMap
+                .computeIfAbsent(getDimensionId(targetDimension.getRegistryKey().getValue()),i->new HashMap<>())
+                .get(player.getUuidAsString());
         if(n==null)
         {
             LOGGER.info("Entering a new world... Good luck to the pioneer!");
@@ -112,21 +107,13 @@ public class InventoryManager {
         }
         else
         {
-            String dim=n.rdim;
-            ServerWorld sw2=server.getWorld(RegistryKey.of(RegistryKey.ofRegistry(targetDimension.getRegistryKey().getRegistry()),
-                    Identifier.of(targetDimension.getRegistryKey().getValue().getNamespace(),
-                            dim.substring(dim.indexOf(":")+1))));
+            ServerWorld sw2=server.getWorld(RegistryKey.of(RegistryKeys.WORLD, n.dimension()));
             if(sw2==null)
             {
-                LOGGER.error("A dimension named "+dim+" is NOT FOUND!");
+                LOGGER.error("A dimension named "+n.dimension()+" is NOT FOUND!");
                 throw ERR_DIMENSION_NOT_FOUND.create();
             }
-            Vec3d v3d=n.pos;
-            BlockPos sp=new BlockPos((int) Math.floor(v3d.x), (int) Math.floor(v3d.y), (int) Math.floor(v3d.z));
-
-            TeleportTarget.PostDimensionTransition postDimensionTransition=TeleportTarget.NO_OP;
-
-            TeleportTarget target = new TeleportTarget(sw2,sp.toCenterPos(), Vec3d.ZERO, 0f, 0f,postDimensionTransition);
+            TeleportTarget target = new TeleportTarget(sw2,n.pos(), n.velocity(), n.yaw(), n.pitch(),TeleportTarget.NO_OP);
             if(player.networkHandler!=null)player.teleportTo(target);
             else fakeTeleportTo(player,target,stateSaver);
         }

@@ -18,9 +18,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.WorldSavePath;
 
 import java.nio.file.Path;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 import static io.silvicky.item.command.warp.BanWarp.banWarp;
 import static io.silvicky.item.command.warp.Evacuate.evacuate;
@@ -144,20 +142,10 @@ public class DeleteWorld {
         }
         try
         {
-            HashSet<String> removedPlayers = new HashSet<>();
-            Iterator<StateSaver.PositionInfo> it1 = stateSaver.posList.iterator();
-            int cnt = 0;
-            while (it1.hasNext()) {
-                StateSaver.PositionInfo i = it1.next();
-                if (i.dimension.equals(id.toString())) {
-                    removedPlayers.add(i.player);
-                    cnt++;
-                    it1.remove();
-                }
-            }
+            Set<String> removedPlayers = stateSaver.posMap.getOrDefault(id,new HashMap<>()).keySet();
+            int cnt = removedPlayers.size();
             stateSaver.nbtList.removeIf(i -> removedPlayers.contains(i.player) && i.dimension.equals(id.getNamespace()));
-            int finalCnt = cnt;
-            source.sendFeedback(() -> Text.literal("Deleted " + finalCnt + " player data."), false);
+            source.sendFeedback(() -> Text.literal("Deleted " + cnt + " player data."), false);
         }
         catch(Exception e)
         {
