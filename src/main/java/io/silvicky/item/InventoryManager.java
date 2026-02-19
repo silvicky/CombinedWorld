@@ -23,14 +23,14 @@ public class InventoryManager {
 
     public static void savePos(ServerPlayerEntity player, StateSaver stateSaver)
     {
-        savePos(player,stateSaver,player.getEntityWorld().getRegistryKey().getValue().toString());
+        savePos(player,stateSaver,player.getEntityWorld().getRegistryKey().getValue());
     }
-    public static void savePos(ServerPlayerEntity player, StateSaver stateSaver, String fakeDimension)
+    public static void savePos(ServerPlayerEntity player, StateSaver stateSaver, Identifier fakeDimension)
     {
         stateSaver.posMap
-                .computeIfAbsent(getDimensionId(Identifier.of(fakeDimension)),i->new HashMap<>())
+                .computeIfAbsent(getDimensionId(fakeDimension),i->new HashMap<>())
                 .put(player.getUuidAsString(),new StateSaver.PositionInfoNew(
-                        Identifier.of(fakeDimension),
+                        fakeDimension,
                         player.getEntityPos(),
                         player.getVelocity(),
                         player.getYaw(),
@@ -39,7 +39,7 @@ public class InventoryManager {
 
     public static void saveInventory(ServerPlayerEntity player,StateSaver stateSaver)
     {
-        saveInventory(player,stateSaver,false,player.getEntityWorld().getRegistryKey().getValue().toString());
+        saveInventory(player,stateSaver,false,player.getEntityWorld().getRegistryKey().getValue());
     }
     public static void saveInventoryDead(ServerPlayerEntity player,StateSaver stateSaver)
     {
@@ -64,9 +64,9 @@ public class InventoryManager {
         player.interactionManager.changeGameMode(GameMode.SURVIVAL);
         if(player.networkHandler!=null)player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, GameMode.SURVIVAL.getIndex()));
     }
-    public static void saveInventory(ServerPlayerEntity player,StateSaver stateSaver,boolean tmp,String fakeDimension)
+    public static void saveInventory(ServerPlayerEntity player,StateSaver stateSaver,boolean tmp,Identifier fakeDimension)
     {
-        stateSaver.savedMap.computeIfAbsent(Identifier.of(fakeDimension).getNamespace(),i->new HashMap<>())
+        stateSaver.savedMap.computeIfAbsent(fakeDimension.getNamespace(),i->new HashMap<>())
                 .put(player.getUuidAsString(),new StateSaver.StorageInfoNew
                         (
                         inventoryToStack(player.getInventory()),
@@ -151,7 +151,7 @@ public class InventoryManager {
             if(player.networkHandler!=null)player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, gamemode));
         }
     }
-    public static void save(MinecraftServer server, ServerPlayerEntity player,boolean tmp,String fakeDimension)
+    public static void save(MinecraftServer server, ServerPlayerEntity player,boolean tmp,Identifier fakeDimension)
     {
         StateSaver stateSaver=StateSaver.getServerState(server);
         savePos(player,stateSaver,fakeDimension);

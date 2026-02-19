@@ -12,7 +12,6 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
 
 import static io.silvicky.item.InventoryManager.loadPos;
 import static io.silvicky.item.common.Util.*;
@@ -45,7 +44,7 @@ public class Warp {
         ServerWorld from=player.getEntityWorld();
         MinecraftServer server=source.getServer();
         StateSaver stateSaver=StateSaver.getServerState(server);
-        StateSaver.WarpRestrictionInfo info=stateSaver.restrictionInfoHashMap.get(Identifier.of(getDimensionId(dimension)));
+        StateSaver.WarpRestrictionInfo info=stateSaver.restrictionInfoHashMap.get(getDimensionId(dimension));
         if(info!=null&&(info.level>4||!source.getPermissions().hasPermission(new Permission.Level(PermissionLevel.fromLevel(info.level)))))
         {
             throw ERR_WARP_FORBIDDEN.create(info.reason);

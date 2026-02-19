@@ -83,7 +83,7 @@ public class BanWarp {
     {
         StateSaver stateSaver=StateSaver.getServerState(source.getServer());
         HashMap<Identifier,StateSaver.WarpRestrictionInfo> restrictionInfoHashMap=stateSaver.restrictionInfoHashMap;
-        restrictionInfoHashMap.put(Identifier.of(getDimensionId(dimension)),new StateSaver.WarpRestrictionInfo(reason,level));
+        restrictionInfoHashMap.put(getDimensionId(dimension),new StateSaver.WarpRestrictionInfo(reason,level));
         if(!silent)source.sendFeedback(()->Text.literal("Banned warp to world of "+dimension.getRegistryKey().getValue()+" for level lower than "+level+", reason: "+reason),false);
         return Command.SINGLE_SUCCESS;
     }
@@ -95,7 +95,7 @@ public class BanWarp {
     {
         StateSaver stateSaver=StateSaver.getServerState(source.getServer());
         HashMap<Identifier,StateSaver.WarpRestrictionInfo> restrictionInfoHashMap=stateSaver.restrictionInfoHashMap;
-        restrictionInfoHashMap.remove(Identifier.of(getDimensionId(dimension)));
+        restrictionInfoHashMap.remove(getDimensionId(dimension));
         if(!silent)source.sendFeedback(()->Text.literal("Lifted ban on warp to world of "+dimension.getRegistryKey().getValue()),false);
         return Command.SINGLE_SUCCESS;
     }

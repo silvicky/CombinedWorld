@@ -43,7 +43,7 @@ public class ExportWorld {
             source.sendFeedback(()-> Text.literal("Hello, admin! This command can export a world. It is still strongly suggested that you backup your save first. Also you need to read the result carefully. Type this command without arguments to see the help. Type this command again if you already understand what you are doing."),false);
             return Command.SINGLE_SUCCESS;
         }
-        id=Identifier.of(getDimensionId(world));
+        id=getDimensionId(world);
         final boolean isSinglet= !id.getPath().endsWith(OVERWORLD);
         Identifier idNether=null;
         Identifier idEnd=null;

@@ -40,7 +40,7 @@ public abstract class ServerPlayerEntityMixin
         Identifier target=teleportTarget.world().getRegistryKey().getValue();
         ServerPlayerEntity entity=(ServerPlayerEntity) (Object)this;
         StateSaver stateSaver=StateSaver.getServerState(getEntityWorld().getServer());
-        if(getDimensionId(source.toString()).equals(getDimensionId(target.toString())))return;
+        if(getDimensionId(source).equals(getDimensionId(target)))return;
         savePos(entity, stateSaver);
         if(!source.getNamespace().equals(target.getNamespace()))
         {
@@ -54,7 +54,7 @@ public abstract class ServerPlayerEntityMixin
         Identifier target=teleportTarget.world().getRegistryKey().getValue();
         ServerPlayerEntity entity=(ServerPlayerEntity) (Object)this;
         StateSaver stateSaver=StateSaver.getServerState(getEntityWorld().getServer());
-        if(getDimensionId(source.toString()).equals(getDimensionId(target.toString())))return;
+        if(getDimensionId(source).equals(getDimensionId(target)))return;
         if(!source.getNamespace().equals(target.getNamespace()))
         {
             if(useStorage)

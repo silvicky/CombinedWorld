@@ -52,7 +52,7 @@ public class DeleteWorld {
     }
     public static boolean notifyEvacuation(ServerCommandSource source, Identifier id)
     {
-        List<String> players=getListOfPlayers(source.getServer(), id.toString());
+        List<String> players=getListOfPlayers(source.getServer(), id);
         if(!players.isEmpty())
         {
             source.sendFeedback(()-> Text.literal("Some players are still in that world:"),false);
@@ -70,7 +70,7 @@ public class DeleteWorld {
             source.sendFeedback(()-> Text.literal("Hello, admin! This command can delete a world. The world will be lost forever(a long time). It is still strongly suggested that you backup your save first. Also you need to read the result carefully. Type this command without arguments to see the help. Type this command again if you already understand what you are doing."),false);
             return Command.SINGLE_SUCCESS;
         }
-        id=Identifier.of(getDimensionId(idTmp.toString()));
+        id=getDimensionId(idTmp);
         if(id.getNamespace().equals("minecraft"))
         {
             source.sendFeedback(()-> Text.literal("how dare you..."),false);
@@ -90,7 +90,7 @@ public class DeleteWorld {
         ServerWorld src=server.getWorld(RegistryKey.of(RegistryKeys.WORLD,id));
         if(src!=null)
         {
-            if(getDimensionId(id.toString()).equals(getDimensionId(safeZone)))
+            if(getDimensionId(id).equals(getDimensionId(safeZone)))
             {
                 source.sendFeedback(()-> Text.literal("Target dimension cannot be the same as the one to be deleted."),false);
                 return Command.SINGLE_SUCCESS;

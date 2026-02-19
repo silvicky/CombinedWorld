@@ -161,9 +161,9 @@ public class Util
         return loadFakePlayer(nbtCompound,server);
     }
 
-    public static String getDimensionId(ServerWorld world)
+    public static Identifier getDimensionId(ServerWorld world)
     {
-        return getDimensionId(world.getRegistryKey().getValue().toString());
+        return getDimensionId(world.getRegistryKey().getValue());
     }
 
     public static String getDimensionId(String id)
@@ -188,7 +188,7 @@ public class Util
         return sp;
     }
 
-    public static List<String> getListOfPlayers(MinecraftServer server, String dimension)
+    public static List<String> getListOfPlayers(MinecraftServer server, Identifier dimension)
     {
         List<ServerPlayerEntity> players=server.getPlayerManager().getPlayerList();
         ArrayList<String> ret=new ArrayList<>();
@@ -264,10 +264,7 @@ public class Util
 
     public static ServerWorld toOverworld(MinecraftServer server, ServerWorld world)
     {
-        String overworldId= getDimensionId(world);
-        ServerWorld sw=server.getWorld(RegistryKey.of(RegistryKey.ofRegistry(world.getRegistryKey().getRegistry()),
-                Identifier.of(world.getRegistryKey().getValue().getNamespace(),
-                        overworldId.substring(overworldId.indexOf(":")+1))));
+        ServerWorld sw=server.getWorld(RegistryKey.of(RegistryKeys.WORLD,getDimensionId(world)));
         return (sw!=null?sw:world);
     }
     public static ArrayList<Pair<ItemStack,Byte>> enId(List<ItemStack> source)

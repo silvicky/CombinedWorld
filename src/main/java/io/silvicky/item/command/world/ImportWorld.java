@@ -123,7 +123,7 @@ public class ImportWorld {
         }
         server=source.getServer();
         stateSaver=StateSaver.getServerState(server);
-        id=Identifier.of(getDimensionId(idTmp.toString()));
+        id=getDimensionId(idTmp);
         for(ServerWorld i:server.getWorlds())
         {
             if(i.getRegistryKey().getValue().equals(id)) throw ERR_DIMENSION_EXIST.create();
@@ -243,15 +243,15 @@ public class ImportWorld {
                 Identifier identifier=Identifier.of(dimension);
                 if(!identifier.getNamespace().equals("minecraft"))continue;
                 dimension=identifier.getPath();
-                String fakeDimension=null;
+                Identifier fakeDimension=null;
                 switch (dimension) {
                     case END -> {
-                        if (!isSinglet) fakeDimension = idEnd.toString();
+                        if (!isSinglet) fakeDimension = idEnd;
                     }
                     case NETHER -> {
-                        if (!isSinglet) fakeDimension = idNether.toString();
+                        if (!isSinglet) fakeDimension = idNether;
                     }
-                    case OVERWORLD -> fakeDimension = id.toString();
+                    case OVERWORLD -> fakeDimension = id;
                 }
                 if(fakeDimension!=null)
                 {
