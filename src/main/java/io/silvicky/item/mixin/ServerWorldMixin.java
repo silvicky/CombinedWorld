@@ -107,7 +107,7 @@ public abstract class ServerWorldMixin {
     private WorldProperties.SpawnPoint inject9(MinecraftServer instance)
     {
         Identifier target=((ServerWorld) (Object)this).getRegistryKey().getValue();
-        if(getDimensionId(target).equals(instance.getOverworld().getRegistryKey().getValue()))
+        if(getDimensionId(target).equals(World.OVERWORLD.getValue()))
         {
             return instance.getSpawnPoint();
         }
@@ -119,7 +119,7 @@ public abstract class ServerWorldMixin {
     private void inject10(MinecraftServer instance, WorldProperties.SpawnPoint spawnPoint)
     {
         Identifier target=((ServerWorld) (Object)this).getRegistryKey().getValue();
-        if(getDimensionId(target).equals(instance.getOverworld().getRegistryKey().getValue()))
+        if(getDimensionId(target).equals(World.OVERWORLD.getValue()))
         {
             instance.setSpawnPoint(spawnPoint);
             return;

@@ -100,7 +100,7 @@ public abstract class ServerPlayerEntityMixin
     private void inject4(CallbackInfoReturnable<ServerPlayerEntity.Respawn> cir)
     {
         ServerPlayerEntity player=(ServerPlayerEntity) (Object)this;
-        Identifier id=getDimensionId(getEntityWorld().getRegistryKey().getValue());
+        Identifier id=getDimensionId(getEntityWorld());
         WorldProperties.SpawnPoint defaultSpawn=getEntityWorld().getServer().getSpawnPoint();
         WorldProperties.SpawnPoint defaultCurrentSpawn=WorldProperties.SpawnPoint.create(RegistryKey.of(RegistryKeys.WORLD,id),defaultSpawn.getPos(),defaultSpawn.yaw(),defaultSpawn.pitch());
         if(id.equals(World.OVERWORLD.getValue())) cir.setReturnValue(player.respawn);
