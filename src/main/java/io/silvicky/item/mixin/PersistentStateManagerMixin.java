@@ -30,6 +30,46 @@ public abstract class PersistentStateManagerMixin {
         if(i<playerInventorySize)return i;
         return (byte) (i-64);
     }
+    @Unique
+    private NbtList fixInventory(NbtList inventory, boolean fixSlot, int lastVersion, int currentVersion)
+    {
+        NbtList newInventory=new NbtList();
+        for(NbtElement j:inventory)
+        {
+            NbtCompound item=(NbtCompound) j;
+            byte slot= item.getByte(SLOT).orElseThrow();
+            item.remove(SLOT);
+            item=(NbtCompound) dataFixer.update(TypeReferences.ITEM_STACK,new Dynamic<>(NbtOps.INSTANCE, item),lastVersion,currentVersion).getValue();
+            item.putByte(SLOT,fixSlot?playerEquipmentSlotFix(slot):slot);
+            newInventory.add(item);
+        }
+        return newInventory;
+    }
+    @Unique
+    private void fixSavedDat(NbtCompound savedDat, int lastVersion, int currentVersion)
+    {
+        try
+        {
+            NbtList ender = savedDat.getList(ENDER).orElseThrow();
+            NbtList newEnder = fixInventory(ender, false, lastVersion, currentVersion);
+            savedDat.put(ENDER, newEnder);
+        }
+        catch (Exception ignored) {}
+        try
+        {
+            NbtList inventory = savedDat.getList(INVENTORY).orElseThrow();
+            NbtList newInventory = fixInventory(inventory, true, lastVersion, currentVersion);
+            savedDat.put(INVENTORY, newInventory);
+        }
+        catch (Exception ignored) {}
+    }
+    @Unique
+    private void fixSaved(NbtList saved, int lastVersion, int currentVersion)
+    {
+        for (NbtElement i : saved) {
+            fixSavedDat((NbtCompound) i,lastVersion,currentVersion);
+        }
+    }
     @Inject(method = "readFromFile",at= @At(value = "INVOKE", target = "Lnet/minecraft/registry/RegistryWrapper$WrapperLookup;getOps(Lcom/mojang/serialization/DynamicOps;)Lnet/minecraft/registry/RegistryOps;",shift = At.Shift.AFTER))
     public <T extends PersistentState> void inject1(PersistentStateType<T> type, CallbackInfoReturnable<T> cir, @Local NbtCompound nbtCompound)
     {
@@ -38,45 +78,11 @@ public abstract class PersistentStateManagerMixin {
         final int currentVersion= SharedConstants.getGameVersion().dataVersion().id();
         try
         {
-            NbtCompound data=nbtCompound.getCompound("data").get();
-            NbtList saved=data.getList(SAVED).get();
-            for (NbtElement i : saved) {
-                NbtCompound savedDat=(NbtCompound) i;
-                try
-                {
-                    NbtList ender = savedDat.getList(ENDER).get();
-                    NbtList newEnder=new NbtList();
-                    for(NbtElement j:ender)
-                    {
-                        NbtCompound item=(NbtCompound) j;
-                        byte slot= item.getByte(SLOT).get();
-                        item.remove(SLOT);
-                        item=(NbtCompound) dataFixer.update(TypeReferences.ITEM_STACK,new Dynamic<>(NbtOps.INSTANCE, item),lastVersion,currentVersion).getValue();
-                        item.putByte(SLOT,slot);
-                        newEnder.add(item);
-                    }
-                    savedDat.put(ENDER,newEnder);
-                }
-                catch(Exception ignored){}
-                try
-                {
-                    NbtList inventory = savedDat.getList(INVENTORY).get();
-                    NbtList newInventory=new NbtList();
-                    for(NbtElement j:inventory)
-                    {
-                        NbtCompound item=(NbtCompound) j;
-                        byte slot= item.getByte(SLOT).get();
-                        item.remove(SLOT);
-                        item=(NbtCompound) dataFixer.update(TypeReferences.ITEM_STACK,new Dynamic<>(NbtOps.INSTANCE, item),lastVersion,currentVersion).getValue();
-                        item.putByte(SLOT,playerEquipmentSlotFix(slot));
-                        newInventory.add(item);
-                    }
-                    savedDat.put(INVENTORY,newInventory);
-                }
-                catch(Exception ignored){}
-            }
-            NbtHelper.putDataVersion(nbtCompound,currentVersion);
+            NbtCompound data=nbtCompound.getCompound("data").orElseThrow();
+            NbtList saved=data.getList(SAVED).orElseThrow();
+            fixSaved(saved,lastVersion,currentVersion);
         }
         catch(Exception ignored) {}
+        NbtHelper.putDataVersion(nbtCompound,currentVersion);
     }
 }
