@@ -36,12 +36,16 @@ public abstract class PersistentStateManagerMixin {
         NbtList newInventory=new NbtList();
         for(NbtElement j:inventory)
         {
-            NbtCompound item=(NbtCompound) j;
-            byte slot= item.getByte(SLOT).orElseThrow();
-            item.remove(SLOT);
-            item=(NbtCompound) dataFixer.update(TypeReferences.ITEM_STACK,new Dynamic<>(NbtOps.INSTANCE, item),lastVersion,currentVersion).getValue();
-            item.putByte(SLOT,fixSlot?playerEquipmentSlotFix(slot):slot);
-            newInventory.add(item);
+            try
+            {
+                NbtCompound item = (NbtCompound) j;
+                byte slot = item.getByte(SLOT).orElseThrow();
+                item.remove(SLOT);
+                item = (NbtCompound) dataFixer.update(TypeReferences.ITEM_STACK, new Dynamic<>(NbtOps.INSTANCE, item), lastVersion, currentVersion).getValue();
+                item.putByte(SLOT, fixSlot ? playerEquipmentSlotFix(slot) : slot);
+                newInventory.add(item);
+            }
+            catch (Exception ignored){}
         }
         return newInventory;
     }
