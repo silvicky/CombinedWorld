@@ -107,11 +107,6 @@ public class ImportWorld {
         }
         rollbackPlayer();
     }
-    private static void rollbackLevel()
-    {
-        newDimensions.entrySet().removeIf(entry -> identifiers.contains(entry.getKey().getValue()));
-        rollbackWorld();
-    }
 
     public static int importWorld(ServerCommandSource source, Path path, Identifier idTmp) throws CommandSyntaxException
     {
@@ -255,7 +250,7 @@ public class ImportWorld {
                 }
                 if(fakeDimension!=null)
                 {
-                    save(server,serverPlayerEntity,true,fakeDimension);
+                    save(server,serverPlayerEntity,fakeDimension);
                     cnt++;
                 }
             }

@@ -13,7 +13,6 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.GameMode;
 import net.minecraft.world.TeleportTarget;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 
 import static io.silvicky.item.cfg.JSONConfig.useStorage;
@@ -39,32 +38,9 @@ public class InventoryManager {
 
     public static void saveInventory(ServerPlayerEntity player,StateSaver stateSaver)
     {
-        saveInventory(player,stateSaver,false,player.getEntityWorld().getRegistryKey().getValue());
+        saveInventory(player,stateSaver,player.getEntityWorld().getRegistryKey().getValue());
     }
-    public static void saveInventoryDead(ServerPlayerEntity player,StateSaver stateSaver)
-    {
-        stateSaver.savedMap.computeIfAbsent(player.getEntityWorld().getRegistryKey().getValue().getNamespace(),i->new HashMap<>())
-                .put(player.getUuidAsString(),new StateSaver.StorageInfoNew
-                (
-                        new ArrayList<>(),
-                        enderToStack(player.getEnderChestInventory()),
-                        0,
-                        20.0F,
-                        20,
-                        5.0F,
-                        300,
-                        player.interactionManager.getGameMode().getIndex()
-                ));
-        player.getInventory().clear();
-        player.getEnderChestInventory().clear();
-        player.setExperiencePoints(0);
-        player.setHealth(20.0F);
-        player.getHungerManager().setFoodLevel(20);
-        player.getHungerManager().setSaturationLevel(5.0F);
-        player.interactionManager.changeGameMode(GameMode.SURVIVAL);
-        if(player.networkHandler!=null)player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, GameMode.SURVIVAL.getIndex()));
-    }
-    public static void saveInventory(ServerPlayerEntity player,StateSaver stateSaver,boolean tmp,Identifier fakeDimension)
+    public static void saveInventory(ServerPlayerEntity player,StateSaver stateSaver,Identifier fakeDimension)
     {
         stateSaver.savedMap.computeIfAbsent(fakeDimension.getNamespace(),i->new HashMap<>())
                 .put(player.getUuidAsString(),new StateSaver.StorageInfoNew
@@ -78,15 +54,6 @@ public class InventoryManager {
                         player.getAir(),
                         player.interactionManager.getGameMode().getIndex()
                 ));
-        if(tmp)return;
-        player.getInventory().clear();
-        player.getEnderChestInventory().clear();
-        player.setExperiencePoints(0);
-        player.setHealth(20.0F);
-        player.getHungerManager().setFoodLevel(20);
-        player.getHungerManager().setSaturationLevel(5.0F);
-        player.interactionManager.changeGameMode(GameMode.SURVIVAL);
-        if(player.networkHandler!=null)player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, GameMode.SURVIVAL.getIndex()));
     }
     public static void loadPos(MinecraftServer server,ServerPlayerEntity player,ServerWorld targetDimension,StateSaver stateSaver) throws CommandSyntaxException {
         targetDimension= toOverworld(server,targetDimension);
@@ -151,10 +118,10 @@ public class InventoryManager {
             if(player.networkHandler!=null)player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, gamemode));
         }
     }
-    public static void save(MinecraftServer server, ServerPlayerEntity player,boolean tmp,Identifier fakeDimension)
+    public static void save(MinecraftServer server, ServerPlayerEntity player,Identifier fakeDimension)
     {
         StateSaver stateSaver=StateSaver.getServerState(server);
         savePos(player,stateSaver,fakeDimension);
-        if(useStorage)saveInventory(player,stateSaver,tmp,fakeDimension);
+        if(useStorage)saveInventory(player,stateSaver,fakeDimension);
     }
 }
