@@ -7,6 +7,7 @@ import static io.silvicky.item.common.Util.*;
 
 public class OnRespawn {
     public static void respawn(ServerPlayerEntity oldPlayer,ServerPlayerEntity newPlayer,boolean alive) {
+        //TODO do we still need this?
         if(getDimensionId(oldPlayer.getEntityWorld()).equals(getDimensionId(newPlayer.getEntityWorld())))return;
         if(oldPlayer.getEntityWorld().getRegistryKey().getValue().getNamespace().equals(newPlayer.getEntityWorld().getRegistryKey().getValue().getNamespace()))return;
         StateSaver stateSaver=StateSaver.getServerState(oldPlayer.getEntityWorld().getServer());
