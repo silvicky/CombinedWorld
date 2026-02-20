@@ -209,6 +209,7 @@ public class Util
         for(T t:list)
         {
             if(!first)tot.append(", ");
+            first=false;
             tot.append(t.toString());
         }
         return tot.toString();
