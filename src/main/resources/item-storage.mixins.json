@@ -5,6 +5,7 @@
   "mixins": [
     "AbstractFireBlockMixin",
     "EndPortalBlockMixin",
+    "EntityTrackerEntryMixin",
     "NetherPortalBlockMixin",
     "PersistentStateManagerMixin",
     "SaveLoadingMixin",
