@@ -5,6 +5,8 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import io.silvicky.item.StateSaver;
+import io.silvicky.item.command.suggestion.GroupSuggestionProvider;
+import io.silvicky.item.command.suggestion.WorldSuggestionProvider;
 import net.minecraft.command.argument.DimensionArgumentType;
 import net.minecraft.command.permission.Permission;
 import net.minecraft.command.permission.PermissionLevel;
@@ -28,18 +30,20 @@ public class BanWarp {
                         .executes(context->help(context.getSource()))
                         .then(literal("ban")
                                 .then(argument(DIMENSION,DimensionArgumentType.dimension())
+                                        .suggests(new WorldSuggestionProvider())
                                         .executes(ctx->banWarp(ctx.getSource(),DimensionArgumentType.getDimensionArgument(ctx,DIMENSION)))
                                         .then(argument(LEVEL, IntegerArgumentType.integer())
                                                 .executes(ctx->banWarp(ctx.getSource(),DimensionArgumentType.getDimensionArgument(ctx,DIMENSION),IntegerArgumentType.getInteger(ctx, LEVEL)))
                                                 .then(argument(REASON, StringArgumentType.greedyString())
                                                         .executes(ctx->banWarp(ctx.getSource(),DimensionArgumentType.getDimensionArgument(ctx,DIMENSION),IntegerArgumentType.getInteger(ctx, LEVEL),StringArgumentType.getString(ctx, REASON)))))))
                         .then(literal("bangroup")
-                                .then(argument(DIMENSION,DimensionArgumentType.dimension())
-                                        .executes(ctx->banGroup(ctx.getSource(),DimensionArgumentType.getDimensionArgument(ctx,DIMENSION)))
+                                .then(argument(NAMESPACE,StringArgumentType.word())
+                                        .suggests(new GroupSuggestionProvider())
+                                        .executes(ctx->banGroup(ctx.getSource(),StringArgumentType.getString(ctx,NAMESPACE)))
                                         .then(argument(LEVEL, IntegerArgumentType.integer())
-                                                .executes(ctx->banGroup(ctx.getSource(),DimensionArgumentType.getDimensionArgument(ctx,DIMENSION),IntegerArgumentType.getInteger(ctx, LEVEL)))
+                                                .executes(ctx->banGroup(ctx.getSource(),StringArgumentType.getString(ctx,NAMESPACE),IntegerArgumentType.getInteger(ctx, LEVEL)))
                                                 .then(argument(REASON, StringArgumentType.greedyString())
-                                                        .executes(ctx->banGroup(ctx.getSource(),DimensionArgumentType.getDimensionArgument(ctx,DIMENSION),IntegerArgumentType.getInteger(ctx, LEVEL),StringArgumentType.getString(ctx, REASON)))))))
+                                                        .executes(ctx->banGroup(ctx.getSource(),StringArgumentType.getString(ctx,NAMESPACE),IntegerArgumentType.getInteger(ctx, LEVEL),StringArgumentType.getString(ctx, REASON)))))))
                         .then(literal("banall")
                                 .executes(ctx->banAll(ctx.getSource()))
                                 .then(argument(LEVEL, IntegerArgumentType.integer())
@@ -48,23 +52,22 @@ public class BanWarp {
                                                 .executes(ctx->banAll(ctx.getSource(),IntegerArgumentType.getInteger(ctx, LEVEL),StringArgumentType.getString(ctx, REASON))))))
                         .then(literal("lift")
                                 .then(argument(DIMENSION,DimensionArgumentType.dimension())
+                                        .suggests(new WorldSuggestionProvider())
                                         .executes(ctx->liftBan(ctx.getSource(),DimensionArgumentType.getDimensionArgument(ctx,DIMENSION)))))
                         .then(literal("liftgroup")
-                                .then(argument(DIMENSION,DimensionArgumentType.dimension())
-                                        .executes(ctx->liftGroup(ctx.getSource(),DimensionArgumentType.getDimensionArgument(ctx,DIMENSION)))))
+                                .then(argument(NAMESPACE,StringArgumentType.word())
+                                        .suggests(new GroupSuggestionProvider())
+                                        .executes(ctx->liftGroup(ctx.getSource(),StringArgumentType.getString(ctx,NAMESPACE)))))
                         .then(literal("liftall")
                                 .executes(ctx->liftAll(ctx.getSource()))));
     }
     private static int help(ServerCommandSource source)
     {
         source.sendFeedback(()-> Text.literal("Usage:"),false);
-        source.sendFeedback(()-> Text.literal("/banwarp (ban|bangroup) <dimension> [<level>] [<reason>]"),false);
-        source.sendFeedback(()-> Text.literal("Ban warp to world/group of <dimension>."),false);
-        source.sendFeedback(()-> Text.literal("/banwarp (lift|liftgroup) <dimension>"),false);
-        source.sendFeedback(()-> Text.literal("Lift ban on world/group of <dimension>."),false);
-        source.sendFeedback(()-> Text.literal("/banwarp banall [<level>] [<reason>]"),false);
-        source.sendFeedback(()-> Text.literal("/banwarp liftall"),false);
-        source.sendFeedback(()-> Text.literal("Ban/lift all."),false);
+        source.sendFeedback(()-> Text.literal("/banwarp ((ban <dimension>)|(bangroup <namespace>)|ban) [<level>] [<reason>]"),false);
+        source.sendFeedback(()-> Text.literal("Ban warp to world/group/all."),false);
+        source.sendFeedback(()-> Text.literal("/banwarp ((lift <dimension>)|(liftgroup <namespace>)|lift)"),false);
+        source.sendFeedback(()-> Text.literal("Lift ban on world/group/all."),false);
         return Command.SINGLE_SUCCESS;
     }
     public static int banWarp(ServerCommandSource source,ServerWorld dimension)
@@ -107,12 +110,12 @@ public class BanWarp {
         source.sendFeedback(()->Text.literal("Lifted all ban on warp."),false);
         return Command.SINGLE_SUCCESS;
     }
-    public static int liftGroup(ServerCommandSource source, ServerWorld dimension)
+    public static int liftGroup(ServerCommandSource source, String namespace)
     {
         for(ServerWorld world:source.getServer().getWorlds())
-            if(world.getRegistryKey().getValue().getNamespace().equals(dimension.getRegistryKey().getValue().getNamespace()))
+            if(world.getRegistryKey().getValue().getNamespace().equals(namespace))
                 liftBan(source,world,true);
-        source.sendFeedback(()->Text.literal("Lifted ban on warp to "+dimension.getRegistryKey().getValue().getNamespace()),false);
+        source.sendFeedback(()->Text.literal("Lifted ban on warp to "+namespace),false);
         return Command.SINGLE_SUCCESS;
     }
     public static int banAll(ServerCommandSource source)
@@ -129,20 +132,20 @@ public class BanWarp {
         source.sendFeedback(()->Text.literal("Banned all warp for level lower than "+level+", reason: "+reason),false);
         return Command.SINGLE_SUCCESS;
     }
-    public static int banGroup(ServerCommandSource source,ServerWorld dimension)
+    public static int banGroup(ServerCommandSource source,String namespace)
     {
-        return banGroup(source,dimension, StateSaver.WarpRestrictionInfo.INFINITE);
+        return banGroup(source, namespace, StateSaver.WarpRestrictionInfo.INFINITE);
     }
-    public static int banGroup(ServerCommandSource source,ServerWorld dimension,int level)
+    public static int banGroup(ServerCommandSource source,String namespace,int level)
     {
-        return banGroup(source,dimension,level,StateSaver.WarpRestrictionInfo.DEFAULT_REASON);
+        return banGroup(source,namespace,level,StateSaver.WarpRestrictionInfo.DEFAULT_REASON);
     }
-    public static int banGroup(ServerCommandSource source,ServerWorld dimension,int level,String reason)
+    public static int banGroup(ServerCommandSource source,String namespace,int level,String reason)
     {
         for(ServerWorld world:source.getServer().getWorlds())
-            if(world.getRegistryKey().getValue().getNamespace().equals(dimension.getRegistryKey().getValue().getNamespace()))
+            if(world.getRegistryKey().getValue().getNamespace().equals(namespace))
                 banWarp(source,world,level,reason,true);
-        source.sendFeedback(()->Text.literal("Banned warp to "+dimension.getRegistryKey().getValue().getNamespace()+" for level lower than "+level+", reason: "+reason),false);
+        source.sendFeedback(()->Text.literal("Banned warp to "+namespace+" for level lower than "+level+", reason: "+reason),false);
         return Command.SINGLE_SUCCESS;
     }
 }

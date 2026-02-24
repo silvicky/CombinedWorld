@@ -4,6 +4,7 @@ import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.silvicky.item.StateSaver;
+import io.silvicky.item.command.suggestion.WorldSuggestionProvider;
 import net.minecraft.command.argument.DimensionArgumentType;
 import net.minecraft.command.argument.IdentifierArgumentType;
 import net.minecraft.command.permission.Permission;
@@ -37,8 +38,10 @@ public class DeleteWorld {
                         .requires(source -> source.getPermissions().hasPermission(new Permission.Level(PermissionLevel.OWNERS)))
                         .executes(context->help(context.getSource()))
                         .then(argument(DIMENSION_ID, IdentifierArgumentType.identifier())
+                                .suggests(new WorldSuggestionProvider())
                                 .then(argument(TARGET, DimensionArgumentType.dimension())
-                                    .executes(context -> deleteWorld(context.getSource(),IdentifierArgumentType.getIdentifier(context, DIMENSION_ID),DimensionArgumentType.getDimensionArgument(context,TARGET))))));
+                                        .suggests(new WorldSuggestionProvider())
+                                        .executes(context -> deleteWorld(context.getSource(),IdentifierArgumentType.getIdentifier(context, DIMENSION_ID),DimensionArgumentType.getDimensionArgument(context,TARGET))))));
     }
     private static int help(ServerCommandSource source)
     {

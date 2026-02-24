@@ -3,6 +3,7 @@ package io.silvicky.item.command.warp;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import io.silvicky.item.command.suggestion.WorldSuggestionProvider;
 import net.minecraft.command.argument.DimensionArgumentType;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.command.argument.GameProfileArgumentType;
@@ -34,12 +35,14 @@ public class WarpTp {
                         .requires(source -> source.getPermissions().hasPermission(new Permission.Level(PermissionLevel.GAMEMASTERS)))
                         .executes(context->help(context.getSource()))
                         .then(argument(DIMENSION, DimensionArgumentType.dimension())
+                                .suggests(new WorldSuggestionProvider())
                                 .then(argument(CORD, Vec3ArgumentType.vec3())
                                         .executes(context -> warpTp(context.getSource(),DimensionArgumentType.getDimensionArgument(context,DIMENSION),Vec3ArgumentType.getVec3(context, CORD)))))
                         .then(argument(TARGET, EntityArgumentType.entity())
                                 .executes(context -> warpTp(context.getSource(),EntityArgumentType.getEntity(context, TARGET))))
                         .then(argument(PLAYER, GameProfileArgumentType.gameProfile())
                                 .then(argument(DIMENSION, DimensionArgumentType.dimension())
+                                        .suggests(new WorldSuggestionProvider())
                                         .executes(context -> warpTp(context.getSource(),GameProfileArgumentType.getProfileArgument(context, PLAYER),DimensionArgumentType.getDimensionArgument(context,DIMENSION)))
                                         .then(argument(CORD, Vec3ArgumentType.vec3())
                                                 .executes(context -> warpTp(context.getSource(),GameProfileArgumentType.getProfileArgument(context, PLAYER),DimensionArgumentType.getDimensionArgument(context,DIMENSION),Vec3ArgumentType.getVec3(context, CORD)))))

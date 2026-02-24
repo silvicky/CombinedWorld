@@ -3,6 +3,7 @@ package io.silvicky.item.command.world;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import io.silvicky.item.StateSaver;
+import io.silvicky.item.command.suggestion.WorldSuggestionProvider;
 import net.minecraft.command.argument.DimensionArgumentType;
 import net.minecraft.command.permission.Permission;
 import net.minecraft.command.permission.PermissionLevel;
@@ -27,6 +28,7 @@ public class ExportWorld {
                         .requires(source -> source.getPermissions().hasPermission(new Permission.Level(PermissionLevel.OWNERS)))
                         .executes(context->help(context.getSource()))
                         .then(argument(DIMENSION_ID, DimensionArgumentType.dimension())
+                                .suggests(new WorldSuggestionProvider())
                                 .executes(context -> exportWorld(context.getSource(),DimensionArgumentType.getDimensionArgument(context, DIMENSION_ID)))));
     }
     private static int help(ServerCommandSource source)

@@ -73,6 +73,7 @@ public class Util
     public static final String LEVEL="level";
     public static final String REASON="reason";
     public static final String DIMENSION="dimension";
+    public static final String NAMESPACE="namespace";
     public static final String PLAYER="player";
     public static final String OVERWORLD="overworld";
     public static final String NETHER="the_nether";

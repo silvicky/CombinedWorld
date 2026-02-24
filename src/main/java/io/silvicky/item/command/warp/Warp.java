@@ -4,6 +4,7 @@ import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.silvicky.item.StateSaver;
+import io.silvicky.item.command.suggestion.WorldSuggestionProvider;
 import net.minecraft.command.argument.DimensionArgumentType;
 import net.minecraft.command.permission.Permission;
 import net.minecraft.command.permission.PermissionLevel;
@@ -25,6 +26,7 @@ public class Warp {
                 literal("warp")
                         .executes(context->help(context.getSource()))
                                 .then(argument(DIMENSION, DimensionArgumentType.dimension())
+                                        .suggests(new WorldSuggestionProvider())
                                         .executes(context -> warp(context.getSource(),context.getSource().getPlayer(),DimensionArgumentType.getDimensionArgument(context, DIMENSION)))));
     }
     private static int help(ServerCommandSource source)

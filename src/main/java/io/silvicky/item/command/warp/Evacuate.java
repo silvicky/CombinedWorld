@@ -3,6 +3,7 @@ package io.silvicky.item.command.warp;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import io.silvicky.item.command.suggestion.WorldSuggestionProvider;
 import net.minecraft.command.argument.DimensionArgumentType;
 import net.minecraft.command.permission.Permission;
 import net.minecraft.command.permission.PermissionLevel;
@@ -28,18 +29,18 @@ public class Evacuate
                 literal("evacuate")
                         .requires(ctx-> ctx.getPermissions().hasPermission(new Permission.Level(PermissionLevel.GAMEMASTERS)))
                                 .executes(context->help(context.getSource()))
-                                .then(literal("online")
                                         .then(argument(DIMENSION, DimensionArgumentType.dimension())
+                                                .suggests(new WorldSuggestionProvider())
                                                 .then(argument(TARGET, DimensionArgumentType.dimension())
-                                                        .executes(context -> evacuate(context.getSource(),DimensionArgumentType.getDimensionArgument(context,DIMENSION),DimensionArgumentType.getDimensionArgument(context,TARGET),true)))))
-                                .then(literal("all")
-                                        .then(argument(DIMENSION, DimensionArgumentType.dimension())
-                                                .then(argument(TARGET, DimensionArgumentType.dimension())
-                                                        .executes(context -> evacuate(context.getSource(),DimensionArgumentType.getDimensionArgument(context,DIMENSION),DimensionArgumentType.getDimensionArgument(context,TARGET),false))))));
+                                                        .suggests(new WorldSuggestionProvider())
+                                                        .then(literal("online")
+                                                                .executes(context -> evacuate(context.getSource(),DimensionArgumentType.getDimensionArgument(context,DIMENSION),DimensionArgumentType.getDimensionArgument(context,TARGET),true)))
+                                                        .then(literal("all")
+                                                                .executes(context -> evacuate(context.getSource(),DimensionArgumentType.getDimensionArgument(context,DIMENSION),DimensionArgumentType.getDimensionArgument(context,TARGET),false))))));
     }
     private static int help(ServerCommandSource source)
     {
-        source.sendFeedback(()-> Text.literal("Usage: /evacuate (online|all) <dimension> <target>"),false);
+        source.sendFeedback(()-> Text.literal("Usage: /evacuate <dimension> <target> (online|all)"),false);
         source.sendFeedback(()-> Text.literal("Warp all players in world of <dimension> into <target>"),false);
         return Command.SINGLE_SUCCESS;
     }
