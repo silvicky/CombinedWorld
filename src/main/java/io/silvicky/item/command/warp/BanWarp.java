@@ -16,8 +16,10 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
 import java.util.HashMap;
+import java.util.Map;
 
 import static io.silvicky.item.common.Util.*;
+import static java.lang.String.format;
 import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
 
@@ -59,7 +61,9 @@ public class BanWarp {
                                         .suggests(new GroupSuggestionProvider())
                                         .executes(ctx->liftGroup(ctx.getSource(),StringArgumentType.getString(ctx,NAMESPACE)))))
                         .then(literal("liftall")
-                                .executes(ctx->liftAll(ctx.getSource()))));
+                                .executes(ctx->liftAll(ctx.getSource())))
+                        .then(literal("list")
+                                .executes(ctx->list(ctx.getSource()))));
     }
     private static int help(ServerCommandSource source)
     {
@@ -68,6 +72,8 @@ public class BanWarp {
         source.sendFeedback(()-> Text.literal("Ban warp to world/group/all."),false);
         source.sendFeedback(()-> Text.literal("/banwarp ((lift <dimension>)|(liftgroup <namespace>)|lift)"),false);
         source.sendFeedback(()-> Text.literal("Lift ban on world/group/all."),false);
+        source.sendFeedback(()-> Text.literal("/banwarp list"),false);
+        source.sendFeedback(()-> Text.literal("List ban."),false);
         return Command.SINGLE_SUCCESS;
     }
     public static int banWarp(ServerCommandSource source,ServerWorld dimension)
@@ -146,6 +152,17 @@ public class BanWarp {
             if(world.getRegistryKey().getValue().getNamespace().equals(namespace))
                 banWarp(source,world,level,reason,true);
         source.sendFeedback(()->Text.literal("Banned warp to "+namespace+" for level lower than "+level+", reason: "+reason),false);
+        return Command.SINGLE_SUCCESS;
+    }
+    public static int list(ServerCommandSource source)
+    {
+        StateSaver stateSaver=StateSaver.getServerState(source.getServer());
+        HashMap<Identifier,StateSaver.WarpRestrictionInfo> restrictionInfoHashMap=stateSaver.restrictionInfoHashMap;
+        for(Map.Entry<Identifier, StateSaver.WarpRestrictionInfo> entry:restrictionInfoHashMap.entrySet())
+        {
+            source.sendFeedback(()->Text.literal(format("%s: %s",entry.getKey(),entry.getValue())),false);
+        }
+        source.sendFeedback(()->Text.literal("Done."),false);
         return Command.SINGLE_SUCCESS;
     }
 }

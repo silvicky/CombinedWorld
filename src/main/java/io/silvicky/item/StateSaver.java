@@ -20,6 +20,7 @@ import net.minecraft.world.*;
 import java.util.*;
 
 import static io.silvicky.item.common.Util.*;
+import static java.lang.String.format;
 
 public class StateSaver extends PersistentState {
     private final LinkedList<StorageInfo> nbtList;
@@ -272,5 +273,11 @@ public class StateSaver extends PersistentState {
                                 Codec.INT.fieldOf(LEVEL).orElse(INFINITE).forGetter((info)->info.level)
 
                         ).apply(instance, WarpRestrictionInfo::new));
+
+        @Override
+        public String toString()
+        {
+            return format("%d, %s",level,reason);
+        }
     }
 }
