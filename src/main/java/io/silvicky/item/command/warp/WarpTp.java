@@ -63,29 +63,29 @@ public class WarpTp {
         PlayerConfigEntry profile=profileList.stream().toList().getFirst();
         return server.getPlayerManager().getPlayer(profile.name());
     }
-    public static int warpTp(ServerCommandSource source, Collection<PlayerConfigEntry> profileList, ServerWorld dimension) throws CommandSyntaxException
+    private static int warpTp(ServerCommandSource source, Collection<PlayerConfigEntry> profileList, ServerWorld dimension) throws CommandSyntaxException
     {
         return warp(source,profileListToPlayer(source.getServer(),profileList), dimension);
     }
-    public static int warpTp(ServerCommandSource source, Collection<PlayerConfigEntry> profileList, ServerWorld dimension, Vec3d target) throws CommandSyntaxException
+    private static int warpTp(ServerCommandSource source, Collection<PlayerConfigEntry> profileList, ServerWorld dimension, Vec3d target) throws CommandSyntaxException
     {
         return warpTp(profileListToPlayer(source.getServer(),profileList),dimension,target);
     }
-    public static int warpTp(ServerPlayerEntity player, ServerWorld dimension, Vec3d target)
+    private static int warpTp(ServerPlayerEntity player, ServerWorld dimension, Vec3d target)
     {
         TeleportTarget tpTarget = new TeleportTarget(dimension, target, Vec3d.ZERO, 0f, 0f,TeleportTarget.NO_OP);
         player.teleportTo(tpTarget);
         return Command.SINGLE_SUCCESS;
     }
-    public static int warpTp(ServerCommandSource source, ServerWorld dimension, Vec3d target)
+    private static int warpTp(ServerCommandSource source, ServerWorld dimension, Vec3d target)
     {
         return warpTp(source.getPlayer(),dimension,target);
     }
-    public static int warpTp(ServerCommandSource source, Entity entity)
+    private static int warpTp(ServerCommandSource source, Entity entity)
     {
         return warpTp(source, (ServerWorld) entity.getEntityWorld(),entity.getEntityPos());
     }
-    public static int warpTp(ServerCommandSource source, Collection<PlayerConfigEntry> profileList, Entity entity) throws CommandSyntaxException
+    private static int warpTp(ServerCommandSource source, Collection<PlayerConfigEntry> profileList, Entity entity) throws CommandSyntaxException
     {
         return warpTp(source,profileList, (ServerWorld) entity.getEntityWorld(),entity.getEntityPos());
     }

@@ -76,15 +76,15 @@ public class BanWarp {
         source.sendFeedback(()-> Text.literal("List ban."),false);
         return Command.SINGLE_SUCCESS;
     }
-    public static int banWarp(ServerCommandSource source,ServerWorld dimension)
+    private static int banWarp(ServerCommandSource source,ServerWorld dimension)
     {
         return banWarp(source,dimension,StateSaver.WarpRestrictionInfo.INFINITE);
     }
-    public static int banWarp(ServerCommandSource source,ServerWorld dimension,int level)
+    private static int banWarp(ServerCommandSource source,ServerWorld dimension,int level)
     {
         return banWarp(source,dimension,level,StateSaver.WarpRestrictionInfo.DEFAULT_REASON);
     }
-    public static int banWarp(ServerCommandSource source,ServerWorld dimension,int level,String reason)
+    private static int banWarp(ServerCommandSource source,ServerWorld dimension,int level,String reason)
     {
         return banWarp(source,dimension,level,reason,false);
     }
@@ -96,11 +96,11 @@ public class BanWarp {
         if(!silent)source.sendFeedback(()->Text.literal("Banned warp to world of "+dimension.getRegistryKey().getValue()+" for level lower than "+level+", reason: "+reason),false);
         return Command.SINGLE_SUCCESS;
     }
-    public static int liftBan(ServerCommandSource source, ServerWorld dimension)
+    private static int liftBan(ServerCommandSource source, ServerWorld dimension)
     {
         return liftBan(source,dimension,false);
     }
-    public static int liftBan(ServerCommandSource source, ServerWorld dimension,boolean silent)
+    private static int liftBan(ServerCommandSource source, ServerWorld dimension,boolean silent)
     {
         StateSaver stateSaver=StateSaver.getServerState(source.getServer());
         HashMap<Identifier,StateSaver.WarpRestrictionInfo> restrictionInfoHashMap=stateSaver.restrictionInfoHashMap;
@@ -108,7 +108,7 @@ public class BanWarp {
         if(!silent)source.sendFeedback(()->Text.literal("Lifted ban on warp to world of "+dimension.getRegistryKey().getValue()),false);
         return Command.SINGLE_SUCCESS;
     }
-    public static int liftAll(ServerCommandSource source)
+    private static int liftAll(ServerCommandSource source)
     {
         StateSaver stateSaver=StateSaver.getServerState(source.getServer());
         HashMap<Identifier,StateSaver.WarpRestrictionInfo> restrictionInfoHashMap=stateSaver.restrictionInfoHashMap;
@@ -116,7 +116,7 @@ public class BanWarp {
         source.sendFeedback(()->Text.literal("Lifted all ban on warp."),false);
         return Command.SINGLE_SUCCESS;
     }
-    public static int liftGroup(ServerCommandSource source, String namespace)
+    private static int liftGroup(ServerCommandSource source, String namespace)
     {
         for(ServerWorld world:source.getServer().getWorlds())
             if(world.getRegistryKey().getValue().getNamespace().equals(namespace))
@@ -124,29 +124,29 @@ public class BanWarp {
         source.sendFeedback(()->Text.literal("Lifted ban on warp to "+namespace),false);
         return Command.SINGLE_SUCCESS;
     }
-    public static int banAll(ServerCommandSource source)
+    private static int banAll(ServerCommandSource source)
     {
         return banAll(source, StateSaver.WarpRestrictionInfo.INFINITE);
     }
-    public static int banAll(ServerCommandSource source,int level)
+    private static int banAll(ServerCommandSource source,int level)
     {
         return banAll(source,level, StateSaver.WarpRestrictionInfo.DEFAULT_REASON);
     }
-    public static int banAll(ServerCommandSource source,int level,String reason)
+    private static int banAll(ServerCommandSource source,int level,String reason)
     {
         for(ServerWorld world:source.getServer().getWorlds())banWarp(source,world,level,reason,true);
         source.sendFeedback(()->Text.literal("Banned all warp for level lower than "+level+", reason: "+reason),false);
         return Command.SINGLE_SUCCESS;
     }
-    public static int banGroup(ServerCommandSource source,String namespace)
+    private static int banGroup(ServerCommandSource source,String namespace)
     {
         return banGroup(source, namespace, StateSaver.WarpRestrictionInfo.INFINITE);
     }
-    public static int banGroup(ServerCommandSource source,String namespace,int level)
+    private static int banGroup(ServerCommandSource source,String namespace,int level)
     {
         return banGroup(source,namespace,level,StateSaver.WarpRestrictionInfo.DEFAULT_REASON);
     }
-    public static int banGroup(ServerCommandSource source,String namespace,int level,String reason)
+    private static int banGroup(ServerCommandSource source,String namespace,int level,String reason)
     {
         for(ServerWorld world:source.getServer().getWorlds())
             if(world.getRegistryKey().getValue().getNamespace().equals(namespace))
@@ -154,7 +154,7 @@ public class BanWarp {
         source.sendFeedback(()->Text.literal("Banned warp to "+namespace+" for level lower than "+level+", reason: "+reason),false);
         return Command.SINGLE_SUCCESS;
     }
-    public static int list(ServerCommandSource source)
+    private static int list(ServerCommandSource source)
     {
         StateSaver stateSaver=StateSaver.getServerState(source.getServer());
         HashMap<Identifier,StateSaver.WarpRestrictionInfo> restrictionInfoHashMap=stateSaver.restrictionInfoHashMap;

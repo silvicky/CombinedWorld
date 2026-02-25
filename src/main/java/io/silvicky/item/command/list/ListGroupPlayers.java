@@ -33,7 +33,7 @@ public class ListGroupPlayers {
         source.sendFeedback(()-> Text.literal("Get players in the group."),false);
         return Command.SINGLE_SUCCESS;
     }
-    public static int listPlayers(ServerCommandSource source, String group)
+    private static int listPlayers(ServerCommandSource source, String group)
     {
         List<String> players=new ArrayList<>();
         for(ServerPlayerEntity player:source.getServer().getPlayerManager().getPlayerList())

@@ -30,7 +30,7 @@ public class ListDimensionPlayers {
         source.sendFeedback(()-> Text.literal("Get players in that dimension."),false);
         return Command.SINGLE_SUCCESS;
     }
-    public static int listPlayers(ServerCommandSource source, ServerWorld dimension)
+    private static int listPlayers(ServerCommandSource source, ServerWorld dimension)
     {
         List<String> players=new ArrayList<>();
         for(ServerPlayerEntity player:source.getServer().getPlayerManager().getPlayerList())

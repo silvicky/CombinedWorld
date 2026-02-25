@@ -32,7 +32,7 @@ public class ListWorldPlayers {
         return Command.SINGLE_SUCCESS;
     }
 
-    public static int listPlayers(ServerCommandSource source, ServerWorld dimension)
+    private static int listPlayers(ServerCommandSource source, ServerWorld dimension)
     {
         List<String> players= getListOfPlayers(source.getServer(),getDimensionId(dimension));
         source.sendFeedback(()-> Text.literal(format("There are now %d players in the world of %s: %s",players.size(),getDimensionId(dimension),listToString(players))),false);
