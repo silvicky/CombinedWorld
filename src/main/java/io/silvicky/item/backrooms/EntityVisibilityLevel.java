@@ -10,6 +10,16 @@ public enum EntityVisibilityLevel
     NONE((byte) 3);
     private final byte id;
     EntityVisibilityLevel(byte id){this.id=id;}
+    @Override
+    public String toString(){return name().toLowerCase();}
+    public static EntityVisibilityLevel getByName(String name)
+    {
+        try
+        {
+            return EntityVisibilityLevel.valueOf(name.toUpperCase());
+        }
+        catch (IllegalArgumentException e){return NORMAL;}
+    }
     private static EntityVisibilityLevel getById(byte id)
     {
         for(EntityVisibilityLevel level:EntityVisibilityLevel.values())
