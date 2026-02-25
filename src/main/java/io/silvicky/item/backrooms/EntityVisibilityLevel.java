@@ -8,7 +8,7 @@ public enum EntityVisibilityLevel
     LIMITED((byte) 1),
     NO_PLAYER((byte) 2),
     NONE((byte) 3);
-    final byte id;
+    private final byte id;
     EntityVisibilityLevel(byte id){this.id=id;}
     private static EntityVisibilityLevel getById(byte id)
     {

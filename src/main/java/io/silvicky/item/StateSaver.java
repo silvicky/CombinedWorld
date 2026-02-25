@@ -3,6 +3,7 @@ package io.silvicky.item;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import io.silvicky.item.backrooms.EntityVisibilityLevel;
 import io.silvicky.item.common.Util;
 import net.minecraft.datafixer.DataFixTypes;
 import net.minecraft.entity.boss.dragon.EnderDragonFight;
@@ -33,6 +34,7 @@ public class StateSaver extends PersistentState {
     private final HashMap<Identifier, BlockPos> spawn;
     public final HashMap<Identifier, WorldProperties.SpawnPoint> worldSpawn;
     public final HashMap<Identifier, HashMap<String, ServerPlayerEntity.Respawn>> respawn;
+    public final HashMap<Identifier, EntityVisibilityLevel> entityVisibility;
     public static final Codec<Pair<ItemStack,Byte>> SLOT_CODEC=Codec.pair(ItemStack.CODEC.orElse(null),Codec.BYTE.fieldOf(SLOT).codec());
     private static final Codec<StateSaver> CODEC= RecordCodecBuilder.create((instance)->
             instance.group
@@ -58,7 +60,9 @@ public class StateSaver extends PersistentState {
                         Codec.unboundedMap(Identifier.CODEC, WorldProperties.SpawnPoint.CODEC).xmap(HashMap::new,map->map).fieldOf("world_spawn").orElse(new HashMap<>()).forGetter((stateSaver ->
                                 stateSaver.worldSpawn)),
                         Codec.unboundedMap(Identifier.CODEC, Codec.unboundedMap(Codec.STRING,ServerPlayerEntity.Respawn.CODEC).xmap(HashMap::new,map->map)).xmap(HashMap::new, map->map).fieldOf("respawn").orElse(new HashMap<>()).forGetter((stateSaver ->
-                                stateSaver.respawn))
+                                stateSaver.respawn)),
+                        Codec.unboundedMap(Identifier.CODEC, EntityVisibilityLevel.CODEC).xmap(HashMap::new,map->map).fieldOf("entity_visibility").orElse(new HashMap<>()).forGetter((stateSaver ->
+                                stateSaver.entityVisibility))
                     ).apply(instance,StateSaver::new));
     private StateSaver(LinkedList<StorageInfo> nbtList,
                       LinkedList<PositionInfo> posList,
@@ -70,7 +74,8 @@ public class StateSaver extends PersistentState {
                       HashMap<String, Integer> gamemode,
                       HashMap<Identifier,BlockPos> spawn,
                       HashMap<Identifier, WorldProperties.SpawnPoint> worldSpawn,
-                      HashMap<Identifier, HashMap<String, ServerPlayerEntity.Respawn>> respawn)
+                      HashMap<Identifier, HashMap<String, ServerPlayerEntity.Respawn>> respawn,
+                       HashMap<Identifier,EntityVisibilityLevel> entityVisibility)
     {
         this.nbtList=nbtList;
         this.posList=posList;
@@ -83,11 +88,13 @@ public class StateSaver extends PersistentState {
         this.spawn=spawn;
         this.worldSpawn=worldSpawn;
         this.respawn=respawn;
+        this.entityVisibility=entityVisibility;
     }
     private StateSaver()
     {
         this(new LinkedList<>(),
                 new LinkedList<>(),
+                new HashMap<>(),
                 new HashMap<>(),
                 new HashMap<>(),
                 new HashMap<>(),
