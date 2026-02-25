@@ -37,7 +37,7 @@ public class ExportWorld {
         source.sendFeedback(()-> Text.literal("Export world of <id> into /exported."),false);
         return Command.SINGLE_SUCCESS;
     }
-    public static int exportWorld(ServerCommandSource source, ServerWorld world)
+    private static int exportWorld(ServerCommandSource source, ServerWorld world)
     {
         if(firstType)
         {

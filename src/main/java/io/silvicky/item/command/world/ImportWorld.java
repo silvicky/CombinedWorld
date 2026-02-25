@@ -108,7 +108,7 @@ public class ImportWorld {
         rollbackPlayer();
     }
 
-    public static int importWorld(ServerCommandSource source, Path path, Identifier idTmp) throws CommandSyntaxException
+    private static int importWorld(ServerCommandSource source, Path path, Identifier idTmp) throws CommandSyntaxException
     {
         if(firstType)
         {

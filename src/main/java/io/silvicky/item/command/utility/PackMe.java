@@ -32,7 +32,7 @@ public class PackMe
         source.sendFeedback(()-> Text.literal("Pack your inventory into chests."),false);
         return Command.SINGLE_SUCCESS;
     }
-    public static int packInv(ServerPlayerEntity player)
+    private static int packInv(ServerPlayerEntity player)
     {
         try
         {
@@ -41,7 +41,7 @@ public class PackMe
         catch (Exception e){e.printStackTrace();}
         return Command.SINGLE_SUCCESS;
     }
-    public static int packAll(ServerPlayerEntity player)
+    private static int packAll(ServerPlayerEntity player)
     {
         try
         {

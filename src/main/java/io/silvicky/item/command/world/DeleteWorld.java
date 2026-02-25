@@ -65,7 +65,7 @@ public class DeleteWorld {
         }
         else return false;
     }
-    public static int deleteWorld(ServerCommandSource source, Identifier idTmp, ServerWorld safeZone) throws CommandSyntaxException
+    private static int deleteWorld(ServerCommandSource source, Identifier idTmp, ServerWorld safeZone) throws CommandSyntaxException
     {
         if(firstType)
         {
