@@ -3,6 +3,7 @@ package io.silvicky.item.command.warp;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import io.silvicky.item.command.suggestion.WorldSuggestionProvider;
 import net.minecraft.command.argument.DimensionArgumentType;
 import net.minecraft.command.argument.EntityArgumentType;
@@ -28,6 +29,7 @@ import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
 
 public class WarpTp {
+    public static SimpleCommandExceptionType NOT_BY_PLAYER=new SimpleCommandExceptionType(Text.literal("Not by player."));
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher)
     {
         dispatcher.register(
@@ -77,11 +79,15 @@ public class WarpTp {
         player.teleportTo(tpTarget);
         return Command.SINGLE_SUCCESS;
     }
-    private static int warpTp(ServerCommandSource source, ServerWorld dimension, Vec3d target)
+    private static int warpTp(ServerCommandSource source, ServerWorld dimension, Vec3d target) throws CommandSyntaxException
     {
+        if(source.getPlayer()==null)
+        {
+            throw NOT_BY_PLAYER.create();
+        }
         return warpTp(source.getPlayer(),dimension,target);
     }
-    private static int warpTp(ServerCommandSource source, Entity entity)
+    private static int warpTp(ServerCommandSource source, Entity entity) throws CommandSyntaxException
     {
         return warpTp(source, (ServerWorld) entity.getEntityWorld(),entity.getEntityPos());
     }
