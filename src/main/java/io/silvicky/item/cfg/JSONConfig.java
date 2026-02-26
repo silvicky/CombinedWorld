@@ -10,10 +10,14 @@ import java.nio.file.Paths;
 import static io.silvicky.item.common.Util.*;
 class Cfg
 {
-    public boolean useStorage=true;
+    boolean useStorage=true;
+    boolean playerVisibilityRandomize=true;
+    long playerVisibilityRange=2;
 }
 public class JSONConfig {
-    public static Boolean useStorage=true;
+    public static boolean useStorage=true;
+    public static boolean playerVisibilityRandomize=true;
+    public static long playerVisibilityRange=2;
     protected static final File cfgFile = Paths.get(FabricLoader.getInstance().getConfigDir().toString(),"ItemStorage.json").toFile();
     protected static final Gson gson=new Gson();
 
@@ -43,6 +47,8 @@ public class JSONConfig {
                     return;
                 }
                 useStorage=cfg.useStorage;
+                playerVisibilityRandomize=cfg.playerVisibilityRandomize;
+                playerVisibilityRange=Math.max(2L,cfg.playerVisibilityRange);
             } catch (FileNotFoundException e) {
                 throw new RuntimeException(e);
             }

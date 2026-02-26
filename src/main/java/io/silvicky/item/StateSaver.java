@@ -36,6 +36,7 @@ public class StateSaver extends PersistentState {
     public final HashMap<Identifier, WorldProperties.SpawnPoint> worldSpawn;
     public final HashMap<Identifier, HashMap<String, ServerPlayerEntity.Respawn>> respawn;
     public final HashMap<Identifier, EntityVisibilityLevel> entityVisibility;
+    public final HashMap<String, HashMap<String,Long>> playerVisibility;
     public static final Codec<Pair<ItemStack,Byte>> SLOT_CODEC=Codec.pair(ItemStack.CODEC.orElse(null),Codec.BYTE.fieldOf(SLOT).codec());
     private static final Codec<StateSaver> CODEC= RecordCodecBuilder.create((instance)->
             instance.group
@@ -63,7 +64,9 @@ public class StateSaver extends PersistentState {
                         Codec.unboundedMap(Identifier.CODEC, Codec.unboundedMap(Codec.STRING,ServerPlayerEntity.Respawn.CODEC).xmap(HashMap::new,map->map)).xmap(HashMap::new, map->map).fieldOf("respawn").orElse(new HashMap<>()).forGetter((stateSaver ->
                                 stateSaver.respawn)),
                         Codec.unboundedMap(Identifier.CODEC, EntityVisibilityLevel.CODEC).xmap(HashMap::new,map->map).fieldOf("entity_visibility").orElse(new HashMap<>()).forGetter((stateSaver ->
-                                stateSaver.entityVisibility))
+                                stateSaver.entityVisibility)),
+                        Codec.unboundedMap(Codec.STRING, Codec.unboundedMap(Codec.STRING,Codec.LONG).xmap(HashMap::new,map->map)).xmap(HashMap::new,map->map).fieldOf("player_visibility").orElse(new HashMap<>()).forGetter((stateSaver)->
+                                stateSaver.playerVisibility)
                     ).apply(instance,StateSaver::new));
     private StateSaver(LinkedList<StorageInfo> nbtList,
                       LinkedList<PositionInfo> posList,
@@ -76,7 +79,8 @@ public class StateSaver extends PersistentState {
                       HashMap<Identifier,BlockPos> spawn,
                       HashMap<Identifier, WorldProperties.SpawnPoint> worldSpawn,
                       HashMap<Identifier, HashMap<String, ServerPlayerEntity.Respawn>> respawn,
-                       HashMap<Identifier,EntityVisibilityLevel> entityVisibility)
+                       HashMap<Identifier,EntityVisibilityLevel> entityVisibility,
+                       HashMap<String,HashMap<String,Long>> playerVisibility)
     {
         this.nbtList=nbtList;
         this.posList=posList;
@@ -90,11 +94,13 @@ public class StateSaver extends PersistentState {
         this.worldSpawn=worldSpawn;
         this.respawn=respawn;
         this.entityVisibility=entityVisibility;
+        this.playerVisibility=playerVisibility;
     }
     private StateSaver()
     {
         this(new LinkedList<>(),
                 new LinkedList<>(),
+                new HashMap<>(),
                 new HashMap<>(),
                 new HashMap<>(),
                 new HashMap<>(),
