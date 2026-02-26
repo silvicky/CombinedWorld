@@ -6,17 +6,31 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 
 import java.util.HashMap;
+import java.util.Random;
 
 import static io.silvicky.item.StateSaver.getServerState;
+import static io.silvicky.item.cfg.JSONConfig.playerVisibilityRandomize;
 import static io.silvicky.item.cfg.JSONConfig.playerVisibilityRange;
 
 public class EntityVisibilityManager
 {
+    private static final Random random=new Random();
     public static long getPlayerVisibility(MinecraftServer server, String namespace, String player)
     {
         return getServerState(server).playerVisibility
                 .computeIfAbsent(namespace,i->new HashMap<>())
                 .compute(player, (k, v) -> (v == null) ? 0L : v % playerVisibilityRange);
+    }
+    public static void updatePlayerVisibility(MinecraftServer server, String namespace, String player)
+    {
+        getServerState(server).playerVisibility
+                .computeIfAbsent(namespace,i->new HashMap<>())
+                .compute(player, (k, v) ->
+                        (
+                                ((v == null) ? 0L : v )
+                                        +(playerVisibilityRandomize?random.nextLong()%(playerVisibilityRange-1):0L)
+                                        +1L
+                        )%playerVisibilityRange);
     }
     public static void setPlayerVisibility(MinecraftServer server, String namespace, String player, long level)
     {

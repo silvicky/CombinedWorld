@@ -14,6 +14,7 @@ import io.silvicky.item.command.world.DeleteWorld;
 import io.silvicky.item.command.world.ImportWorld;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 
 import static io.silvicky.item.common.Util.LOGGER;
 public class ItemStorage implements ModInitializer {
@@ -36,5 +37,6 @@ public class ItemStorage implements ModInitializer {
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> Evacuate.register(dispatcher));
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> PackMe.register(dispatcher));
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> Visibility.register(dispatcher));
+		ServerPlayerEvents.AFTER_RESPAWN.register(OnRespawn::respawn);
 	}
 }
