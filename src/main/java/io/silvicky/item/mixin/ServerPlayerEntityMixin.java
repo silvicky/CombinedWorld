@@ -2,6 +2,7 @@ package io.silvicky.item.mixin;
 
 import com.llamalad7.mixinextras.sugar.Local;
 import io.silvicky.item.StateSaver;
+import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -23,6 +24,7 @@ import java.util.HashMap;
 import java.util.Set;
 
 import static io.silvicky.item.InventoryManager.*;
+import static io.silvicky.item.backrooms.EntityVisibilityManager.updatePlayerVisibility;
 import static io.silvicky.item.cfg.JSONConfig.useStorage;
 import static io.silvicky.item.common.Util.getDimensionId;
 import static io.silvicky.item.common.Util.toOverworld;
@@ -123,5 +125,13 @@ public abstract class ServerPlayerEntityMixin
         return new TeleportTarget(
                 serverWorld, TeleportTarget.getWorldSpawnPos(serverWorld, player), Vec3d.ZERO, spawnPoint.yaw(), spawnPoint.pitch(), false, false, Set.of(), postDimensionTransition
         );
+    }
+    @Inject(method = "onDeath",at = @At("HEAD"))
+    private void inject7(DamageSource damageSource, CallbackInfo ci)
+    {
+        ServerPlayerEntity player=(ServerPlayerEntity) (Object)this;
+        updatePlayerVisibility(player.getEntityWorld().getServer(),
+                player.getEntityWorld().getRegistryKey().getValue().getNamespace(),
+                player.getUuidAsString());
     }
 }

@@ -37,6 +37,5 @@ public class ItemStorage implements ModInitializer {
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> Evacuate.register(dispatcher));
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> PackMe.register(dispatcher));
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> Visibility.register(dispatcher));
-		ServerPlayerEvents.AFTER_RESPAWN.register(OnRespawn::respawn);
 	}
 }
