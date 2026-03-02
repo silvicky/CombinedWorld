@@ -1,9 +1,6 @@
 package io.silvicky.item.backrooms;
 
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.SpawnReason;
+import net.minecraft.entity.*;
 import net.minecraft.network.packet.s2c.play.EntitySpawnS2CPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -70,10 +67,22 @@ public class EntityVisibilityManager
                 }
             }
         }
-        if(entity instanceof LivingEntity)
+        if(!(entity instanceof LivingEntity))
         {
             return (level & 0b100) >> 2 != 1;
         }
-        return (level & 0b1000) >> 3 != 1;
+        if(entityType.getSpawnGroup()== SpawnGroup.MONSTER)
+        {
+            return (level & 0b1000) >> 3 != 1;
+        }
+        if(entityType.equals(EntityType.VILLAGER))
+        {
+            return (level & 0b10000) >> 4 != 1;
+        }
+        if(entityType.getSpawnGroup()== SpawnGroup.MISC)
+        {
+            return (level & 0b100000) >> 5 != 1;
+        }
+        return (level & 0b1000000) >> 6 != 1;
     }
 }
