@@ -1,6 +1,9 @@
 package io.silvicky.item.backrooms;
 
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.SpawnReason;
 import net.minecraft.network.packet.s2c.play.EntitySpawnS2CPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -44,28 +47,33 @@ public class EntityVisibilityManager
     }
     public static boolean isVisible(ServerPlayerEntity player, EntitySpawnS2CPacket packet)
     {
-        EntityVisibilityLevel level=getServerState(player.getEntityWorld().getServer()).entityVisibility.getOrDefault(player.getEntityWorld().getRegistryKey().getValue(),EntityVisibilityLevel.NORMAL);
-        switch (level)
+        int level=getServerState(player.getEntityWorld().getServer()).entityVisibility.getOrDefault(player.getEntityWorld().getRegistryKey().getValue(),0);
+        EntityType<?> entityType=packet.getEntityType();
+        Entity entity=entityType.create(player.getEntityWorld(), SpawnReason.COMMAND);
+        if(entityType.equals(EntityType.PLAYER))
         {
-            case NONE ->
+            switch (level&0b11)
             {
-                return false;
-            }
-            case NO_PLAYER ->
-            {
-                return !packet.getEntityType().equals(EntityType.PLAYER);
-            }
-            case LIMITED ->
-            {
-                if(!packet.getEntityType().equals(EntityType.PLAYER))return true;
-                String namespace=player.getEntityWorld().getRegistryKey().getValue().getNamespace();
-                MinecraftServer server=player.getEntityWorld().getServer();
-                return getPlayerVisibility(server,namespace,player.getUuidAsString())==getPlayerVisibility(server,namespace,packet.getUuid().toString());
-            }
-            default ->
-            {
-                return true;
+                case 1 ->
+                {
+                    String namespace=player.getEntityWorld().getRegistryKey().getValue().getNamespace();
+                    MinecraftServer server=player.getEntityWorld().getServer();
+                    return getPlayerVisibility(server,namespace,player.getUuidAsString())==getPlayerVisibility(server,namespace,packet.getUuid().toString());
+                }
+                case 2 ->
+                {
+                    return false;
+                }
+                default ->
+                {
+                    return true;
+                }
             }
         }
+        if(entity instanceof LivingEntity)
+        {
+            return (level & 0b100) >> 2 != 1;
+        }
+        return (level & 0b1000) >> 3 != 1;
     }
 }

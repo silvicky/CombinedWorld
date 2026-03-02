@@ -3,7 +3,6 @@ package io.silvicky.item;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import io.silvicky.item.backrooms.EntityVisibilityLevel;
 import io.silvicky.item.common.Util;
 import net.minecraft.datafixer.DataFixTypes;
 import net.minecraft.entity.boss.dragon.EnderDragonFight;
@@ -35,7 +34,7 @@ public class StateSaver extends PersistentState {
     private final HashMap<Identifier, BlockPos> spawn;
     public final HashMap<Identifier, WorldProperties.SpawnPoint> worldSpawn;
     public final HashMap<Identifier, HashMap<String, ServerPlayerEntity.Respawn>> respawn;
-    public final HashMap<Identifier, EntityVisibilityLevel> entityVisibility;
+    public final HashMap<Identifier, Integer> entityVisibility;
     public final HashMap<String, HashMap<String,Long>> playerVisibility;
     public static final Codec<Pair<ItemStack,Byte>> SLOT_CODEC=Codec.pair(ItemStack.CODEC.orElse(null),Codec.BYTE.fieldOf(SLOT).codec());
     private static final Codec<StateSaver> CODEC= RecordCodecBuilder.create((instance)->
@@ -63,7 +62,7 @@ public class StateSaver extends PersistentState {
                                 stateSaver.worldSpawn)),
                         Codec.unboundedMap(Identifier.CODEC, Codec.unboundedMap(Codec.STRING,ServerPlayerEntity.Respawn.CODEC).xmap(HashMap::new,map->map)).xmap(HashMap::new, map->map).fieldOf("respawn").orElse(new HashMap<>()).forGetter((stateSaver ->
                                 stateSaver.respawn)),
-                        Codec.unboundedMap(Identifier.CODEC, EntityVisibilityLevel.CODEC).xmap(HashMap::new,map->map).fieldOf("entity_visibility").orElse(new HashMap<>()).forGetter((stateSaver ->
+                        Codec.unboundedMap(Identifier.CODEC, Codec.INT).xmap(HashMap::new,map->map).fieldOf("entity_visibility").orElse(new HashMap<>()).forGetter((stateSaver ->
                                 stateSaver.entityVisibility)),
                         Codec.unboundedMap(Codec.STRING, Codec.unboundedMap(Codec.STRING,Codec.LONG).xmap(HashMap::new,map->map)).xmap(HashMap::new,map->map).fieldOf("player_visibility").orElse(new HashMap<>()).forGetter((stateSaver)->
                                 stateSaver.playerVisibility)
@@ -79,7 +78,7 @@ public class StateSaver extends PersistentState {
                       HashMap<Identifier,BlockPos> spawn,
                       HashMap<Identifier, WorldProperties.SpawnPoint> worldSpawn,
                       HashMap<Identifier, HashMap<String, ServerPlayerEntity.Respawn>> respawn,
-                       HashMap<Identifier,EntityVisibilityLevel> entityVisibility,
+                       HashMap<Identifier,Integer> entityVisibility,
                        HashMap<String,HashMap<String,Long>> playerVisibility)
     {
         this.nbtList=nbtList;

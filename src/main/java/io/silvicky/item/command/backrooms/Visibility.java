@@ -5,11 +5,10 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import io.silvicky.item.backrooms.EntityVisibilityLevel;
-import io.silvicky.item.command.suggestion.EntityVisibilityLevelSuggestionProvider;
 import io.silvicky.item.command.suggestion.GroupSuggestionProvider;
 import net.minecraft.command.argument.DimensionArgumentType;
 import net.minecraft.command.argument.GameProfileArgumentType;
+import net.minecraft.command.argument.HexColorArgumentType;
 import net.minecraft.command.permission.Permission;
 import net.minecraft.command.permission.PermissionLevel;
 import net.minecraft.server.PlayerConfigEntry;
@@ -25,6 +24,7 @@ import static io.silvicky.item.backrooms.EntityVisibilityManager.*;
 import static io.silvicky.item.cfg.JSONConfig.playerVisibilityRange;
 import static io.silvicky.item.command.warp.WarpTp.profileListToPlayer;
 import static io.silvicky.item.common.Util.*;
+import static java.lang.String.format;
 import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
 
@@ -39,9 +39,8 @@ public class Visibility
                         .then(literal("world")
                                 .then(argument(DIMENSION, DimensionArgumentType.dimension())
                                         .executes(ctx->getDimensionLevel(ctx.getSource(),DimensionArgumentType.getDimensionArgument(ctx,DIMENSION)))
-                                        .then(argument(LEVEL, StringArgumentType.word())
-                                                .suggests(new EntityVisibilityLevelSuggestionProvider())
-                                                .executes(ctx->setDimensionLevel(ctx.getSource(),DimensionArgumentType.getDimensionArgument(ctx,DIMENSION),StringArgumentType.getString(ctx, LEVEL))))))
+                                        .then(argument(LEVEL, HexColorArgumentType.hexColor())
+                                                .executes(ctx->setDimensionLevel(ctx.getSource(),DimensionArgumentType.getDimensionArgument(ctx,DIMENSION),HexColorArgumentType.getArgbColor(ctx, LEVEL))))))
                         .then(literal("player")
                                 .then(argument(NAMESPACE, StringArgumentType.word())
                                         .suggests(new GroupSuggestionProvider())
@@ -59,7 +58,7 @@ public class Visibility
     {
         source.sendFeedback(()-> Text.literal("Usage:"),false);
         source.sendFeedback(()-> Text.literal("/visibility world <dimension> <level>"),false);
-        source.sendFeedback(()-> Text.literal("Get or set entity visibility of dimension."),false);
+        source.sendFeedback(()-> Text.literal("Get or set entity visibility of dimension(s)."),false);
         source.sendFeedback(()-> Text.literal("/visibility player <namespace> <player> <level>"),false);
         source.sendFeedback(()-> Text.literal("Get or set player visibility field of group."),false);
         source.sendFeedback(()-> Text.literal("/visibility init <namespace>"),false);
@@ -68,12 +67,12 @@ public class Visibility
     }
     private static int getDimensionLevel(ServerCommandSource source, ServerWorld dimension)
     {
-        source.sendFeedback(()->Text.literal(getServerState(source.getServer()).entityVisibility.getOrDefault(dimension.getRegistryKey().getValue(), EntityVisibilityLevel.NORMAL).toString()),false);
+        source.sendFeedback(()->Text.literal(format("%06X",getServerState(source.getServer()).entityVisibility.getOrDefault(dimension.getRegistryKey().getValue(), 0)&0xFFFFFF)),false);
         return Command.SINGLE_SUCCESS;
     }
-    private static int setDimensionLevel(ServerCommandSource source, ServerWorld dimension, String levelName)
+    private static int setDimensionLevel(ServerCommandSource source, ServerWorld dimension, int level)
     {
-        getServerState(source.getServer()).entityVisibility.put(dimension.getRegistryKey().getValue(), EntityVisibilityLevel.getByName(levelName));
+        getServerState(source.getServer()).entityVisibility.put(dimension.getRegistryKey().getValue(), level);
         source.sendFeedback(()->Text.literal("Done."),false);
         return Command.SINGLE_SUCCESS;
     }
