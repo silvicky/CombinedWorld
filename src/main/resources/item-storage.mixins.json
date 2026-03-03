@@ -4,13 +4,18 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "AbstractFireBlockMixin",
+    "ChunkDataS2CPacketMixin",
+    "ClientConnectionMixin",
     "EndPortalBlockMixin",
+    "EntitySpawnS2CPacketMixin",
     "EntityTrackerEntryMixin",
     "NetherPortalBlockMixin",
     "PersistentStateManagerMixin",
+    "PlayerMoveC2SPacketMixin",
     "SaveLoadingMixin",
     "ServerPlayerEntityMixin",
     "ServerPlayerInteractionManagerMixin",
+    "ServerPlayNetworkHandlerMixin",
     "ServerWorldMixin",
     "WorldGenSettingsMixin"
   ],
