@@ -40,10 +40,8 @@ public class ClientConnectionMixin
         modified.add(packet);
         if (packet instanceof PlayerInteractBlockC2SPacket playerInteractBlockC2SPacket)
         {
-            playerInteractBlockC2SPacket.getBlockHitResult().getBlockPos().x -= 16;
-            playerInteractBlockC2SPacket.getBlockHitResult().getBlockPos().z -= 16;
-            playerInteractBlockC2SPacket.getBlockHitResult().getPos().x -= 16;
-            playerInteractBlockC2SPacket.getBlockHitResult().getPos().z -= 16;
+            playerInteractBlockC2SPacket.getBlockHitResult().blockPos=playerInteractBlockC2SPacket.getBlockHitResult().blockPos.add(-16,0,-16);
+            playerInteractBlockC2SPacket.getBlockHitResult().pos=playerInteractBlockC2SPacket.getBlockHitResult().pos.add(-16,0,-16);
             return;
         }
         if (packet instanceof PlayerMoveC2SPacket playerMoveC2SPacket)

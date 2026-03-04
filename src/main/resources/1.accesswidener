@@ -25,8 +25,11 @@ accessible field net/minecraft/network/packet/c2s/play/PlayerMoveC2SPacket x D
 mutable field net/minecraft/network/packet/c2s/play/PlayerMoveC2SPacket x D
 accessible field net/minecraft/network/packet/c2s/play/PlayerMoveC2SPacket z D
 mutable field net/minecraft/network/packet/c2s/play/PlayerMoveC2SPacket z D
-accessible field net/minecraft/util/math/Vec3i x I
-accessible field net/minecraft/util/math/Vec3i z I
-mutable field net/minecraft/util/math/Vec3d x D
-mutable field net/minecraft/util/math/Vec3d z D
 accessible field net/minecraft/network/packet/s2c/play/ChunkDeltaUpdateS2CPacket sectionPos Lnet/minecraft/util/math/ChunkSectionPos;
+mutable field net/minecraft/network/packet/s2c/play/ChunkDeltaUpdateS2CPacket sectionPos Lnet/minecraft/util/math/ChunkSectionPos;
+accessible field net/minecraft/entity/EntityPosition position Lnet/minecraft/util/math/Vec3d;
+mutable field net/minecraft/entity/EntityPosition position Lnet/minecraft/util/math/Vec3d;
+accessible field net/minecraft/util/hit/BlockHitResult blockPos Lnet/minecraft/util/math/BlockPos;
+mutable field net/minecraft/util/hit/BlockHitResult blockPos Lnet/minecraft/util/math/BlockPos;
+accessible field net/minecraft/util/hit/HitResult pos Lnet/minecraft/util/math/Vec3d;
+mutable field net/minecraft/util/hit/HitResult pos Lnet/minecraft/util/math/Vec3d;

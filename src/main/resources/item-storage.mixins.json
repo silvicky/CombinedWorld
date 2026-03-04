@@ -8,6 +8,8 @@
     "ChunkDeltaUpdateS2CPacketMixin",
     "ClientConnectionMixin",
     "EndPortalBlockMixin",
+    "EntityPositionS2CPacketMixin",
+    "EntityPositionSyncS2CPacketMixin",
     "EntitySpawnS2CPacketMixin",
     "EntityTrackerEntryMixin",
     "NetherPortalBlockMixin",

@@ -1,16 +1,16 @@
 package io.silvicky.item.mixin;
 
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
-import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
+import net.minecraft.network.packet.s2c.play.EntityPositionS2CPacket;
 import net.minecraft.network.packet.s2c.play.PositionFlag;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
-@Mixin(PlayerPositionLookS2CPacket.class)
-public class PlayerPositionLookS2CPacketMixin
+@Mixin(EntityPositionS2CPacket.class)
+public class EntityPositionS2CPacketMixin
 {
-    @ModifyReturnValue(method = "of",at=@At("RETURN"))
-    private static PlayerPositionLookS2CPacket inject1(PlayerPositionLookS2CPacket original)
+    @ModifyReturnValue(method = "create",at=@At("RETURN"))
+    private static EntityPositionS2CPacket inject1(EntityPositionS2CPacket original)
     {
         if(!original.relatives().contains(PositionFlag.X))
         {
