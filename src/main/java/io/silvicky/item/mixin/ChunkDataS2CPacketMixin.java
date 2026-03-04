@@ -1,6 +1,8 @@
 package io.silvicky.item.mixin;
 
+import io.silvicky.item.backrooms.VecTransformer;
 import net.minecraft.network.packet.s2c.play.ChunkDataS2CPacket;
+import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.chunk.WorldChunk;
 import net.minecraft.world.chunk.light.LightingProvider;
 import org.spongepowered.asm.mixin.Mixin;
@@ -21,7 +23,8 @@ public class ChunkDataS2CPacketMixin
     @Inject(method = "<init>(Lnet/minecraft/world/chunk/WorldChunk;Lnet/minecraft/world/chunk/light/LightingProvider;Ljava/util/BitSet;Ljava/util/BitSet;)V",at=@At("TAIL"))
     public void inject1(WorldChunk chunk, LightingProvider lightProvider, BitSet skyBits, BitSet blockBits, CallbackInfo ci)
     {
-        this.chunkX++;
-        this.chunkZ++;
+        ChunkPos pos=VecTransformer.instance.s2cTransform(chunk.getPos());
+        this.chunkX= pos.x;
+        this.chunkZ= pos.z;
     }
 }

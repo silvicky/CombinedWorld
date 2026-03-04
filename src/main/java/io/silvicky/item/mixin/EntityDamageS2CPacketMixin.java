@@ -1,5 +1,6 @@
 package io.silvicky.item.mixin;
 
+import io.silvicky.item.backrooms.VecTransformer;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.network.packet.s2c.play.EntityDamageS2CPacket;
@@ -20,6 +21,6 @@ public class EntityDamageS2CPacketMixin
     @Inject(method = "<init>(Lnet/minecraft/entity/Entity;Lnet/minecraft/entity/damage/DamageSource;)V",at=@At("TAIL"))
     private void inject1(Entity entity, DamageSource damageSource, CallbackInfo ci)
     {
-        if(this.sourcePosition.isPresent())this.sourcePosition=Optional.of(this.sourcePosition.get().add(16,0,16));
+        if(this.sourcePosition.isPresent())this.sourcePosition=Optional.of(VecTransformer.instance.s2cTransform(sourcePosition.get()));
     }
 }

@@ -1,5 +1,6 @@
 package io.silvicky.item.mixin;
 
+import io.silvicky.item.backrooms.VecTransformer;
 import net.minecraft.entity.EntityType;
 import net.minecraft.network.packet.s2c.play.EntitySpawnS2CPacket;
 import net.minecraft.util.math.Vec3d;
@@ -20,7 +21,8 @@ public class EntitySpawnS2CPacketMixin
     @Inject(method = "<init>(ILjava/util/UUID;DDDFFLnet/minecraft/entity/EntityType;ILnet/minecraft/util/math/Vec3d;D)V",at = @At("TAIL"))
     public void inject1(int entityId, UUID uuid, double x, double y, double z, float pitch, float yaw, EntityType<?> entityType, int entityData, Vec3d velocity, double headYaw, CallbackInfo ci)
     {
-        this.x+=16;
-        this.z+=16;
+        Vec3d pos= VecTransformer.instance.s2cTransform(new Vec3d(x,y,z));
+        this.x=pos.x;
+        this.z=pos.z;
     }
 }

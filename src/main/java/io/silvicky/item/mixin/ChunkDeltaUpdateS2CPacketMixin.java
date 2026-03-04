@@ -1,5 +1,6 @@
 package io.silvicky.item.mixin;
 
+import io.silvicky.item.backrooms.VecTransformer;
 import it.unimi.dsi.fastutil.shorts.ShortSet;
 import net.minecraft.network.packet.s2c.play.ChunkDeltaUpdateS2CPacket;
 import net.minecraft.util.math.ChunkSectionPos;
@@ -15,6 +16,6 @@ public class ChunkDeltaUpdateS2CPacketMixin
     @Inject(method = "<init>(Lnet/minecraft/util/math/ChunkSectionPos;Lit/unimi/dsi/fastutil/shorts/ShortSet;Lnet/minecraft/world/chunk/ChunkSection;)V",at=@At("TAIL"))
     public void inject1(ChunkSectionPos sectionPos, ShortSet positions, ChunkSection section, CallbackInfo ci)
     {
-        ((ChunkDeltaUpdateS2CPacket)(Object)this).sectionPos=sectionPos.add(1,0,1);
+        ((ChunkDeltaUpdateS2CPacket)(Object)this).sectionPos= VecTransformer.instance.s2cTransform(sectionPos);
     }
 }

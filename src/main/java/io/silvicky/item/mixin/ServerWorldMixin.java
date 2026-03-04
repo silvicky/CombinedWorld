@@ -2,6 +2,7 @@ package io.silvicky.item.mixin;
 
 import com.llamalad7.mixinextras.sugar.Local;
 import io.silvicky.item.StateSaver;
+import io.silvicky.item.backrooms.VecTransformer;
 import net.minecraft.entity.boss.dragon.EnderDragonFight;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
@@ -131,6 +132,6 @@ public abstract class ServerWorldMixin {
     public Vec3d inject11(Vec3d center)
     {
         //TODO
-        return center.add(16,0,16);
+        return VecTransformer.instance.s2cTransform(center);
     }
 }

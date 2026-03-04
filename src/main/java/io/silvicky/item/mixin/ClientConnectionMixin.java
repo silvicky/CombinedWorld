@@ -1,6 +1,7 @@
 package io.silvicky.item.mixin;
 
 import io.netty.channel.ChannelFutureListener;
+import io.silvicky.item.backrooms.VecTransformer;
 import net.minecraft.network.ClientConnection;
 import net.minecraft.network.NetworkSide;
 import net.minecraft.network.listener.PacketListener;
@@ -11,6 +12,7 @@ import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
 import net.minecraft.network.packet.c2s.play.VehicleMoveC2SPacket;
 import net.minecraft.network.packet.s2c.play.BundleS2CPacket;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -42,29 +44,30 @@ public class ClientConnectionMixin
         modified.add(packet);
         if (packet instanceof PlayerInteractBlockC2SPacket playerInteractBlockC2SPacket)
         {
-            playerInteractBlockC2SPacket.getBlockHitResult().blockPos=playerInteractBlockC2SPacket.getBlockHitResult().blockPos.add(-16,0,-16);
-            playerInteractBlockC2SPacket.getBlockHitResult().pos=playerInteractBlockC2SPacket.getBlockHitResult().pos.add(-16,0,-16);
+            playerInteractBlockC2SPacket.getBlockHitResult().blockPos= VecTransformer.instance.c2sTransform(playerInteractBlockC2SPacket.getBlockHitResult().blockPos);
+            playerInteractBlockC2SPacket.getBlockHitResult().pos=VecTransformer.instance.c2sTransform(playerInteractBlockC2SPacket.getBlockHitResult().pos);
             return;
         }
         if (packet instanceof PlayerMoveC2SPacket playerMoveC2SPacket)
         {
             if (playerMoveC2SPacket.changesPosition())
             {
-                playerMoveC2SPacket.x -= 16;
-                playerMoveC2SPacket.z -= 16;
+                Vec3d pos=VecTransformer.instance.c2sTransform(new Vec3d(playerMoveC2SPacket.x,0,playerMoveC2SPacket.z));
+                playerMoveC2SPacket.x = pos.x;
+                playerMoveC2SPacket.z = pos.z;
             }
             return;
         }
         if (packet instanceof VehicleMoveC2SPacket vehicleMoveC2SPacket)
         {
-            vehicleMoveC2SPacket.position=vehicleMoveC2SPacket.position.add(-16,0,-16);
+            vehicleMoveC2SPacket.position=VecTransformer.instance.c2sTransform(vehicleMoveC2SPacket.position);
             return;
         }
         if(packet instanceof PlayerInteractEntityC2SPacket playerInteractEntityC2SPacket)
         {
             if(playerInteractEntityC2SPacket.type instanceof PlayerInteractEntityC2SPacket.InteractAtHandler interact)
             {
-                interact.pos=interact.pos.add(-16,0,-16);
+                interact.pos=VecTransformer.instance.c2sTransform(interact.pos);
             }
             return;
         }
@@ -76,7 +79,7 @@ public class ClientConnectionMixin
                 try
                 {
                     BlockPos pos = (BlockPos) field.get(packet);
-                    field.set(packet,pos.add(-16,0,-16));
+                    field.set(packet,VecTransformer.instance.c2sTransform(pos));
                 }
                 catch (IllegalAccessException e)
                 {
@@ -103,7 +106,7 @@ public class ClientConnectionMixin
                         try
                         {
                             BlockPos pos= (BlockPos) field.get(packet1);
-                            field.set(packet1,pos.add(16,0,16));
+                            field.set(packet1,VecTransformer.instance.s2cTransform(pos));
                         }
                         catch (IllegalAccessException e)
                         {
@@ -121,7 +124,7 @@ public class ClientConnectionMixin
                 try
                 {
                     BlockPos pos= (BlockPos) field.get(packet);
-                    field.set(packet,pos.add(16,0,16));
+                    field.set(packet,VecTransformer.instance.s2cTransform(pos));
                 }
                 catch (IllegalAccessException e)
                 {

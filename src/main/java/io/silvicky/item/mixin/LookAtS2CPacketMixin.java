@@ -1,8 +1,11 @@
 package io.silvicky.item.mixin;
 
+import io.silvicky.item.backrooms.VecTransformer;
 import net.minecraft.command.argument.EntityAnchorArgumentType;
 import net.minecraft.entity.Entity;
 import net.minecraft.network.packet.s2c.play.LookAtS2CPacket;
+import net.minecraft.util.math.Vec3d;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -18,16 +21,20 @@ public class LookAtS2CPacketMixin
     @Shadow
     public double targetZ;
 
+    @Shadow @Final private double targetY;
+
     @Inject(method = "<init>(Lnet/minecraft/command/argument/EntityAnchorArgumentType$EntityAnchor;Lnet/minecraft/entity/Entity;Lnet/minecraft/command/argument/EntityAnchorArgumentType$EntityAnchor;)V",at=@At("TAIL"))
     public void inject1(EntityAnchorArgumentType.EntityAnchor selfAnchor, Entity entity, EntityAnchorArgumentType.EntityAnchor targetAnchor, CallbackInfo ci)
     {
-        this.targetX+=16;
-        this.targetZ+=16;
+        Vec3d pos= VecTransformer.instance.s2cTransform(new Vec3d(targetX,targetY,targetZ));
+        this.targetX=pos.x;
+        this.targetZ=pos.z;
     }
     @Inject(method = "<init>(Lnet/minecraft/command/argument/EntityAnchorArgumentType$EntityAnchor;DDD)V",at=@At("TAIL"))
     public void inject2(EntityAnchorArgumentType.EntityAnchor selfAnchor, double targetX, double targetY, double targetZ, CallbackInfo ci)
     {
-        this.targetX+=16;
-        this.targetZ+=16;
+        Vec3d pos= VecTransformer.instance.s2cTransform(new Vec3d(targetX,targetY,targetZ));
+        this.targetX=pos.x;
+        this.targetZ=pos.z;
     }
 }
