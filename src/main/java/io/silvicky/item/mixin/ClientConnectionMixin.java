@@ -6,7 +6,9 @@ import net.minecraft.network.NetworkSide;
 import net.minecraft.network.listener.PacketListener;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
+import net.minecraft.network.packet.c2s.play.PlayerInteractEntityC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
+import net.minecraft.network.packet.c2s.play.VehicleMoveC2SPacket;
 import net.minecraft.network.packet.s2c.play.BundleS2CPacket;
 import net.minecraft.util.math.BlockPos;
 import org.jspecify.annotations.Nullable;
@@ -50,6 +52,19 @@ public class ClientConnectionMixin
             {
                 playerMoveC2SPacket.x -= 16;
                 playerMoveC2SPacket.z -= 16;
+            }
+            return;
+        }
+        if (packet instanceof VehicleMoveC2SPacket vehicleMoveC2SPacket)
+        {
+            vehicleMoveC2SPacket.position=vehicleMoveC2SPacket.position.add(-16,0,-16);
+            return;
+        }
+        if(packet instanceof PlayerInteractEntityC2SPacket playerInteractEntityC2SPacket)
+        {
+            if(playerInteractEntityC2SPacket.type instanceof PlayerInteractEntityC2SPacket.InteractAtHandler interact)
+            {
+                interact.pos=interact.pos.add(-16,0,-16);
             }
             return;
         }

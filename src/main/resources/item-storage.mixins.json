@@ -8,10 +8,12 @@
     "ChunkDeltaUpdateS2CPacketMixin",
     "ClientConnectionMixin",
     "EndPortalBlockMixin",
+    "EntityDamageS2CPacketMixin",
     "EntityPositionS2CPacketMixin",
     "EntityPositionSyncS2CPacketMixin",
     "EntitySpawnS2CPacketMixin",
     "EntityTrackerEntryMixin",
+    "LookAtS2CPacketMixin",
     "NetherPortalBlockMixin",
     "PersistentStateManagerMixin",
     "PlayerPositionLookS2CPacketMixin",
@@ -19,6 +21,7 @@
     "ServerPlayerEntityMixin",
     "ServerPlayerInteractionManagerMixin",
     "ServerWorldMixin",
+    "VehicleMoveS2CPacketMixin",
     "WorldGenSettingsMixin"
   ],
   "injectors": {

@@ -9,6 +9,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.SaveProperties;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldProperties;
@@ -125,5 +126,11 @@ public abstract class ServerWorldMixin {
             return;
         }
         StateSaver.getServerState(instance).worldSpawn.put(target,spawnPoint);
+    }
+    @ModifyArg(method = "createExplosion",at= @At(value = "INVOKE", target = "Lnet/minecraft/network/packet/s2c/play/ExplosionS2CPacket;<init>(Lnet/minecraft/util/math/Vec3d;FILjava/util/Optional;Lnet/minecraft/particle/ParticleEffect;Lnet/minecraft/registry/entry/RegistryEntry;Lnet/minecraft/util/collection/Pool;)V",ordinal = 0))
+    public Vec3d inject11(Vec3d center)
+    {
+        //TODO
+        return center.add(16,0,16);
     }
 }
