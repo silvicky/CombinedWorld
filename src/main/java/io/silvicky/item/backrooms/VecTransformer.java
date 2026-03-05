@@ -11,7 +11,7 @@ public class VecTransformer
     public static VecTransformer instance=new VecTransformer();
     public ChunkPos s2cTransform(ChunkPos pos)
     {
-        return new ChunkPos(pos.x+1,pos.z+1);
+        return new ChunkPos(pos.x^1,pos.z^1);
     }
     public BlockPos s2cTransform(BlockPos pos)
     {
@@ -36,7 +36,7 @@ public class VecTransformer
     }
     public ChunkPos c2sTransform(ChunkPos pos)
     {
-        return new ChunkPos(pos.x-1,pos.z-1);
+        return new ChunkPos(pos.x^1,pos.z^1);
     }
     public BlockPos c2sTransform(BlockPos pos)
     {
