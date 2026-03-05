@@ -10,8 +10,9 @@ import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerInteractEntityC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
 import net.minecraft.network.packet.c2s.play.VehicleMoveC2SPacket;
-import net.minecraft.network.packet.s2c.play.BundleS2CPacket;
+import net.minecraft.network.packet.s2c.play.*;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
@@ -28,9 +29,10 @@ import java.util.Set;
 import java.util.WeakHashMap;
 
 @Mixin(ClientConnection.class)
-public class ClientConnectionMixin
+public abstract class ClientConnectionMixin
 {
     @Shadow @Final private NetworkSide side;
+
     @Unique
     private static Set<Packet<?>> modified= Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
     @Inject(method = "handlePacket",at=@At("HEAD"))
@@ -115,6 +117,54 @@ public class ClientConnectionMixin
                     }
                 }
             }
+        }
+        if(packet instanceof UnloadChunkS2CPacket unloadChunkS2CPacket)
+        {
+            unloadChunkS2CPacket.pos= VecTransformer.instance.s2cTransform(unloadChunkS2CPacket.pos);
+            return;
+        }
+        if(packet instanceof LightUpdateS2CPacket lightUpdateS2CPacket)
+        {
+            ChunkPos pos=VecTransformer.instance.s2cTransform(new ChunkPos(lightUpdateS2CPacket.chunkX,lightUpdateS2CPacket.chunkZ));
+            lightUpdateS2CPacket.chunkX=pos.x;
+            lightUpdateS2CPacket.chunkZ=pos.z;
+            return;
+        }
+        if(packet instanceof ChunkBiomeDataS2CPacket chunkBiomeDataS2CPacket)
+        {
+            for(ChunkBiomeDataS2CPacket.Serialized serialized:chunkBiomeDataS2CPacket.chunkBiomeData())
+            {
+                serialized.pos=VecTransformer.instance.s2cTransform(serialized.pos);
+            }
+        }
+        if(packet instanceof ChunkValueDebugS2CPacket chunkValueDebugS2CPacket)
+        {
+            chunkValueDebugS2CPacket.chunkPos= VecTransformer.instance.s2cTransform(chunkValueDebugS2CPacket.chunkPos);
+            return;
+        }
+        if(packet instanceof ChunkRenderDistanceCenterS2CPacket chunkRenderDistanceCenterS2CPacket)
+        {
+            ChunkPos pos=VecTransformer.instance.s2cTransform(new ChunkPos(chunkRenderDistanceCenterS2CPacket.chunkX,chunkRenderDistanceCenterS2CPacket.chunkZ));
+            chunkRenderDistanceCenterS2CPacket.chunkX=pos.x;
+            chunkRenderDistanceCenterS2CPacket.chunkZ=pos.z;
+            return;
+        }
+        if(packet instanceof WaypointS2CPacket waypointS2CPacket)
+        {
+            //TODO
+            return;
+        }
+        if(packet instanceof PlaySoundS2CPacket playSoundS2CPacket)
+        {
+            //TODO
+            return;
+        }
+        if(packet instanceof ParticleS2CPacket particleS2CPacket)
+        {
+            Vec3d pos=new Vec3d(particleS2CPacket.x,0,particleS2CPacket.z);
+            particleS2CPacket.x=pos.x;
+            particleS2CPacket.z=pos.z;
+            return;
         }
         for(Field field:packet.getClass().getDeclaredFields())
         {
