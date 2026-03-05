@@ -1,9 +1,8 @@
 package io.silvicky.item.backrooms;
 
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.ChunkPos;
-import net.minecraft.util.math.ChunkSectionPos;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.*;
+
+import static net.minecraft.util.math.MathHelper.floor;
 
 public class VecTransformer
 {
@@ -49,5 +48,11 @@ public class VecTransformer
         BlockPos blockPos=BlockPos.ofFloored(pos);
         BlockPos transformedBlockPos=c2sTransform(blockPos);
         return pos.add(Vec3d.of(transformedBlockPos)).add(Vec3d.of(blockPos.multiply(-1)));
+    }
+    public static boolean isCrossingChunkBorder(Box box)
+    {
+        Box box1=box.expand(2.0E-5F);
+        return floor(box1.minX)>>4!=floor(box1.maxX)>>4
+                ||floor(box1.minZ)>>4!=floor(box1.maxZ)>>4;
     }
 }

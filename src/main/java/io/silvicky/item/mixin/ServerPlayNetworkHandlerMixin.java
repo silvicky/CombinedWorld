@@ -17,6 +17,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import static io.silvicky.item.backrooms.VecTransformer.isCrossingChunkBorder;
 import static net.minecraft.util.math.MathHelper.floor;
 
 @Mixin(ServerPlayNetworkHandler.class)
@@ -35,10 +36,7 @@ public abstract class ServerPlayNetworkHandlerMixin
     @Inject(method = "isEntityNotCollidingWithBlocks", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/WorldView;getCollisions(Lnet/minecraft/entity/Entity;Lnet/minecraft/util/math/Box;Lnet/minecraft/util/math/Vec3d;)Ljava/lang/Iterable;"), cancellable = true)
     private void inject2(WorldView world, Entity entity, Box box, double newX, double newY, double newZ, CallbackInfoReturnable<Boolean> cir, @Local(ordinal = 1) Box box2)
     {
-        if(floor(box.minX)/16!=floor(box2.minX)/16
-        ||floor(box.minZ)/16!=floor(box2.minZ)/16
-        ||floor(box.maxX)/16!=floor(box2.maxX)/16
-        ||floor(box.maxZ)/16!=floor(box2.maxX)/16)
+        if(isCrossingChunkBorder(box2)||!entity.getChunkPos().equals(new ChunkPos(floor(newX)>>4,floor(newZ)>>4)))
         {
             cir.setReturnValue(false);
         }
@@ -46,7 +44,7 @@ public abstract class ServerPlayNetworkHandlerMixin
     @Redirect(method = "onPlayerMove", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/network/ServerPlayNetworkHandler;shouldCheckMovement(Z)Z"))
     private boolean inject3(ServerPlayNetworkHandler instance, boolean elytra, @Local(argsOnly = true) PlayerMoveC2SPacket packet)
     {
-        if(!player.getChunkPos().equals(new ChunkPos(floor(packet.x)/16,floor(packet.z)/16)))
+        if(!player.getChunkPos().equals(new ChunkPos(floor(packet.x)>>4,floor(packet.z)>>4)))
         {
             return false;
         }
