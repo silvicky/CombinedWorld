@@ -16,10 +16,12 @@
     "LookAtS2CPacketMixin",
     "NetherPortalBlockMixin",
     "PersistentStateManagerMixin",
+    "PlayerEntityMixin",
     "PlayerPositionLookS2CPacketMixin",
     "SaveLoadingMixin",
     "ServerPlayerEntityMixin",
     "ServerPlayerInteractionManagerMixin",
+    "ServerPlayNetworkHandlerMixin",
     "ServerWorldMixin",
     "VehicleMoveS2CPacketMixin",
     "WorldGenSettingsMixin"
