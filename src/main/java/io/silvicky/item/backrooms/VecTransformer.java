@@ -8,9 +8,10 @@ public class VecTransformer
 {
     //TODO tmp
     public static VecTransformer instance=new VecTransformer();
+    private static final int tmp=9;
     public ChunkPos s2cTransform(ChunkPos pos)
     {
-        return new ChunkPos(pos.x^1,pos.z^1);
+        return new ChunkPos(pos.x^tmp,pos.z^tmp);
     }
     public BlockPos s2cTransform(BlockPos pos)
     {
@@ -35,7 +36,7 @@ public class VecTransformer
     }
     public ChunkPos c2sTransform(ChunkPos pos)
     {
-        return new ChunkPos(pos.x^1,pos.z^1);
+        return new ChunkPos(pos.x^tmp,pos.z^tmp);
     }
     public BlockPos c2sTransform(BlockPos pos)
     {

@@ -19,7 +19,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import static io.silvicky.item.backrooms.VecTransformer.getChunkPos;
 import static io.silvicky.item.backrooms.VecTransformer.isCrossingChunkBorder;
-import static net.minecraft.util.math.MathHelper.floor;
 
 @Mixin(ServerPlayNetworkHandler.class)
 public abstract class ServerPlayNetworkHandlerMixin
@@ -41,7 +40,7 @@ public abstract class ServerPlayNetworkHandlerMixin
     @Inject(method = "isEntityNotCollidingWithBlocks", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/WorldView;getCollisions(Lnet/minecraft/entity/Entity;Lnet/minecraft/util/math/Box;Lnet/minecraft/util/math/Vec3d;)Ljava/lang/Iterable;"), cancellable = true)
     private void inject2(WorldView world, Entity entity, Box box, double newX, double newY, double newZ, CallbackInfoReturnable<Boolean> cir, @Local(ordinal = 1) Box box2)
     {
-        if(isCrossingChunkBorder(box)||isCrossingChunkBorder(box2)||!entity.getChunkPos().equals(new ChunkPos(floor(newX)>>4,floor(newZ)>>4)))
+        if(isCrossingChunkBorder(box)||isCrossingChunkBorder(box2)||!entity.getChunkPos().equals(getChunkPos(newX,newZ)))
         {
             cir.setReturnValue(false);
         }
