@@ -55,4 +55,8 @@ public class VecTransformer
         return floor(box1.minX)>>4!=floor(box1.maxX)>>4
                 ||floor(box1.minZ)>>4!=floor(box1.maxZ)>>4;
     }
+    public static ChunkPos getChunkPos(double x,double z)
+    {
+        return new ChunkPos(floor(x)>>4,floor(z)>>4);
+    }
 }
