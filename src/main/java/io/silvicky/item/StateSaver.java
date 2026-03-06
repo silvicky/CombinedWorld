@@ -3,7 +3,6 @@ package io.silvicky.item;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import io.silvicky.item.common.Util;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.dimension.end.EndDragonFight;
@@ -20,7 +19,6 @@ import net.minecraft.world.level.saveddata.SavedDataType;
 import net.minecraft.world.level.storage.DimensionDataStorage;
 import net.minecraft.world.level.storage.LevelData;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.*;
 
 import java.util.*;
 
@@ -42,7 +40,7 @@ public class StateSaver extends SavedData
     public final HashMap<Identifier, HashMap<String, ServerPlayer.RespawnConfig>> respawn;
     public final HashMap<Identifier, Integer> entityVisibility;
     public final HashMap<String, HashMap<String,Long>> playerVisibility;
-    public static final Codec<Pair<ItemStack,Byte>> SLOT_CODEC=Codec.pair(ItemStack.CODEC.orElse(null),Codec.BYTE.fieldOf(SLOT).codec());
+    public static final Codec<Pair<ItemStack,Byte>> SLOT_CODEC=Codec.pair(ItemStack.CODEC.orElse(ItemStack.EMPTY),Codec.BYTE.fieldOf(SLOT).codec());
     private static final Codec<StateSaver> CODEC= RecordCodecBuilder.create((instance)->
             instance.group
                     (
@@ -124,6 +122,20 @@ public class StateSaver extends SavedData
             CODEC,
             DataFixTypes.PLAYER
     );
+
+    static ArrayList<Pair<ItemStack,Byte>> listToArrayList(List<Pair<ItemStack,Byte>> src)
+    {
+        ArrayList<Pair<ItemStack,Byte>> ret=new ArrayList<>();
+        for(Pair<ItemStack,Byte> i:src)
+        {
+            if (i!=null
+                &&i.getFirst()!=null
+                &&!i.getFirst().isEmpty()
+                &&i.getSecond()!=null) ret.add(i);
+        }
+        return ret;
+    }
+
     private void update()
     {
         for(Map.Entry<Identifier, BlockPos> posEntry:spawn.entrySet())
@@ -200,8 +212,8 @@ public class StateSaver extends SavedData
                         (
                                 Codec.STRING.fieldOf(PLAYER).forGetter((info)->info.player),
                                 Codec.STRING.fieldOf(DIMENSION).forGetter((info)->info.dimension),
-                                SLOT_CODEC.listOf().xmap(Util::listToArrayList, list->list).fieldOf(INVENTORY).orElse(new ArrayList<>()).forGetter((info)->info.inventory),
-                                SLOT_CODEC.listOf().xmap(Util::listToArrayList, list->list).fieldOf(ENDER).orElse(new ArrayList<>()).forGetter((info)->info.ender),
+                                SLOT_CODEC.listOf().xmap(StateSaver::listToArrayList, list->list).fieldOf(INVENTORY).orElse(new ArrayList<>()).forGetter((info)->info.inventory),
+                                SLOT_CODEC.listOf().xmap(StateSaver::listToArrayList, list->list).fieldOf(ENDER).orElse(new ArrayList<>()).forGetter((info)->info.ender),
                                 Codec.INT.fieldOf("xp").orElse(0).forGetter((info)->info.xp),
                                 Codec.FLOAT.fieldOf("hp").orElse(20f).forGetter((info)->info.hp),
                                 Codec.INT.fieldOf("food").orElse(20).forGetter((info)->info.food),
@@ -224,8 +236,8 @@ public class StateSaver extends SavedData
         public static final Codec<StorageInfoNew> CODEC= RecordCodecBuilder.create((instance) ->
                 instance.group
                         (
-                                SLOT_CODEC.listOf().xmap(Util::listToArrayList, list->list).fieldOf(INVENTORY).forGetter((info)->info.inventory),
-                                SLOT_CODEC.listOf().xmap(Util::listToArrayList, list->list).fieldOf(ENDER).forGetter((info)->info.ender),
+                                SLOT_CODEC.listOf().xmap(StateSaver::listToArrayList, list->list).fieldOf(INVENTORY).forGetter((info)->info.inventory),
+                                SLOT_CODEC.listOf().xmap(StateSaver::listToArrayList, list->list).fieldOf(ENDER).forGetter((info)->info.ender),
                                 Codec.INT.fieldOf("xp").forGetter((info)->info.xp),
                                 Codec.FLOAT.fieldOf("hp").forGetter((info)->info.hp),
                                 Codec.INT.fieldOf("food").forGetter((info)->info.food),
