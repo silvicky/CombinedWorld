@@ -50,4 +50,13 @@ public abstract class ServerPlayNetworkHandlerMixin
         }
         return shouldCheckMovement(elytra);
     }
+    @Redirect(method = "onPlayerMove", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/network/ServerPlayerEntity;isInCurrentExplosionResetGraceTime()Z"))
+    private boolean inject4(ServerPlayerEntity instance, @Local(argsOnly = true) PlayerMoveC2SPacket packet)
+    {
+        if(!player.getChunkPos().equals(new ChunkPos(floor(packet.x)>>4,floor(packet.z)>>4)))
+        {
+            return true;
+        }
+        return instance.isInCurrentExplosionResetGraceTime();
+    }
 }
