@@ -7,32 +7,32 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.serialization.Dynamic;
 import io.silvicky.item.StateSaver;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.command.argument.IdentifierArgumentType;
-import net.minecraft.command.permission.Permission;
-import net.minecraft.command.permission.PermissionLevel;
-import net.minecraft.datafixer.DataFixTypes;
-import net.minecraft.datafixer.Schemas;
-import net.minecraft.entity.boss.dragon.EnderDragonFight;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtHelper;
+import net.minecraft.commands.arguments.IdentifierArgument;
+import net.minecraft.server.permissions.Permission;
+import net.minecraft.server.permissions.PermissionLevel;
+import net.minecraft.util.datafix.DataFixTypes;
+import net.minecraft.util.datafix.DataFixers;
+import net.minecraft.world.level.dimension.end.EndDragonFight;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.NbtIo;
-import net.minecraft.nbt.NbtSizeTracker;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.registry.RegistryOps;
-import net.minecraft.registry.RegistryWrapper;
+import net.minecraft.nbt.NbtAccounter;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.RegistryOps;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.WorldSavePath;
-import net.minecraft.world.WorldProperties;
-import net.minecraft.world.dimension.DimensionOptions;
-import net.minecraft.world.dimension.DimensionTypes;
-import net.minecraft.world.level.WorldGenSettings;
-import net.minecraft.world.level.storage.LevelStorage;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.storage.LevelResource;
+import net.minecraft.world.level.storage.LevelData;
+import net.minecraft.world.level.dimension.LevelStem;
+import net.minecraft.world.level.dimension.BuiltinDimensionTypes;
+import net.minecraft.world.level.levelgen.WorldGenSettings;
+import net.minecraft.world.level.storage.LevelStorageSource;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -44,39 +44,39 @@ import java.util.Map;
 
 import static io.silvicky.item.InventoryManager.save;
 import static io.silvicky.item.common.Util.*;
-import static net.minecraft.server.command.CommandManager.argument;
-import static net.minecraft.server.command.CommandManager.literal;
+import static net.minecraft.commands.Commands.argument;
+import static net.minecraft.commands.Commands.literal;
 
 public class ImportWorld {
-    public static RegistryWrapper.WrapperLookup wrapper;
-    public static HashMap<RegistryKey<DimensionOptions>,DimensionOptions> newDimensions=new HashMap<>();
-    public static HashSet<RegistryKey<DimensionOptions>> deletedDimensions=new HashSet<>();
+    public static HolderLookup.Provider wrapper;
+    public static HashMap<ResourceKey<LevelStem>, LevelStem> newDimensions=new HashMap<>();
+    public static HashSet<ResourceKey<LevelStem>> deletedDimensions=new HashSet<>();
     private static StateSaver stateSaver;
     private static ArrayList<Identifier> identifiers;
     private static boolean firstType=true;
     private static Identifier id;
     private static MinecraftServer server;
 
-    public static void register(CommandDispatcher<ServerCommandSource> dispatcher)
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher)
     {
         dispatcher.register(
                 literal("importworld")
-                        .requires(source -> source.getPermissions().hasPermission(new Permission.Level(PermissionLevel.OWNERS)))
+                        .requires(source -> source.permissions().hasPermission(new Permission.HasCommandLevel(PermissionLevel.OWNERS)))
                         .executes(context->help(context.getSource()))
-                        .then(argument(DIMENSION_ID, IdentifierArgumentType.identifier())
-                                .executes(context -> importWorld(context.getSource(), Paths.get(FabricLoader.getInstance().getGameDir().toString(),"imported"),IdentifierArgumentType.getIdentifier(context, DIMENSION_ID)))
+                        .then(argument(DIMENSION_ID, IdentifierArgument.id())
+                                .executes(context -> importWorld(context.getSource(), Paths.get(FabricLoader.getInstance().getGameDir().toString(),"imported"), IdentifierArgument.getId(context, DIMENSION_ID)))
                                 .then(argument(DIMENSION_PATH, StringArgumentType.greedyString())
-                                        .executes(context -> importWorld(context.getSource(), Paths.get(StringArgumentType.getString(context, DIMENSION_PATH)) ,IdentifierArgumentType.getIdentifier(context, DIMENSION_ID))))));
+                                        .executes(context -> importWorld(context.getSource(), Paths.get(StringArgumentType.getString(context, DIMENSION_PATH)) , IdentifierArgument.getId(context, DIMENSION_ID))))));
     }
-    private static int help(ServerCommandSource source)
+    private static int help(CommandSourceStack source)
     {
-        source.sendFeedback(()-> Text.literal("Usage: /importworld <id> [<path>]"),false);
-        source.sendFeedback(()-> Text.literal("Import the world in <path>(default <game_root>/imported) and give it id of <id>."),false);
-        source.sendFeedback(()-> Text.literal("Namespace of <id> mustn't be used in other dimensions to prevent collision."),false);
-        source.sendFeedback(()-> Text.literal("If <id> ends with overworld/the_nether/the_end, world would be imported as a vanilla triplet."),false);
-        source.sendFeedback(()-> Text.literal("Otherwise, world would be imported as a singlet and only overworld would be imported."),false);
-        source.sendFeedback(()-> Text.literal("Currently only vanilla worlds are supported."),false);
-        source.sendFeedback(()-> Text.literal("After importing, restart the whole game to apply changes."),false);
+        source.sendSuccess(()-> Component.literal("Usage: /importworld <id> [<path>]"),false);
+        source.sendSuccess(()-> Component.literal("Import the world in <path>(default <game_root>/imported) and give it id of <id>."),false);
+        source.sendSuccess(()-> Component.literal("Namespace of <id> mustn't be used in other dimensions to prevent collision."),false);
+        source.sendSuccess(()-> Component.literal("If <id> ends with overworld/the_nether/the_end, world would be imported as a vanilla triplet."),false);
+        source.sendSuccess(()-> Component.literal("Otherwise, world would be imported as a singlet and only overworld would be imported."),false);
+        source.sendSuccess(()-> Component.literal("Currently only vanilla worlds are supported."),false);
+        source.sendSuccess(()-> Component.literal("After importing, restart the whole game to apply changes."),false);
         return Command.SINGLE_SUCCESS;
     }
     private static void rollbackSeed()
@@ -97,7 +97,7 @@ public class ImportWorld {
 
     private static void rollbackWorld()
     {
-        Path target = server.getSavePath(WorldSavePath.ROOT).resolve("dimensions").resolve(id.getNamespace());
+        Path target = server.getWorldPath(LevelResource.ROOT).resolve("dimensions").resolve(id.getNamespace());
         try{
             deleteFolder(target);}
         catch (Exception e)
@@ -108,32 +108,32 @@ public class ImportWorld {
         rollbackPlayer();
     }
 
-    private static int importWorld(ServerCommandSource source, Path path, Identifier idTmp) throws CommandSyntaxException
+    private static int importWorld(CommandSourceStack source, Path path, Identifier idTmp) throws CommandSyntaxException
     {
         if(firstType)
         {
             firstType=false;
-            source.sendFeedback(()-> Text.literal("Hello, admin! This command can import a world(currently vanilla only), and although it has been tested, it is still strongly suggested that you backup your save first. Also you need to read the result carefully. Type this command without arguments to see the help. Type this command again if you already understand what you are doing."),false);
+            source.sendSuccess(()-> Component.literal("Hello, admin! This command can import a world(currently vanilla only), and although it has been tested, it is still strongly suggested that you backup your save first. Also you need to read the result carefully. Type this command without arguments to see the help. Type this command again if you already understand what you are doing."),false);
             return Command.SINGLE_SUCCESS;
         }
         server=source.getServer();
         stateSaver=StateSaver.getServerState(server);
         id=getDimensionId(idTmp);
-        for(ServerWorld i:server.getWorlds())
+        for(ServerLevel i:server.getAllLevels())
         {
-            if(i.getRegistryKey().getValue().equals(id)) throw ERR_DIMENSION_EXIST.create();
+            if(i.dimension().identifier().equals(id)) throw ERR_DIMENSION_EXIST.create();
         }
-        for(RegistryKey<DimensionOptions> i:newDimensions.keySet())
+        for(ResourceKey<LevelStem> i:newDimensions.keySet())
         {
-            if(i.getValue().equals(id)) throw ERR_DIMENSION_EXIST.create();
+            if(i.identifier().equals(id)) throw ERR_DIMENSION_EXIST.create();
         }
-        for(ServerWorld i:server.getWorlds())
+        for(ServerLevel i:server.getAllLevels())
         {
-            if(i.getRegistryKey().getValue().getNamespace().equals(id.getNamespace())) throw ERR_NAMESPACE_EXIST.create();
+            if(i.dimension().identifier().getNamespace().equals(id.getNamespace())) throw ERR_NAMESPACE_EXIST.create();
         }
-        for(RegistryKey<DimensionOptions> i:newDimensions.keySet())
+        for(ResourceKey<LevelStem> i:newDimensions.keySet())
         {
-            if(i.getValue().getNamespace().equals(id.getNamespace())) throw ERR_NAMESPACE_EXIST.create();
+            if(i.identifier().getNamespace().equals(id.getNamespace())) throw ERR_NAMESPACE_EXIST.create();
         }
         identifiers=new ArrayList<>();
         identifiers.add(id);
@@ -143,8 +143,8 @@ public class ImportWorld {
         if(!isSinglet)
         {
             String tmp1 = id.getPath().substring(0, id.getPath().length() - OVERWORLD.length());
-            idNether = Identifier.of(id.getNamespace(), tmp1 + NETHER);
-            idEnd = Identifier.of(id.getNamespace(), tmp1 + END);
+            idNether = Identifier.fromNamespaceAndPath(id.getNamespace(), tmp1 + NETHER);
+            idEnd = Identifier.fromNamespaceAndPath(id.getNamespace(), tmp1 + END);
             identifiers.add(idNether);
             identifiers.add(idEnd);
         }
@@ -160,7 +160,7 @@ public class ImportWorld {
         }
         if(levelDat==null) throw ERR_LEVEL_NOT_EXIST.create();
         Dynamic<?> levelDynamic;
-        try{levelDynamic= LevelStorage.readLevelProperties(levelDat, Schemas.getFixer());}
+        try{levelDynamic= LevelStorageSource.readLevelDataTagFixed(levelDat, DataFixers.getDataFixer());}
         catch(Exception e)
         {
             e.printStackTrace();
@@ -175,7 +175,7 @@ public class ImportWorld {
         WorldGenSettings worldGenSettings;
         try
         {
-            Dynamic<?> dynamic2= RegistryOps.withRegistry(levelDynamic,wrapper);
+            Dynamic<?> dynamic2= RegistryOps.injectRegistryContext(levelDynamic,wrapper);
             worldGenSettings= WorldGenSettings.CODEC.parse(dynamic2.get("WorldGenSettings").orElseEmptyMap()).getOrThrow();
         }
         catch(Exception e)
@@ -183,8 +183,8 @@ public class ImportWorld {
             e.printStackTrace();
             throw ERR_WORLD_GEN.create();
         }
-        source.sendFeedback(()-> Text.literal("Fetched WorldGenSettings."),false);
-        long seed= worldGenSettings.generatorOptions().getSeed();
+        source.sendSuccess(()-> Component.literal("Fetched WorldGenSettings."),false);
+        long seed= worldGenSettings.options().seed();
         stateSaver.seed.put(id,seed);
         stateSaver.gamemode.put(id.getNamespace(),gamemode);
         if(!isSinglet)
@@ -192,36 +192,36 @@ public class ImportWorld {
             stateSaver.seed.put(idNether, seed);
             stateSaver.seed.put(idEnd, seed);
         }
-        source.sendFeedback(()-> Text.literal("Seed configured."),false);
+        source.sendSuccess(()-> Component.literal("Seed configured."),false);
         try
         {
-            EnderDragonFight.Data dragon=EnderDragonFight.Data.CODEC.parse(levelDynamic.get("DragonFight").orElseEmptyMap()).getOrThrow();
-            if((!isSinglet)&&worldGenSettings.dimensionOptionsRegistryHolder().dimensions().get(DimensionOptions.END).dimensionTypeEntry().matchesKey(DimensionTypes.THE_END))
+            EndDragonFight.Data dragon= EndDragonFight.Data.CODEC.parse(levelDynamic.get("DragonFight").orElseEmptyMap()).getOrThrow();
+            if((!isSinglet)&&worldGenSettings.dimensions().dimensions().get(LevelStem.END).type().is(BuiltinDimensionTypes.END))
             {
                 stateSaver.dragonFight.put(idEnd, dragon);
-                source.sendFeedback(() -> Text.literal("Configured dragon fight."), false);
+                source.sendSuccess(() -> Component.literal("Configured dragon fight."), false);
             }
         }
         catch(Exception e)
         {
             e.printStackTrace();
-            source.sendFeedback(()-> Text.literal("Failed to fetch dragon fight... but not a big deal."),false);
+            source.sendSuccess(()-> Component.literal("Failed to fetch dragon fight... but not a big deal."),false);
         }
         try
         {
-            WorldProperties.SpawnPoint spawn=WorldProperties.SpawnPoint.CODEC.parse(levelDynamic.get("spawn").orElseEmptyMap()).getOrThrow();
-            String spawnWorldPath=spawn.getDimension().getValue().getPath();
+            LevelData.RespawnData spawn= LevelData.RespawnData.CODEC.parse(levelDynamic.get("spawn").orElseEmptyMap()).getOrThrow();
+            String spawnWorldPath=spawn.dimension().identifier().getPath();
             Identifier spawnWorld;
             if(spawnWorldPath.endsWith(END))spawnWorld=idEnd;
             else if(spawnWorldPath.endsWith(NETHER))spawnWorld=idNether;
             else spawnWorld=id;
-            stateSaver.worldSpawn.put(id, WorldProperties.SpawnPoint.create(RegistryKey.of(RegistryKeys.WORLD,spawnWorld),spawn.getPos(),spawn.yaw(),spawn.pitch()));
-            source.sendFeedback(() -> Text.literal("Configured spawn point."), false);
+            stateSaver.worldSpawn.put(id, LevelData.RespawnData.of(ResourceKey.create(Registries.DIMENSION,spawnWorld),spawn.pos(),spawn.yaw(),spawn.pitch()));
+            source.sendSuccess(() -> Component.literal("Configured spawn point."), false);
         }
         catch(Exception e)
         {
             e.printStackTrace();
-            source.sendFeedback(()-> Text.literal("Failed to fetch spawn point... but not a big deal."),false);
+            source.sendSuccess(()-> Component.literal("Failed to fetch spawn point... but not a big deal."),false);
         }
         Path playerData=path.resolve("playerdata");
         try
@@ -231,11 +231,11 @@ public class ImportWorld {
             {
                 if (!i.getPath().endsWith(".dat")) continue;
 
-                NbtCompound nbtCompound=NbtIo.readCompressed(i.toPath(), NbtSizeTracker.ofUnlimitedBytes());
-                nbtCompound= DataFixTypes.PLAYER.update(Schemas.getFixer(),nbtCompound, NbtHelper.getDataVersion(nbtCompound,-1));
-                ServerPlayerEntity serverPlayerEntity= loadFakePlayer(nbtCompound,server);
-                String dimension=nbtCompound.getString("Dimension","minecraft:overworld");
-                Identifier identifier=Identifier.of(dimension);
+                CompoundTag nbtCompound=NbtIo.readCompressed(i.toPath(), NbtAccounter.unlimitedHeap());
+                nbtCompound= DataFixTypes.PLAYER.updateToCurrentVersion(DataFixers.getDataFixer(),nbtCompound, NbtUtils.getDataVersion(nbtCompound,-1));
+                ServerPlayer serverPlayerEntity= loadFakePlayer(nbtCompound,server);
+                String dimension=nbtCompound.getStringOr("Dimension","minecraft:overworld");
+                Identifier identifier= Identifier.parse(dimension);
                 if(!identifier.getNamespace().equals("minecraft"))continue;
                 dimension=identifier.getPath();
                 Identifier fakeDimension=null;
@@ -255,7 +255,7 @@ public class ImportWorld {
                 }
             }
             int finalCnt = cnt;
-            source.sendFeedback(()-> Text.literal("Fetched "+ finalCnt +" player data."),false);
+            source.sendSuccess(()-> Component.literal("Fetched "+ finalCnt +" player data."),false);
         }
         catch(Exception e)
         {
@@ -263,10 +263,10 @@ public class ImportWorld {
             rollbackPlayer();
             throw ERR_PLAYER.create();
         }
-        source.sendFeedback(()-> Text.literal("We're'bout to copy the save files, you can go to have a rest now..."),false);
+        source.sendSuccess(()-> Component.literal("We're'bout to copy the save files, you can go to have a rest now..."),false);
         try
         {
-            Path target = server.getSavePath(WorldSavePath.ROOT).resolve("dimensions").resolve(id.getNamespace());
+            Path target = server.getWorldPath(LevelResource.ROOT).resolve("dimensions").resolve(id.getNamespace());
             deleteFolder(target);
             target.toFile().mkdirs();
             Path targetOverworld=target.resolve(id.getPath());
@@ -284,7 +284,7 @@ public class ImportWorld {
             copyFolder(path.resolve(POI),targetOverworld.resolve(POI));
             copyFolder(path.resolve(ENTITIES),targetOverworld.resolve(ENTITIES));
             copyFolder(path.resolve(REGION),targetOverworld.resolve(REGION));
-            source.sendFeedback(()-> Text.literal("Copied save files."),false);
+            source.sendSuccess(()-> Component.literal("Copied save files."),false);
         }
         catch(Exception e)
         {
@@ -292,20 +292,20 @@ public class ImportWorld {
             rollbackWorld();
             throw ERR_SAVE.create();
         }
-        for(Map.Entry<RegistryKey<DimensionOptions>,DimensionOptions> entry:worldGenSettings.dimensionOptionsRegistryHolder().dimensions().entrySet())
+        for(Map.Entry<ResourceKey<LevelStem>, LevelStem> entry:worldGenSettings.dimensions().dimensions().entrySet())
         {
-            RegistryKey<DimensionOptions> registryKey=null;
-            String imported=entry.getKey().getValue().getPath();
+            ResourceKey<LevelStem> registryKey=null;
+            String imported=entry.getKey().identifier().getPath();
             switch (imported) {
-                case OVERWORLD -> registryKey = RegistryKey.of(RegistryKeys.DIMENSION, id);
-                case NETHER -> {if(!isSinglet)registryKey = RegistryKey.of(RegistryKeys.DIMENSION, idNether);}
-                case END -> {if(!isSinglet)registryKey = RegistryKey.of(RegistryKeys.DIMENSION, idEnd);}
+                case OVERWORLD -> registryKey = ResourceKey.create(Registries.LEVEL_STEM, id);
+                case NETHER -> {if(!isSinglet)registryKey = ResourceKey.create(Registries.LEVEL_STEM, idNether);}
+                case END -> {if(!isSinglet)registryKey = ResourceKey.create(Registries.LEVEL_STEM, idEnd);}
             }
             if(registryKey!=null)newDimensions.put(registryKey,entry.getValue());
         }
-        source.sendFeedback(()-> Text.literal("Dimension options stored."),false);
-        source.sendFeedback(()-> Text.literal("Now you can restart to apply all changes."),false);
-        if(!source.getServer().isDedicated())source.sendFeedback(()-> Text.literal("DO NOT ENTER THIS WORLD AGAIN BEFORE RESTARTING YOUR GAME OR YOUR SAVE WOULD BE DESTROYED!!!"),false);
+        source.sendSuccess(()-> Component.literal("Dimension options stored."),false);
+        source.sendSuccess(()-> Component.literal("Now you can restart to apply all changes."),false);
+        if(!source.getServer().isDedicatedServer())source.sendSuccess(()-> Component.literal("DO NOT ENTER THIS WORLD AGAIN BEFORE RESTARTING YOUR GAME OR YOUR SAVE WOULD BE DESTROYED!!!"),false);
         return Command.SINGLE_SUCCESS;
     }
 }

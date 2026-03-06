@@ -3,15 +3,15 @@
   "package": "io.silvicky.item.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "AbstractFireBlockMixin",
+    "BaseFireBlockMixin",
     "EndPortalBlockMixin",
-    "EntityTrackerEntryMixin",
+    "ServerEntityMixin",
     "NetherPortalBlockMixin",
-    "PersistentStateManagerMixin",
+    "DimensionDataStorageMixin",
     "SaveLoadingMixin",
-    "ServerPlayerEntityMixin",
-    "ServerPlayerInteractionManagerMixin",
-    "ServerWorldMixin",
+    "ServerPlayerMixin",
+    "ServerPlayerGameModeMixin",
+    "ServerLevelMixin",
     "WorldGenSettingsMixin"
   ],
   "injectors": {

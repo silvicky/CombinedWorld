@@ -2,46 +2,46 @@ package io.silvicky.item.command.list;
 
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
-import net.minecraft.command.argument.DimensionArgumentType;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
+import net.minecraft.commands.arguments.DimensionArgument;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import static io.silvicky.item.common.Util.*;
-import static net.minecraft.server.command.CommandManager.argument;
-import static net.minecraft.server.command.CommandManager.literal;
+import static net.minecraft.commands.Commands.argument;
+import static net.minecraft.commands.Commands.literal;
 
 public class ListDimensionPlayers {
-    public static void register(CommandDispatcher<ServerCommandSource> dispatcher)
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher)
     {
         dispatcher.register(
                 literal("listdimensionplayers")
                         .executes(context->help(context.getSource()))
-                                .then(argument(DIMENSION, DimensionArgumentType.dimension())
-                                        .executes(context -> listPlayers(context.getSource(),DimensionArgumentType.getDimensionArgument(context,DIMENSION)))));
+                                .then(argument(DIMENSION, DimensionArgument.dimension())
+                                        .executes(context -> listPlayers(context.getSource(), DimensionArgument.getDimension(context,DIMENSION)))));
     }
-    private static int help(ServerCommandSource source)
+    private static int help(CommandSourceStack source)
     {
-        source.sendFeedback(()-> Text.literal("Usage: /listdimensionplayers <dimension>"),false);
-        source.sendFeedback(()-> Text.literal("Get players in that dimension."),false);
+        source.sendSuccess(()-> Component.literal("Usage: /listdimensionplayers <dimension>"),false);
+        source.sendSuccess(()-> Component.literal("Get players in that dimension."),false);
         return Command.SINGLE_SUCCESS;
     }
-    private static int listPlayers(ServerCommandSource source, ServerWorld dimension)
+    private static int listPlayers(CommandSourceStack source, ServerLevel dimension)
     {
         List<String> players=new ArrayList<>();
-        for(ServerPlayerEntity player:source.getServer().getPlayerManager().getPlayerList())
+        for(ServerPlayer player:source.getServer().getPlayerList().getPlayers())
         {
             if(player.
-                    getEntityWorld().getRegistryKey().getValue().equals(dimension.getRegistryKey().getValue()))
+                    level().dimension().identifier().equals(dimension.dimension().identifier()))
             {
                 players.add(player.getName().getString());
             }
         }
-        source.sendFeedback(()-> Text.literal("There are now "+ players.size() +" players in "+dimension.getRegistryKey().getValue()+" : "+listToString(players)),false);
+        source.sendSuccess(()-> Component.literal("There are now "+ players.size() +" players in "+dimension.dimension().identifier()+" : "+listToString(players)),false);
         return Command.SINGLE_SUCCESS;
     }
 }

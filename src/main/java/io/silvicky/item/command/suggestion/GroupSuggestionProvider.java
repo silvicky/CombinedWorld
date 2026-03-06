@@ -4,22 +4,22 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.world.ServerWorld;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.server.level.ServerLevel;
 
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
-public class GroupSuggestionProvider implements SuggestionProvider<ServerCommandSource>
+public class GroupSuggestionProvider implements SuggestionProvider<CommandSourceStack>
 {
     @Override
-    public CompletableFuture<Suggestions> getSuggestions(CommandContext<ServerCommandSource> commandContext, SuggestionsBuilder suggestionsBuilder)
+    public CompletableFuture<Suggestions> getSuggestions(CommandContext<CommandSourceStack> commandContext, SuggestionsBuilder suggestionsBuilder)
     {
         Set<String> groups = new HashSet<>();
-        for (ServerWorld world : commandContext.getSource().getServer().getWorlds())
+        for (ServerLevel world : commandContext.getSource().getServer().getAllLevels())
         {
-            groups.add(world.getRegistryKey().getValue().getNamespace());
+            groups.add(world.dimension().identifier().getNamespace());
         }
         for (String s : groups) suggestionsBuilder.suggest(s);
         return suggestionsBuilder.buildFuture();

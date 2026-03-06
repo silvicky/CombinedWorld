@@ -5,81 +5,81 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import io.silvicky.item.command.suggestion.WorldSuggestionProvider;
-import net.minecraft.command.argument.DimensionArgumentType;
-import net.minecraft.command.argument.EntityArgumentType;
-import net.minecraft.command.argument.GameProfileArgumentType;
-import net.minecraft.command.argument.Vec3ArgumentType;
-import net.minecraft.command.permission.Permission;
-import net.minecraft.command.permission.PermissionLevel;
-import net.minecraft.entity.Entity;
+import net.minecraft.commands.arguments.DimensionArgument;
+import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.commands.arguments.GameProfileArgument;
+import net.minecraft.commands.arguments.coordinates.Vec3Argument;
+import net.minecraft.server.permissions.Permission;
+import net.minecraft.server.permissions.PermissionLevel;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.PlayerConfigEntry;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.TeleportTarget;
+import net.minecraft.server.players.NameAndId;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.portal.TeleportTransition;
 
 import java.util.Collection;
 
 import static io.silvicky.item.command.warp.Warp.warp;
 import static io.silvicky.item.common.Util.*;
-import static net.minecraft.server.command.CommandManager.argument;
-import static net.minecraft.server.command.CommandManager.literal;
+import static net.minecraft.commands.Commands.argument;
+import static net.minecraft.commands.Commands.literal;
 
 public class WarpTp {
-    public static SimpleCommandExceptionType NOT_BY_PLAYER=new SimpleCommandExceptionType(Text.literal("Not by player."));
-    public static void register(CommandDispatcher<ServerCommandSource> dispatcher)
+    public static SimpleCommandExceptionType NOT_BY_PLAYER=new SimpleCommandExceptionType(Component.literal("Not by player."));
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher)
     {
         dispatcher.register(
                 literal("warptp")
-                        .requires(source -> source.getPermissions().hasPermission(new Permission.Level(PermissionLevel.GAMEMASTERS)))
+                        .requires(source -> source.permissions().hasPermission(new Permission.HasCommandLevel(PermissionLevel.GAMEMASTERS)))
                         .executes(context->help(context.getSource()))
-                        .then(argument(DIMENSION, DimensionArgumentType.dimension())
+                        .then(argument(DIMENSION, DimensionArgument.dimension())
                                 .suggests(new WorldSuggestionProvider())
-                                .then(argument(CORD, Vec3ArgumentType.vec3())
-                                        .executes(context -> warpTp(context.getSource(),DimensionArgumentType.getDimensionArgument(context,DIMENSION),Vec3ArgumentType.getVec3(context, CORD)))))
-                        .then(argument(TARGET, EntityArgumentType.entity())
-                                .executes(context -> warpTp(context.getSource(),EntityArgumentType.getEntity(context, TARGET))))
-                        .then(argument(PLAYER, GameProfileArgumentType.gameProfile())
-                                .then(argument(DIMENSION, DimensionArgumentType.dimension())
+                                .then(argument(CORD, Vec3Argument.vec3())
+                                        .executes(context -> warpTp(context.getSource(), DimensionArgument.getDimension(context,DIMENSION), Vec3Argument.getVec3(context, CORD)))))
+                        .then(argument(TARGET, EntityArgument.entity())
+                                .executes(context -> warpTp(context.getSource(), EntityArgument.getEntity(context, TARGET))))
+                        .then(argument(PLAYER, GameProfileArgument.gameProfile())
+                                .then(argument(DIMENSION, DimensionArgument.dimension())
                                         .suggests(new WorldSuggestionProvider())
-                                        .executes(context -> warpTp(context.getSource(),GameProfileArgumentType.getProfileArgument(context, PLAYER),DimensionArgumentType.getDimensionArgument(context,DIMENSION)))
-                                        .then(argument(CORD, Vec3ArgumentType.vec3())
-                                                .executes(context -> warpTp(context.getSource(),GameProfileArgumentType.getProfileArgument(context, PLAYER),DimensionArgumentType.getDimensionArgument(context,DIMENSION),Vec3ArgumentType.getVec3(context, CORD)))))
-                                .then(argument(TARGET, EntityArgumentType.entity())
-                                        .executes(context -> warpTp(context.getSource(),GameProfileArgumentType.getProfileArgument(context, PLAYER),EntityArgumentType.getEntity(context, TARGET)))))
+                                        .executes(context -> warpTp(context.getSource(), GameProfileArgument.getGameProfiles(context, PLAYER), DimensionArgument.getDimension(context,DIMENSION)))
+                                        .then(argument(CORD, Vec3Argument.vec3())
+                                                .executes(context -> warpTp(context.getSource(), GameProfileArgument.getGameProfiles(context, PLAYER), DimensionArgument.getDimension(context,DIMENSION), Vec3Argument.getVec3(context, CORD)))))
+                                .then(argument(TARGET, EntityArgument.entity())
+                                        .executes(context -> warpTp(context.getSource(), GameProfileArgument.getGameProfiles(context, PLAYER), EntityArgument.getEntity(context, TARGET)))))
         );
     }
-    private static int help(ServerCommandSource source)
+    private static int help(CommandSourceStack source)
     {
-        source.sendFeedback(()-> Text.literal("Usage:"),false);
-        source.sendFeedback(()-> Text.literal("/warptp [<player>] <dimension> [<position>]"),false);
-        source.sendFeedback(()-> Text.literal("/warptp [<player>] <target>"),false);
-        source.sendFeedback(()-> Text.literal("Warp <player>(or yourself) to world of <dimension>(and subsequent teleport)"),false);
+        source.sendSuccess(()-> Component.literal("Usage:"),false);
+        source.sendSuccess(()-> Component.literal("/warptp [<player>] <dimension> [<position>]"),false);
+        source.sendSuccess(()-> Component.literal("/warptp [<player>] <target>"),false);
+        source.sendSuccess(()-> Component.literal("Warp <player>(or yourself) to world of <dimension>(and subsequent teleport)"),false);
         return Command.SINGLE_SUCCESS;
     }
-    public static ServerPlayerEntity profileListToPlayer(MinecraftServer server, Collection<PlayerConfigEntry> profileList) throws CommandSyntaxException {
+    public static ServerPlayer profileListToPlayer(MinecraftServer server, Collection<NameAndId> profileList) throws CommandSyntaxException {
         if(profileList.size()!=1) throw ERR_NOT_ONE_PLAYER.create();
-        PlayerConfigEntry profile=profileList.stream().toList().getFirst();
-        return server.getPlayerManager().getPlayer(profile.name());
+        NameAndId profile=profileList.stream().toList().getFirst();
+        return server.getPlayerList().getPlayerByName(profile.name());
     }
-    private static int warpTp(ServerCommandSource source, Collection<PlayerConfigEntry> profileList, ServerWorld dimension) throws CommandSyntaxException
+    private static int warpTp(CommandSourceStack source, Collection<NameAndId> profileList, ServerLevel dimension) throws CommandSyntaxException
     {
         return warp(source,profileListToPlayer(source.getServer(),profileList), dimension);
     }
-    private static int warpTp(ServerCommandSource source, Collection<PlayerConfigEntry> profileList, ServerWorld dimension, Vec3d target) throws CommandSyntaxException
+    private static int warpTp(CommandSourceStack source, Collection<NameAndId> profileList, ServerLevel dimension, Vec3 target) throws CommandSyntaxException
     {
         return warpTp(profileListToPlayer(source.getServer(),profileList),dimension,target);
     }
-    private static int warpTp(ServerPlayerEntity player, ServerWorld dimension, Vec3d target)
+    private static int warpTp(ServerPlayer player, ServerLevel dimension, Vec3 target)
     {
-        TeleportTarget tpTarget = new TeleportTarget(dimension, target, Vec3d.ZERO, 0f, 0f,TeleportTarget.NO_OP);
-        player.teleportTo(tpTarget);
+        TeleportTransition tpTarget = new TeleportTransition(dimension, target, Vec3.ZERO, 0f, 0f, TeleportTransition.DO_NOTHING);
+        player.teleport(tpTarget);
         return Command.SINGLE_SUCCESS;
     }
-    private static int warpTp(ServerCommandSource source, ServerWorld dimension, Vec3d target) throws CommandSyntaxException
+    private static int warpTp(CommandSourceStack source, ServerLevel dimension, Vec3 target) throws CommandSyntaxException
     {
         if(source.getPlayer()==null)
         {
@@ -87,12 +87,12 @@ public class WarpTp {
         }
         return warpTp(source.getPlayer(),dimension,target);
     }
-    private static int warpTp(ServerCommandSource source, Entity entity) throws CommandSyntaxException
+    private static int warpTp(CommandSourceStack source, Entity entity) throws CommandSyntaxException
     {
-        return warpTp(source, (ServerWorld) entity.getEntityWorld(),entity.getEntityPos());
+        return warpTp(source, (ServerLevel) entity.level(),entity.position());
     }
-    private static int warpTp(ServerCommandSource source, Collection<PlayerConfigEntry> profileList, Entity entity) throws CommandSyntaxException
+    private static int warpTp(CommandSourceStack source, Collection<NameAndId> profileList, Entity entity) throws CommandSyntaxException
     {
-        return warpTp(source,profileList, (ServerWorld) entity.getEntityWorld(),entity.getEntityPos());
+        return warpTp(source,profileList, (ServerLevel) entity.level(),entity.position());
     }
 }

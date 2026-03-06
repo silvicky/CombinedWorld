@@ -4,17 +4,22 @@ import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.silvicky.item.common.Util;
-import net.minecraft.datafixer.DataFixTypes;
-import net.minecraft.entity.boss.dragon.EnderDragonFight;
-import net.minecraft.item.ItemStack;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
+import net.minecraft.util.datafix.DataFixTypes;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.dimension.end.EndDragonFight;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.resources.Identifier;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.saveddata.SavedData;
+import net.minecraft.world.level.saveddata.SavedDataType;
+import net.minecraft.world.level.storage.DimensionDataStorage;
+import net.minecraft.world.level.storage.LevelData;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.*;
 
 import java.util.*;
@@ -22,18 +27,19 @@ import java.util.*;
 import static io.silvicky.item.common.Util.*;
 import static java.lang.String.format;
 
-public class StateSaver extends PersistentState {
+public class StateSaver extends SavedData
+{
     private final LinkedList<StorageInfo> nbtList;
     private final LinkedList<PositionInfo> posList;
     public final HashMap<Identifier,HashMap<String,PositionInfoNew>> posMap;
     public final HashMap<String,HashMap<String,StorageInfoNew>> savedMap;
-    public final HashMap<Identifier, EnderDragonFight.Data> dragonFight;
+    public final HashMap<Identifier, EndDragonFight.Data> dragonFight;
     public final HashMap<Identifier, WarpRestrictionInfo> restrictionInfoHashMap;
     public final HashMap<Identifier, Long> seed;
     public final HashMap<String, Integer> gamemode;
     private final HashMap<Identifier, BlockPos> spawn;
-    public final HashMap<Identifier, WorldProperties.SpawnPoint> worldSpawn;
-    public final HashMap<Identifier, HashMap<String, ServerPlayerEntity.Respawn>> respawn;
+    public final HashMap<Identifier, LevelData.RespawnData> worldSpawn;
+    public final HashMap<Identifier, HashMap<String, ServerPlayer.RespawnConfig>> respawn;
     public final HashMap<Identifier, Integer> entityVisibility;
     public final HashMap<String, HashMap<String,Long>> playerVisibility;
     public static final Codec<Pair<ItemStack,Byte>> SLOT_CODEC=Codec.pair(ItemStack.CODEC.orElse(null),Codec.BYTE.fieldOf(SLOT).codec());
@@ -44,25 +50,25 @@ public class StateSaver extends PersistentState {
                                 stateSaver.nbtList),
                         PositionInfo.CODEC.listOf().xmap(LinkedList::new,list->list).fieldOf("pos").orElse(new LinkedList<>()).forGetter((stateSaver)->
                                 stateSaver.posList),
-                        Codec.unboundedMap(Identifier.CODEC, Codec.unboundedMap(Codec.STRING,PositionInfoNew.CODEC).xmap(HashMap::new,map->map)).xmap(HashMap::new,map->map).fieldOf("pos_map").orElse(new HashMap<>()).forGetter((stateSaver)->
+                        Codec.unboundedMap(Identifier.CODEC, Codec.unboundedMap(Codec.STRING,PositionInfoNew.CODEC).xmap(HashMap::new, map->map)).xmap(HashMap::new, map->map).fieldOf("pos_map").orElse(new HashMap<>()).forGetter((stateSaver)->
                                 stateSaver.posMap),
                         Codec.unboundedMap(Codec.STRING, Codec.unboundedMap(Codec.STRING,StorageInfoNew.CODEC).xmap(HashMap::new,map->map)).xmap(HashMap::new,map->map).fieldOf(SAVED_MAP).orElse(new HashMap<>()).forGetter((stateSaver)->
                                 stateSaver.savedMap),
-                        Codec.unboundedMap(Identifier.CODEC, EnderDragonFight.Data.CODEC).xmap(HashMap::new,map->map).fieldOf("dragon").orElse(new HashMap<>()).forGetter((stateSaver ->
+                        Codec.unboundedMap(Identifier.CODEC, EndDragonFight.Data.CODEC).xmap(HashMap::new, map->map).fieldOf("dragon").orElse(new HashMap<>()).forGetter((stateSaver ->
                                 stateSaver.dragonFight)),
-                        Codec.unboundedMap(Identifier.CODEC, Codec.LONG).xmap(HashMap::new,map->map).fieldOf("seed").orElse(new HashMap<>()).forGetter((stateSaver ->
+                        Codec.unboundedMap(Identifier.CODEC, Codec.LONG).xmap(HashMap::new, map->map).fieldOf("seed").orElse(new HashMap<>()).forGetter((stateSaver ->
                                 stateSaver.seed)),
-                        Codec.unboundedMap(Identifier.CODEC, WarpRestrictionInfo.CODEC).xmap(HashMap::new,map->map).fieldOf("restriction").orElse(new HashMap<>()).forGetter((stateSaver ->
+                        Codec.unboundedMap(Identifier.CODEC, WarpRestrictionInfo.CODEC).xmap(HashMap::new, map->map).fieldOf("restriction").orElse(new HashMap<>()).forGetter((stateSaver ->
                                 stateSaver.restrictionInfoHashMap)),
                         Codec.unboundedMap(Codec.STRING, Codec.INT).xmap(HashMap::new,map->map).fieldOf("gamemode").orElse(new HashMap<>()).forGetter((stateSaver ->
                                 stateSaver.gamemode)),
-                        Codec.unboundedMap(Identifier.CODEC, BlockPos.CODEC).xmap(HashMap::new,map->map).fieldOf("spawn").orElse(new HashMap<>()).forGetter((stateSaver ->
+                        Codec.unboundedMap(Identifier.CODEC, BlockPos.CODEC).xmap(HashMap::new, map->map).fieldOf("spawn").orElse(new HashMap<>()).forGetter((stateSaver ->
                                 stateSaver.spawn)),
-                        Codec.unboundedMap(Identifier.CODEC, WorldProperties.SpawnPoint.CODEC).xmap(HashMap::new,map->map).fieldOf("world_spawn").orElse(new HashMap<>()).forGetter((stateSaver ->
+                        Codec.unboundedMap(Identifier.CODEC, LevelData.RespawnData.CODEC).xmap(HashMap::new, map->map).fieldOf("world_spawn").orElse(new HashMap<>()).forGetter((stateSaver ->
                                 stateSaver.worldSpawn)),
-                        Codec.unboundedMap(Identifier.CODEC, Codec.unboundedMap(Codec.STRING,ServerPlayerEntity.Respawn.CODEC).xmap(HashMap::new,map->map)).xmap(HashMap::new, map->map).fieldOf("respawn").orElse(new HashMap<>()).forGetter((stateSaver ->
+                        Codec.unboundedMap(Identifier.CODEC, Codec.unboundedMap(Codec.STRING, ServerPlayer.RespawnConfig.CODEC).xmap(HashMap::new, map->map)).xmap(HashMap::new, map->map).fieldOf("respawn").orElse(new HashMap<>()).forGetter((stateSaver ->
                                 stateSaver.respawn)),
-                        Codec.unboundedMap(Identifier.CODEC, Codec.INT).xmap(HashMap::new,map->map).fieldOf("entity_visibility").orElse(new HashMap<>()).forGetter((stateSaver ->
+                        Codec.unboundedMap(Identifier.CODEC, Codec.INT).xmap(HashMap::new, map->map).fieldOf("entity_visibility").orElse(new HashMap<>()).forGetter((stateSaver ->
                                 stateSaver.entityVisibility)),
                         Codec.unboundedMap(Codec.STRING, Codec.unboundedMap(Codec.STRING,Codec.LONG).xmap(HashMap::new,map->map)).xmap(HashMap::new,map->map).fieldOf("player_visibility").orElse(new HashMap<>()).forGetter((stateSaver)->
                                 stateSaver.playerVisibility)
@@ -71,13 +77,13 @@ public class StateSaver extends PersistentState {
                       LinkedList<PositionInfo> posList,
                        HashMap<Identifier,HashMap<String,PositionInfoNew>> posMap,
                        HashMap<String,HashMap<String,StorageInfoNew>> savedMap,
-                      HashMap<Identifier,EnderDragonFight.Data> dragonFight,
+                      HashMap<Identifier, EndDragonFight.Data> dragonFight,
                       HashMap<Identifier,Long> seed,
                       HashMap<Identifier,WarpRestrictionInfo> restrictionInfoHashMap,
                       HashMap<String, Integer> gamemode,
-                      HashMap<Identifier,BlockPos> spawn,
-                      HashMap<Identifier, WorldProperties.SpawnPoint> worldSpawn,
-                      HashMap<Identifier, HashMap<String, ServerPlayerEntity.Respawn>> respawn,
+                      HashMap<Identifier, BlockPos> spawn,
+                      HashMap<Identifier, LevelData.RespawnData> worldSpawn,
+                      HashMap<Identifier, HashMap<String, ServerPlayer.RespawnConfig>> respawn,
                        HashMap<Identifier,Integer> entityVisibility,
                        HashMap<String,HashMap<String,Long>> playerVisibility)
     {
@@ -112,7 +118,7 @@ public class StateSaver extends PersistentState {
                 new HashMap<>()
         );
     }
-    private static final PersistentStateType<StateSaver> type = new PersistentStateType<>(
+    private static final SavedDataType<StateSaver> type = new SavedDataType<>(
             MOD_ID,
             StateSaver::new,
             CODEC,
@@ -123,16 +129,16 @@ public class StateSaver extends PersistentState {
         for(Map.Entry<Identifier, BlockPos> posEntry:spawn.entrySet())
         {
             worldSpawn.put(getDimensionId(posEntry.getKey()),
-                    WorldProperties.SpawnPoint.create(RegistryKey.of(RegistryKeys.WORLD,posEntry.getKey()),posEntry.getValue(),0,0));
+                    LevelData.RespawnData.of(ResourceKey.create(Registries.DIMENSION,posEntry.getKey()),posEntry.getValue(),0,0));
         }
         spawn.clear();
         for(PositionInfo positionInfo:posList)
         {
-            posMap.computeIfAbsent(Identifier.of(positionInfo.dimension),i->new HashMap<>())
+            posMap.computeIfAbsent(Identifier.parse(positionInfo.dimension), i->new HashMap<>())
                     .put(positionInfo.player, new PositionInfoNew(
-                            Identifier.of(positionInfo.rdim),
+                            Identifier.parse(positionInfo.rdim),
                             positionInfo.pos,
-                            Vec3d.ZERO,
+                            Vec3.ZERO,
                             0,
                             0
                             ));
@@ -155,13 +161,13 @@ public class StateSaver extends PersistentState {
         nbtList.clear();
     }
     public static StateSaver getServerState(MinecraftServer server) {
-        return getServerState(Objects.requireNonNull(server.getWorld(World.OVERWORLD)));
+        return getServerState(Objects.requireNonNull(server.getLevel(Level.OVERWORLD)));
     }
     //DO NOT USE THIS UNLESS DURING CONSTRUCTION OF OVERWORLD
-    public static StateSaver getServerState(ServerWorld world) {
-        PersistentStateManager persistentStateManager = world.getPersistentStateManager();
-        StateSaver state = persistentStateManager.getOrCreate(type);
-        state.markDirty();
+    public static StateSaver getServerState(ServerLevel world) {
+        DimensionDataStorage persistentStateManager = world.getDataStorage();
+        StateSaver state = persistentStateManager.computeIfAbsent(type);
+        state.setDirty();
         state.update();
         return state;
     }
@@ -229,14 +235,14 @@ public class StateSaver extends PersistentState {
 
                         ).apply(instance, StorageInfoNew::new));
     }
-    public record PositionInfoNew(Identifier dimension, Vec3d pos, Vec3d velocity, float yaw, float pitch)
+    public record PositionInfoNew(Identifier dimension, Vec3 pos, Vec3 velocity, float yaw, float pitch)
     {
         public static final Codec<PositionInfoNew> CODEC= RecordCodecBuilder.create((instance) ->
                 instance.group
                         (
                                 Identifier.CODEC.fieldOf("dimension").forGetter(info->info.dimension),
-                                Vec3d.CODEC.fieldOf("pos").forGetter(info->info.pos),
-                                Vec3d.CODEC.fieldOf("velocity").forGetter(info->info.velocity),
+                                Vec3.CODEC.fieldOf("pos").forGetter(info->info.pos),
+                                Vec3.CODEC.fieldOf("velocity").forGetter(info->info.velocity),
                                 Codec.FLOAT.fieldOf("yaw").forGetter(info->info.yaw),
                                 Codec.FLOAT.fieldOf("pitch").forGetter(info->info.pitch)
                         ).apply(instance, PositionInfoNew::new));
@@ -245,21 +251,21 @@ public class StateSaver extends PersistentState {
         public String player;
         public String dimension;
         public String rdim;
-        public Vec3d pos;
+        public Vec3 pos;
 
-        public PositionInfo(String player, String dimension, String rdim, Vec3d pos) {
+        public PositionInfo(String player, String dimension, String rdim, Vec3 pos) {
             this.player = player;
             this.dimension = dimension;
             this.rdim = rdim;
             this.pos = pos;
         }
 
-        public static final Codec<Vec3d> VEC_3_D_CODEC=RecordCodecBuilder.create((instance)->
+        public static final Codec<Vec3> VEC_3_D_CODEC=RecordCodecBuilder.create((instance)->
                 instance.group(
                         Codec.DOUBLE.fieldOf("x").forGetter((v3d)->v3d.x),
                         Codec.DOUBLE.fieldOf("y").forGetter((v3d)->v3d.y),
                         Codec.DOUBLE.fieldOf("z").forGetter((v3d)->v3d.z)
-                ).apply(instance,Vec3d::new)
+                ).apply(instance, Vec3::new)
                 );
         public static final Codec<PositionInfo> CODEC= RecordCodecBuilder.create((instance) ->
                 instance.group

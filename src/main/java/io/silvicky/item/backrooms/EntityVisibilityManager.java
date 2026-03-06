@@ -1,9 +1,13 @@
 package io.silvicky.item.backrooms;
 
-import net.minecraft.entity.*;
-import net.minecraft.network.packet.s2c.play.EntitySpawnS2CPacket;
+import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.MobCategory;
 
 import java.util.HashMap;
 import java.util.Random;
@@ -42,20 +46,20 @@ public class EntityVisibilityManager
     {
         getServerState(server).playerVisibility.remove(namespace);
     }
-    public static boolean isVisible(ServerPlayerEntity player, EntitySpawnS2CPacket packet)
+    public static boolean isVisible(ServerPlayer player, ClientboundAddEntityPacket packet)
     {
-        int level=getServerState(player.getEntityWorld().getServer()).entityVisibility.getOrDefault(player.getEntityWorld().getRegistryKey().getValue(),0);
-        EntityType<?> entityType=packet.getEntityType();
-        Entity entity=entityType.create(player.getEntityWorld(), SpawnReason.COMMAND);
+        int level=getServerState(player.level().getServer()).entityVisibility.getOrDefault(player.level().dimension().identifier(),0);
+        EntityType<?> entityType=packet.getType();
+        Entity entity=entityType.create(player.level(), EntitySpawnReason.COMMAND);
         if(entityType.equals(EntityType.PLAYER))
         {
             switch (level&0b11)
             {
                 case 1 ->
                 {
-                    String namespace=player.getEntityWorld().getRegistryKey().getValue().getNamespace();
-                    MinecraftServer server=player.getEntityWorld().getServer();
-                    return getPlayerVisibility(server,namespace,player.getUuidAsString())==getPlayerVisibility(server,namespace,packet.getUuid().toString());
+                    String namespace=player.level().dimension().identifier().getNamespace();
+                    MinecraftServer server=player.level().getServer();
+                    return getPlayerVisibility(server,namespace,player.getStringUUID())==getPlayerVisibility(server,namespace,packet.getUUID().toString());
                 }
                 case 2 ->
                 {
@@ -71,7 +75,7 @@ public class EntityVisibilityManager
         {
             return (level & 0b100) >> 2 != 1;
         }
-        if(entityType.getSpawnGroup()== SpawnGroup.MONSTER)
+        if(entityType.getCategory()== MobCategory.MONSTER)
         {
             return (level & 0b1000) >> 3 != 1;
         }
@@ -79,7 +83,7 @@ public class EntityVisibilityManager
         {
             return (level & 0b10000) >> 4 != 1;
         }
-        if(entityType.getSpawnGroup()== SpawnGroup.MISC)
+        if(entityType.getCategory()== MobCategory.MISC)
         {
             return (level & 0b100000) >> 5 != 1;
         }
