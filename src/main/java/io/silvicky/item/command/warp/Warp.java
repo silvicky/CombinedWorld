@@ -53,10 +53,11 @@ public class Warp {
         }
         if(!getDimensionId(dimension).equals(getDimensionId(from)))
         {
-            LOGGER.info(player.getName().getString()+" goes to "+ getDimensionId(dimension));
+            if(!silent)LOGGER.info(player.getName().getString()+" goes to "+ getDimensionId(dimension));
             if(!dimension.dimension().identifier().getNamespace().equals(from.dimension().identifier().getNamespace()))
             {
-                player.removeAllEffects();
+                if(player.connection!=null)player.removeAllEffects();
+                else player.getActiveEffects().clear();
             }
             loadPos(server, player, dimension, stateSaver);
             if(!silent)source.sendSuccess(()-> Component.literal("Teleported to "+ getDimensionId(dimension)+"!"),false);

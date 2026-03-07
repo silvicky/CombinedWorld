@@ -36,6 +36,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.portal.TeleportTransition;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -116,13 +117,13 @@ public class Util
         if(!path.toFile().exists())return;
         Files.walkFileTree(path, new SimpleFileVisitor<>() {
             @Override
-            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+            public @NonNull FileVisitResult visitFile(@NonNull Path file, @NonNull BasicFileAttributes attrs) throws IOException {
                 Files.delete(file);
                 return FileVisitResult.CONTINUE;
             }
 
             @Override
-            public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+            public @NonNull FileVisitResult postVisitDirectory(@NonNull Path dir, IOException exc) throws IOException {
                 Files.delete(dir);
                 return FileVisitResult.CONTINUE;
             }
@@ -316,7 +317,8 @@ public class Util
     {
         Identifier source=player.level().dimension().identifier();
         Identifier target=teleportTarget.newLevel().dimension().identifier();
-        if(!source.getNamespace().equals(target.getNamespace()))
+        boolean groupChanged = !source.getNamespace().equals(target.getNamespace());
+        if(groupChanged)
         {
             if(useStorage)saveInventory(player, stateSaver);
         }
@@ -325,7 +327,7 @@ public class Util
         player.setDeltaMovement(teleportTarget.deltaMovement());
         player.setYRot(teleportTarget.yRot());
         player.setXRot(teleportTarget.xRot());
-        if(!source.getNamespace().equals(target.getNamespace()))
+        if(groupChanged)
         {
             if(useStorage)
             {
@@ -340,22 +342,5 @@ public class Util
                 }
             }
         }
-    }
-
-    public static boolean isNonNull(Object o)
-    {
-        if(o==null)return false;
-        if(o instanceof Pair)
-        {
-            return isNonNull(((Pair<?, ?>) o).getFirst())&&isNonNull(((Pair<?, ?>) o).getSecond());
-        }
-        return true;
-    }
-
-    public static <T> ArrayList<T> listToArrayList(List<T> src)
-    {
-        ArrayList<T> ret=new ArrayList<>();
-        for(T i:src)if(isNonNull(i))ret.add(i);
-        return ret;
     }
 }
