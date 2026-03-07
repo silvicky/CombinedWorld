@@ -33,6 +33,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.lang.reflect.Field;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.WeakHashMap;
 
@@ -138,9 +139,11 @@ public abstract class ConnectionMixin
             lightUpdateS2CPacket.z =pos.z;
             return;
         }
-        if(packet instanceof ClientboundChunksBiomesPacket chunkBiomeDataS2CPacket)
+        if(packet instanceof ClientboundChunksBiomesPacket(
+                List<ClientboundChunksBiomesPacket.ChunkBiomeData> chunkBiomeData
+        ))
         {
-            for(ClientboundChunksBiomesPacket.ChunkBiomeData serialized:chunkBiomeDataS2CPacket.chunkBiomeData())
+            for(ClientboundChunksBiomesPacket.ChunkBiomeData serialized: chunkBiomeData)
             {
                 serialized.pos=VecTransformer.instance.s2cTransform(serialized.pos);
             }

@@ -2,6 +2,7 @@ package io.silvicky.item.backrooms;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
+import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -12,7 +13,7 @@ public class VecTransformer
 {
     //TODO tmp
     public static VecTransformer instance=new VecTransformer();
-    private static final int tmp=9;
+    private static final int tmp=5;
     public ChunkPos s2cTransform(ChunkPos pos)
     {
         return new ChunkPos(pos.x^tmp,pos.z^tmp);
@@ -57,11 +58,14 @@ public class VecTransformer
     public static boolean isCrossingChunkBorder(AABB box)
     {
         AABB box1=box.inflate(2.0E-5F);
-        return floor(box1.minX)>>4!=floor(box1.maxX)>>4
-                ||floor(box1.minZ)>>4!=floor(box1.maxZ)>>4;
+        return !getChunkPos(box1.minX,box1.minZ).equals(getChunkPos(box1.maxX,box1.maxZ));
     }
     public static ChunkPos getChunkPos(double x, double z)
     {
         return new ChunkPos(floor(x)>>4,floor(z)>>4);
+    }
+    public boolean isWithinDistance(int i,int j,int k,int l,int m,boolean bl)
+    {
+        return ChunkTrackingView.isWithinDistance(i^tmp,j^tmp,k,l^tmp,m^tmp,bl);
     }
 }
