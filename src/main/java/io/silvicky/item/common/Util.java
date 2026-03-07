@@ -7,35 +7,35 @@ import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import com.mojang.datafixers.util.Pair;
 import io.silvicky.item.StateSaver;
-import net.minecraft.component.Component;
-import net.minecraft.component.ComponentChanges;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.ContainerComponent;
-import net.minecraft.datafixer.DataFixTypes;
-import net.minecraft.datafixer.Schemas;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.inventory.EnderChestInventory;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtHelper;
+import net.minecraft.core.component.TypedDataComponent;
+import net.minecraft.core.component.DataComponentPatch;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.ItemContainerContents;
+import net.minecraft.util.datafix.DataFixTypes;
+import net.minecraft.util.datafix.DataFixers;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.PlayerEnderChestContainer;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.NbtIo;
-import net.minecraft.nbt.NbtSizeTracker;
-import net.minecraft.network.packet.Packet;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
+import net.minecraft.nbt.NbtAccounter;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ConnectedClientData;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.storage.NbtReadView;
-import net.minecraft.storage.ReadView;
-import net.minecraft.text.Text;
-import net.minecraft.util.ErrorReporter;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.Uuids;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.TeleportTarget;
+import net.minecraft.server.network.CommonListenerCookie;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.storage.TagValueInput;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.network.chat.Component;
+import net.minecraft.util.ProblemReporter;
+import net.minecraft.resources.Identifier;
+import net.minecraft.core.UUIDUtil;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.portal.TeleportTransition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,8 +81,8 @@ public class Util
     public static final String CORD="coordination";
     public static final String TARGET="target";
     public static final String MOD_ID = "ItemStorage";
-    public static final Text INVENTORY_ITEMS=Text.literal("Inventory Items");
-    public static final Text ENDER_ITEMS=Text.literal("Ender Items");
+    public static final Component INVENTORY_ITEMS= Component.literal("Inventory Items");
+    public static final Component ENDER_ITEMS= Component.literal("Ender Items");
     public static final Logger LOGGER = LoggerFactory.getLogger("item-storage");
     public static final int playerInventorySize=41;
     public static final int chestSize=27;
@@ -141,30 +141,30 @@ public class Util
         }
     }
 
-    public static ServerPlayerEntity loadFakePlayer(NbtCompound compound, MinecraftServer server)
+    public static ServerPlayer loadFakePlayer(CompoundTag compound, MinecraftServer server)
     {
-        ConnectedClientData connectedClientData = ConnectedClientData.createDefault(new GameProfile(compound.get("UUID", Uuids.INT_STREAM_CODEC).orElseThrow(), "tmp"), false);
-        ServerWorld world=server.getWorld(RegistryKey.of(RegistryKeys.WORLD, Identifier.of(compound.getString("Dimension",server.getOverworld().getRegistryKey().getValue().toString()))));
-        if(world==null)world=server.getOverworld();
-        ServerPlayerEntity serverPlayerEntity = new ServerPlayerEntity(
-                server, world, connectedClientData.gameProfile(), connectedClientData.syncedOptions()
+        CommonListenerCookie connectedClientData = CommonListenerCookie.createInitial(new GameProfile(compound.read("UUID", UUIDUtil.CODEC).orElseThrow(), "tmp"), false);
+        ServerLevel world=server.getLevel(ResourceKey.create(Registries.DIMENSION, Identifier.parse(compound.getStringOr("Dimension",server.overworld().dimension().identifier().toString()))));
+        if(world==null)world=server.overworld();
+        ServerPlayer serverPlayerEntity = new ServerPlayer(
+                server, world, connectedClientData.gameProfile(), connectedClientData.clientInformation()
         );
-        ErrorReporter.Logging logging = new ErrorReporter.Logging(serverPlayerEntity.getErrorReporterContext(), LOGGER);
-        ReadView readView = NbtReadView.create(logging, serverPlayerEntity.getRegistryManager(), compound);
-        serverPlayerEntity.readData(readView);
+        ProblemReporter.ScopedCollector logging = new ProblemReporter.ScopedCollector(serverPlayerEntity.problemPath(), LOGGER);
+        ValueInput readView = TagValueInput.create(logging, serverPlayerEntity.registryAccess(), compound);
+        serverPlayerEntity.load(readView);
         return serverPlayerEntity;
     }
 
-    public static ServerPlayerEntity loadFakePlayer(Path path, MinecraftServer server) throws IOException
+    public static ServerPlayer loadFakePlayer(Path path, MinecraftServer server) throws IOException
     {
-        NbtCompound nbtCompound= NbtIo.readCompressed(path, NbtSizeTracker.ofUnlimitedBytes());
-        nbtCompound= DataFixTypes.PLAYER.update(Schemas.getFixer(),nbtCompound, NbtHelper.getDataVersion(nbtCompound,-1));
+        CompoundTag nbtCompound= NbtIo.readCompressed(path, NbtAccounter.unlimitedHeap());
+        nbtCompound= DataFixTypes.PLAYER.updateToCurrentVersion(DataFixers.getDataFixer(),nbtCompound, NbtUtils.getDataVersion(nbtCompound,-1));
         return loadFakePlayer(nbtCompound,server);
     }
 
-    public static Identifier getDimensionId(ServerWorld world)
+    public static Identifier getDimensionId(ServerLevel world)
     {
-        return getDimensionId(world.getRegistryKey().getValue());
+        return getDimensionId(world.dimension().identifier());
     }
 
     public static String getDimensionId(String id)
@@ -175,15 +175,15 @@ public class Util
     }
     public static Identifier getDimensionId(Identifier id)
     {
-        return Identifier.of(id.getNamespace(),getDimensionId(id.getPath()));
+        return Identifier.fromNamespaceAndPath(id.getNamespace(),getDimensionId(id.getPath()));
     }
-    public static BlockPos transLoc(BlockPos sp, ServerWorld sw)
+    public static BlockPos transLoc(BlockPos sp, ServerLevel sw)
     {
-        while((!sw.getBlockState(sp).isAir())||(!sw.getBlockState(sp.up()).isAir()))sp=sp.down();
-        while(sw.getBlockState(sp.down()).isAir()&&sp.getY()>sw.getBottomY())sp=sp.down();
-        if(sp.getY()==sw.getBottomY())
+        while((!sw.getBlockState(sp).isAir())||(!sw.getBlockState(sp.above()).isAir()))sp=sp.below();
+        while(sw.getBlockState(sp.below()).isAir()&&sp.getY()>sw.getMinY())sp=sp.below();
+        if(sp.getY()==sw.getMinY())
         {
-            sp=sp.withY(sw.getLogicalHeight());
+            sp=sp.atY(sw.getLogicalHeight());
             LOGGER.warn("Spawn point not found!");
         }
         return sp;
@@ -191,11 +191,11 @@ public class Util
 
     public static List<String> getListOfPlayers(MinecraftServer server, Identifier dimension)
     {
-        List<ServerPlayerEntity> players=server.getPlayerManager().getPlayerList();
+        List<ServerPlayer> players=server.getPlayerList().getPlayers();
         ArrayList<String> ret=new ArrayList<>();
-        for(ServerPlayerEntity player:players)
+        for(ServerPlayer player:players)
         {
-            if(getDimensionId(player.getEntityWorld()).equals(dimension))
+            if(getDimensionId(player.level()).equals(dimension))
             {
                 ret.add(player.getName().getString());
             }
@@ -216,22 +216,22 @@ public class Util
         return tot.toString();
     }
 
-    public static ArrayList<Pair<ItemStack,Byte>> inventoryToStack(PlayerInventory inventory)
+    public static ArrayList<Pair<ItemStack,Byte>> inventoryToStack(Inventory inventory)
     {
         ArrayList<Pair<ItemStack,Byte>> ret=new ArrayList<>();
         for (int i = 0; i < playerInventorySize; i++) {
-            if (!inventory.getStack(i).isEmpty()) {
-                ret.add(new Pair<>(inventory.getStack(i),(byte)i));
+            if (!inventory.getItem(i).isEmpty()) {
+                ret.add(new Pair<>(inventory.getItem(i),(byte)i));
             }
         }
         return ret;
     }
 
-    public static ArrayList<Pair<ItemStack,Byte>> enderToStack(EnderChestInventory inventory)
+    public static ArrayList<Pair<ItemStack,Byte>> enderToStack(PlayerEnderChestContainer inventory)
     {
         ArrayList<Pair<ItemStack,Byte>> ret=new ArrayList<>();
-        for(int i = 0; i < inventory.size(); ++i) {
-            ItemStack itemStack = inventory.getStack(i);
+        for(int i = 0; i < inventory.getContainerSize(); ++i) {
+            ItemStack itemStack = inventory.getItem(i);
             if (!itemStack.isEmpty()) {
                 ret.add(new Pair<>(itemStack,(byte) i));
             }
@@ -239,34 +239,34 @@ public class Util
         return ret;
     }
 
-    public static void stackToInventory(PlayerInventory inventory, List<Pair<ItemStack,Byte>> stack)
+    public static void stackToInventory(Inventory inventory, List<Pair<ItemStack,Byte>> stack)
     {
-        inventory.clear();
+        inventory.clearContent();
 
         for (Pair<ItemStack, Byte> pair : stack) {
             int j = pair.getSecond();
             ItemStack itemStack = pair.getFirst();
             if (j < playerInventorySize) {
-                inventory.setStack(j, itemStack);
+                inventory.setItem(j, itemStack);
             }
         }
     }
 
-    public static void stackToEnder(EnderChestInventory inventory, List<Pair<ItemStack,Byte>> stack)
+    public static void stackToEnder(PlayerEnderChestContainer inventory, List<Pair<ItemStack,Byte>> stack)
     {
-        inventory.clear();
+        inventory.clearContent();
 
         for (Pair<ItemStack, Byte> pair : stack) {
             int j = pair.getSecond();
-            if (j < inventory.size()) {
-                inventory.setStack(j, pair.getFirst());
+            if (j < inventory.getContainerSize()) {
+                inventory.setItem(j, pair.getFirst());
             }
         }
     }
 
-    public static ServerWorld toOverworld(MinecraftServer server, ServerWorld world)
+    public static ServerLevel toOverworld(MinecraftServer server, ServerLevel world)
     {
-        ServerWorld sw=server.getWorld(RegistryKey.of(RegistryKeys.WORLD,getDimensionId(world)));
+        ServerLevel sw=server.getLevel(ResourceKey.create(Registries.DIMENSION,getDimensionId(world)));
         return (sw!=null?sw:world);
     }
     public static ArrayList<Pair<ItemStack,Byte>> enId(List<ItemStack> source)
@@ -284,14 +284,14 @@ public class Util
         for(Pair<ItemStack,Byte> i:source)ret.add(i.getFirst());
         return ret;
     }
-    public static ItemStack packMono(List<ItemStack> source, Text name)
+    public static ItemStack packMono(List<ItemStack> source, Component name)
     {
         ItemStack ret=new ItemStack(Items.CHEST);
-        ret.applyChanges(ComponentChanges.builder().add(Component.of(DataComponentTypes.CONTAINER,ContainerComponent.fromStacks(source))).build());
-        ret.applyChanges(ComponentChanges.builder().add(Component.of(DataComponentTypes.CUSTOM_NAME, name)).build());
+        ret.applyComponentsAndValidate(DataComponentPatch.builder().set(TypedDataComponent.createUnchecked(DataComponents.CONTAINER, ItemContainerContents.fromItems(source))).build());
+        ret.applyComponentsAndValidate(DataComponentPatch.builder().set(TypedDataComponent.createUnchecked(DataComponents.CUSTOM_NAME, name)).build());
         return ret;
     }
-    public static ArrayList<ItemStack> pack(List<ItemStack> source, Text name)
+    public static ArrayList<ItemStack> pack(List<ItemStack> source, Component name)
     {
         ArrayList<ItemStack> ret=new ArrayList<>();
         for(byte bas=0;bas<source.size();bas+=chestSize)
@@ -305,33 +305,33 @@ public class Util
         }
         return ret;
     }
-    public static void sendToAllInWorld(ServerWorld world, Packet<?> packet)
+    public static void sendToAllInWorld(ServerLevel world, Packet<?> packet)
     {
-        for(ServerPlayerEntity player:world.getPlayers())
+        for(ServerPlayer player:world.players())
         {
-            player.networkHandler.sendPacket(packet);
+            player.connection.send(packet);
         }
     }
-    public static void fakeTeleportTo(ServerPlayerEntity player, TeleportTarget teleportTarget, StateSaver stateSaver)
+    public static void fakeTeleportTo(ServerPlayer player, TeleportTransition teleportTarget, StateSaver stateSaver)
     {
-        Identifier source=player.getEntityWorld().getRegistryKey().getValue();
-        Identifier target=teleportTarget.world().getRegistryKey().getValue();
+        Identifier source=player.level().dimension().identifier();
+        Identifier target=teleportTarget.newLevel().dimension().identifier();
         if(!source.getNamespace().equals(target.getNamespace()))
         {
             if(useStorage)saveInventory(player, stateSaver);
         }
-        player.setServerWorld(teleportTarget.world());
-        player.setPosition(teleportTarget.position());
-        player.setVelocity(teleportTarget.velocity());
-        player.setYaw(teleportTarget.yaw());
-        player.setPitch(teleportTarget.pitch());
+        player.setServerLevel(teleportTarget.newLevel());
+        player.setPos(teleportTarget.position());
+        player.setDeltaMovement(teleportTarget.deltaMovement());
+        player.setYRot(teleportTarget.yRot());
+        player.setXRot(teleportTarget.xRot());
         if(!source.getNamespace().equals(target.getNamespace()))
         {
             if(useStorage)
             {
                 try
                 {
-                    loadInventory(player, teleportTarget.world(), stateSaver);
+                    loadInventory(player, teleportTarget.newLevel(), stateSaver);
                 }
                 catch(Exception e)
                 {

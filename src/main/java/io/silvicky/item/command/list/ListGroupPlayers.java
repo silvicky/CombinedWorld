@@ -4,9 +4,9 @@ import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import io.silvicky.item.command.suggestion.GroupSuggestionProvider;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,11 +14,11 @@ import java.util.List;
 import static io.silvicky.item.common.Util.NAMESPACE;
 import static io.silvicky.item.common.Util.listToString;
 import static java.lang.String.format;
-import static net.minecraft.server.command.CommandManager.argument;
-import static net.minecraft.server.command.CommandManager.literal;
+import static net.minecraft.commands.Commands.argument;
+import static net.minecraft.commands.Commands.literal;
 
 public class ListGroupPlayers {
-    public static void register(CommandDispatcher<ServerCommandSource> dispatcher)
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher)
     {
         dispatcher.register(
                 literal("listgroupplayers")
@@ -27,23 +27,23 @@ public class ListGroupPlayers {
                                         .suggests(new GroupSuggestionProvider())
                                         .executes(context -> listPlayers(context.getSource(),StringArgumentType.getString(context,NAMESPACE)))));
     }
-    private static int help(ServerCommandSource source)
+    private static int help(CommandSourceStack source)
     {
-        source.sendFeedback(()-> Text.literal("Usage: /listgroupplayers <namespace>"),false);
-        source.sendFeedback(()-> Text.literal("Get players in the group."),false);
+        source.sendSuccess(()-> Component.literal("Usage: /listgroupplayers <namespace>"),false);
+        source.sendSuccess(()-> Component.literal("Get players in the group."),false);
         return Command.SINGLE_SUCCESS;
     }
-    private static int listPlayers(ServerCommandSource source, String group)
+    private static int listPlayers(CommandSourceStack source, String group)
     {
         List<String> players=new ArrayList<>();
-        for(ServerPlayerEntity player:source.getServer().getPlayerManager().getPlayerList())
+        for(ServerPlayer player:source.getServer().getPlayerList().getPlayers())
         {
-            if(player.getEntityWorld().getRegistryKey().getValue().getNamespace().equals(group))
+            if(player.level().dimension().identifier().getNamespace().equals(group))
             {
                 players.add(player.getName().getString());
             }
         }
-        source.sendFeedback(()-> Text.literal(format("There are now %d players in %s: %s",players.size(),group,listToString(players))),false);
+        source.sendSuccess(()-> Component.literal(format("There are now %d players in %s: %s",players.size(),group,listToString(players))),false);
         return Command.SINGLE_SUCCESS;
     }
 }

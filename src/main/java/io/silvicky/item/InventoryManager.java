@@ -1,17 +1,17 @@
 package io.silvicky.item;
 
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import net.minecraft.network.packet.s2c.play.GameStateChangeS2CPacket;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
+import net.minecraft.network.protocol.game.ClientboundGameEventPacket;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.GameMode;
-import net.minecraft.world.TeleportTarget;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.resources.Identifier;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.portal.TeleportTransition;
 
 import java.util.HashMap;
 
@@ -20,72 +20,72 @@ import static io.silvicky.item.common.Util.*;
 
 public class InventoryManager {
 
-    public static void savePos(ServerPlayerEntity player, StateSaver stateSaver)
+    public static void savePos(ServerPlayer player, StateSaver stateSaver)
     {
-        savePos(player,stateSaver,player.getEntityWorld().getRegistryKey().getValue());
+        savePos(player,stateSaver,player.level().dimension().identifier());
     }
-    public static void savePos(ServerPlayerEntity player, StateSaver stateSaver, Identifier fakeDimension)
+    public static void savePos(ServerPlayer player, StateSaver stateSaver, Identifier fakeDimension)
     {
         stateSaver.posMap
                 .computeIfAbsent(getDimensionId(fakeDimension),i->new HashMap<>())
-                .put(player.getUuidAsString(),new StateSaver.PositionInfoNew(
+                .put(player.getStringUUID(),new StateSaver.PositionInfoNew(
                         fakeDimension,
-                        player.getEntityPos(),
-                        player.getVelocity(),
-                        player.getYaw(),
-                        player.getPitch()));
+                        player.position(),
+                        player.getDeltaMovement(),
+                        player.getYRot(),
+                        player.getXRot()));
     }
 
-    public static void saveInventory(ServerPlayerEntity player,StateSaver stateSaver)
+    public static void saveInventory(ServerPlayer player, StateSaver stateSaver)
     {
-        saveInventory(player,stateSaver,player.getEntityWorld().getRegistryKey().getValue());
+        saveInventory(player,stateSaver,player.level().dimension().identifier());
     }
-    public static void saveInventory(ServerPlayerEntity player,StateSaver stateSaver,Identifier fakeDimension)
+    public static void saveInventory(ServerPlayer player, StateSaver stateSaver, Identifier fakeDimension)
     {
         stateSaver.savedMap.computeIfAbsent(fakeDimension.getNamespace(),i->new HashMap<>())
-                .put(player.getUuidAsString(),new StateSaver.StorageInfoNew
+                .put(player.getStringUUID(),new StateSaver.StorageInfoNew
                         (
                         inventoryToStack(player.getInventory()),
                         enderToStack(player.getEnderChestInventory()),
                         player.totalExperience,
                         player.getHealth(),
-                        player.getHungerManager().getFoodLevel(),
-                        player.getHungerManager().getSaturationLevel(),
-                        player.getAir(),
-                        player.interactionManager.getGameMode().getIndex()
+                        player.getFoodData().getFoodLevel(),
+                        player.getFoodData().getSaturationLevel(),
+                        player.getAirSupply(),
+                        player.gameMode.getGameModeForPlayer().getId()
                 ));
     }
-    public static void loadPos(MinecraftServer server,ServerPlayerEntity player,ServerWorld targetDimension,StateSaver stateSaver) throws CommandSyntaxException {
+    public static void loadPos(MinecraftServer server, ServerPlayer player, ServerLevel targetDimension, StateSaver stateSaver) throws CommandSyntaxException {
         targetDimension= toOverworld(server,targetDimension);
         StateSaver.PositionInfoNew n=stateSaver.posMap
-                .computeIfAbsent(getDimensionId(targetDimension.getRegistryKey().getValue()),i->new HashMap<>())
-                .get(player.getUuidAsString());
+                .computeIfAbsent(getDimensionId(targetDimension.dimension().identifier()), i->new HashMap<>())
+                .get(player.getStringUUID());
         if(n==null)
         {
             LOGGER.info("Entering a new world... Good luck to the pioneer!");
-            BlockPos sp= transLoc(targetDimension.getSpawnPoint().getPos().withY(targetDimension.getLogicalHeight()-1),targetDimension);
-            TeleportTarget.PostDimensionTransition postDimensionTransition=TeleportTarget.NO_OP;
-            TeleportTarget target = new TeleportTarget(targetDimension,sp.toCenterPos(), Vec3d.ZERO, 0f, 0f,postDimensionTransition);
-            if(player.networkHandler!=null)player.teleportTo(target);
+            BlockPos sp= transLoc(targetDimension.getRespawnData().pos().atY(targetDimension.getLogicalHeight()-1),targetDimension);
+            TeleportTransition.PostTeleportTransition postDimensionTransition= TeleportTransition.DO_NOTHING;
+            TeleportTransition target = new TeleportTransition(targetDimension,sp.getCenter(), Vec3.ZERO, 0f, 0f,postDimensionTransition);
+            if(player.connection !=null)player.teleport(target);
             else fakeTeleportTo(player,target,stateSaver);
         }
         else
         {
-            ServerWorld sw2=server.getWorld(RegistryKey.of(RegistryKeys.WORLD, n.dimension()));
+            ServerLevel sw2=server.getLevel(ResourceKey.create(Registries.DIMENSION, n.dimension()));
             if(sw2==null)
             {
                 LOGGER.error("A dimension named "+n.dimension()+" is NOT FOUND!");
                 throw ERR_DIMENSION_NOT_FOUND.create();
             }
-            TeleportTarget target = new TeleportTarget(sw2,n.pos(), n.velocity(), n.yaw(), n.pitch(),TeleportTarget.NO_OP);
-            if(player.networkHandler!=null)player.teleportTo(target);
+            TeleportTransition target = new TeleportTransition(sw2,n.pos(), n.velocity(), n.yaw(), n.pitch(), TeleportTransition.DO_NOTHING);
+            if(player.connection !=null)player.teleport(target);
             else fakeTeleportTo(player,target,stateSaver);
         }
     }
-    public static void loadInventory(ServerPlayerEntity player,ServerWorld targetDimension,StateSaver stateSaver) throws CommandSyntaxException {
+    public static void loadInventory(ServerPlayer player, ServerLevel targetDimension, StateSaver stateSaver) throws CommandSyntaxException {
         StateSaver.StorageInfoNew n=stateSaver.savedMap
-                .computeIfAbsent(targetDimension.getRegistryKey().getValue().getNamespace(),i->new HashMap<>())
-                .get(player.getUuidAsString());
+                .computeIfAbsent(targetDimension.dimension().identifier().getNamespace(), i->new HashMap<>())
+                .get(player.getStringUUID());
         if(n!=null)
         {
             try{
@@ -98,27 +98,27 @@ public class InventoryManager {
             }
             player.setExperiencePoints(n.xp());
             player.setHealth(n.hp());
-            player.getHungerManager().setFoodLevel(n.food());
-            player.getHungerManager().setSaturationLevel(n.saturation());
-            player.setAir(n.air());
-            player.interactionManager.changeGameMode(GameMode.byIndex(n.gamemode()));
-            if(player.networkHandler!=null)player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, n.gamemode()));
+            player.getFoodData().setFoodLevel(n.food());
+            player.getFoodData().setSaturation(n.saturation());
+            player.setAirSupply(n.air());
+            player.gameMode.changeGameModeForPlayer(GameType.byId(n.gamemode()));
+            if(player.connection !=null)player.connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.CHANGE_GAME_MODE, n.gamemode()));
         }
         else
         {
-            player.getInventory().clear();
-            player.getEnderChestInventory().clear();
+            player.getInventory().clearContent();
+            player.getEnderChestInventory().clearContent();
             player.setExperiencePoints(0);
             player.setHealth(20);
-            player.getHungerManager().setFoodLevel(20);
-            player.getHungerManager().setSaturationLevel(20);
-            player.setAir(300);
-            int gamemode=stateSaver.gamemode.getOrDefault(targetDimension.getRegistryKey().getValue().getNamespace(),0);
-            player.interactionManager.changeGameMode(GameMode.byIndex(gamemode));
-            if(player.networkHandler!=null)player.networkHandler.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.GAME_MODE_CHANGED, gamemode));
+            player.getFoodData().setFoodLevel(20);
+            player.getFoodData().setSaturation(20);
+            player.setAirSupply(300);
+            int gamemode=stateSaver.gamemode.getOrDefault(targetDimension.dimension().identifier().getNamespace(),0);
+            player.gameMode.changeGameModeForPlayer(GameType.byId(gamemode));
+            if(player.connection !=null)player.connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.CHANGE_GAME_MODE, gamemode));
         }
     }
-    public static void save(MinecraftServer server, ServerPlayerEntity player,Identifier fakeDimension)
+    public static void save(MinecraftServer server, ServerPlayer player, Identifier fakeDimension)
     {
         StateSaver stateSaver=StateSaver.getServerState(server);
         savePos(player,stateSaver,fakeDimension);

@@ -1,8 +1,12 @@
 package io.silvicky.item.backrooms;
 
-import net.minecraft.util.math.*;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 
-import static net.minecraft.util.math.MathHelper.floor;
+import static net.minecraft.util.Mth.floor;
 
 public class VecTransformer
 {
@@ -17,22 +21,22 @@ public class VecTransformer
     {
         ChunkPos chunkPos=new ChunkPos(pos);
         ChunkPos transformerChunkPos=s2cTransform(chunkPos);
-        return pos.add(transformerChunkPos.getStartPos()).add(chunkPos.getStartPos().multiply(-1));
+        return pos.offset(transformerChunkPos.getWorldPosition()).offset(chunkPos.getWorldPosition().multiply(-1));
     }
-    public ChunkSectionPos s2cTransform(ChunkSectionPos pos)
+    public SectionPos s2cTransform(SectionPos pos)
     {
-        ChunkPos chunkPos=pos.toChunkPos();
+        ChunkPos chunkPos=pos.chunk();
         ChunkPos transformerChunkPos=s2cTransform(chunkPos);
-        return ChunkSectionPos.from(
+        return SectionPos.of(
                 pos.getX()+transformerChunkPos.x-chunkPos.x,
                 pos.getY(),
                 pos.getZ()+transformerChunkPos.z-chunkPos.z);
     }
-    public Vec3d s2cTransform(Vec3d pos)
+    public Vec3 s2cTransform(Vec3 pos)
     {
-        BlockPos blockPos=BlockPos.ofFloored(pos);
+        BlockPos blockPos= BlockPos.containing(pos);
         BlockPos transformedBlockPos=s2cTransform(blockPos);
-        return pos.add(Vec3d.of(transformedBlockPos)).add(Vec3d.of(blockPos.multiply(-1)));
+        return pos.add(Vec3.atLowerCornerOf(transformedBlockPos)).add(Vec3.atLowerCornerOf(blockPos.multiply(-1)));
     }
     public ChunkPos c2sTransform(ChunkPos pos)
     {
@@ -42,21 +46,21 @@ public class VecTransformer
     {
         ChunkPos chunkPos=new ChunkPos(pos);
         ChunkPos transformerChunkPos=c2sTransform(chunkPos);
-        return pos.add(transformerChunkPos.getStartPos()).add(chunkPos.getStartPos().multiply(-1));
+        return pos.offset(transformerChunkPos.getWorldPosition()).offset(chunkPos.getWorldPosition().multiply(-1));
     }
-    public Vec3d c2sTransform(Vec3d pos)
+    public Vec3 c2sTransform(Vec3 pos)
     {
-        BlockPos blockPos=BlockPos.ofFloored(pos);
+        BlockPos blockPos= BlockPos.containing(pos);
         BlockPos transformedBlockPos=c2sTransform(blockPos);
-        return pos.add(Vec3d.of(transformedBlockPos)).add(Vec3d.of(blockPos.multiply(-1)));
+        return pos.add(Vec3.atLowerCornerOf(transformedBlockPos)).add(Vec3.atLowerCornerOf(blockPos.multiply(-1)));
     }
-    public static boolean isCrossingChunkBorder(Box box)
+    public static boolean isCrossingChunkBorder(AABB box)
     {
-        Box box1=box.expand(2.0E-5F);
+        AABB box1=box.inflate(2.0E-5F);
         return floor(box1.minX)>>4!=floor(box1.maxX)>>4
                 ||floor(box1.minZ)>>4!=floor(box1.maxZ)>>4;
     }
-    public static ChunkPos getChunkPos(double x,double z)
+    public static ChunkPos getChunkPos(double x, double z)
     {
         return new ChunkPos(floor(x)>>4,floor(z)>>4);
     }

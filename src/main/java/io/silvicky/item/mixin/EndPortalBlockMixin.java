@@ -1,17 +1,17 @@
 package io.silvicky.item.mixin;
 
 import com.llamalad7.mixinextras.sugar.Local;
-import net.minecraft.block.EndPortalBlock;
-import net.minecraft.entity.Entity;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.TeleportTarget;
-import net.minecraft.world.World;
-import net.minecraft.world.gen.feature.EndPlatformFeature;
+import net.minecraft.world.level.block.EndPortalBlock;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.resources.Identifier;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.portal.TeleportTransition;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.levelgen.feature.EndPlatformFeature;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -21,27 +21,28 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import static io.silvicky.item.common.Util.*;
 
 @Mixin(EndPortalBlock.class)
-public class EndPortalBlockMixin {
-    @ModifyVariable(method = "createTeleportTarget", at = @At(value = "STORE"),ordinal =1)
-    private RegistryKey<World> injected(RegistryKey<World> registryKey, @Local(argsOnly = true) ServerWorld world) {
-        RegistryKey<World> registryKey0=world.getRegistryKey();
-        String path=registryKey0.getValue().getPath();
-        if(registryKey0.getValue().getPath().endsWith(OVERWORLD))
+public class EndPortalBlockMixin
+{
+    @ModifyVariable(method = "getPortalDestination", at = @At(value = "STORE"),ordinal =1)
+    private ResourceKey<Level> injected(ResourceKey<Level> registryKey, @Local(argsOnly = true) ServerLevel world) {
+        ResourceKey<Level> registryKey0=world.dimension();
+        String path=registryKey0.identifier().getPath();
+        if(registryKey0.identifier().getPath().endsWith(OVERWORLD))
         {
-            return RegistryKey.of(RegistryKey.ofRegistry(registryKey0.getRegistry()),
-                    Identifier.of(registryKey0.getValue().getNamespace(),
+            return ResourceKey.create(ResourceKey.createRegistryKey(registryKey0.registry()),
+                    Identifier.fromNamespaceAndPath(registryKey0.identifier().getNamespace(),
                             path.substring(0,path.length()-9)+ END));
         }
-        else if(registryKey0.getValue().getPath().endsWith(NETHER))
+        else if(registryKey0.identifier().getPath().endsWith(NETHER))
         {
-            return RegistryKey.of(RegistryKey.ofRegistry(registryKey0.getRegistry()),
-                    Identifier.of(registryKey0.getValue().getNamespace(),
+            return ResourceKey.create(ResourceKey.createRegistryKey(registryKey0.registry()),
+                    Identifier.fromNamespaceAndPath(registryKey0.identifier().getNamespace(),
                             path.substring(0,path.length()-10)+ END));
         }
-        else if(registryKey0.getValue().getPath().endsWith(END))
+        else if(registryKey0.identifier().getPath().endsWith(END))
         {
-            return RegistryKey.of(RegistryKey.ofRegistry(registryKey0.getRegistry()),
-                    Identifier.of(registryKey0.getValue().getNamespace(),
+            return ResourceKey.create(ResourceKey.createRegistryKey(registryKey0.registry()),
+                    Identifier.fromNamespaceAndPath(registryKey0.identifier().getNamespace(),
                             path.substring(0,path.length()-7)+ OVERWORLD));
         }
         else
@@ -49,29 +50,29 @@ public class EndPortalBlockMixin {
             return registryKey0;
         }
     }
-    @Inject(method = "createTeleportTarget",at = @At(value = "INVOKE_ASSIGN",  shift = At.Shift.AFTER, target = "Lnet/minecraft/server/world/ServerWorld;getServer()Lnet/minecraft/server/MinecraftServer;"), cancellable = true)
-    private void injected3(ServerWorld world, Entity entity, BlockPos pos, CallbackInfoReturnable<TeleportTarget> cir
-    , @Local(ordinal = 0, argsOnly = true) ServerWorld serverWorl, @Local(ordinal = 1) RegistryKey<World> registryKey)
+    @Inject(method = "getPortalDestination",at = @At(value = "INVOKE_ASSIGN",  shift = At.Shift.AFTER, target = "Lnet/minecraft/server/level/ServerLevel;getServer()Lnet/minecraft/server/MinecraftServer;"), cancellable = true)
+    private void injected3(ServerLevel world, Entity entity, BlockPos pos, CallbackInfoReturnable<TeleportTransition> cir
+    , @Local(ordinal = 0, argsOnly = true) ServerLevel serverWorl, @Local(ordinal = 1) ResourceKey<Level> registryKey)
     {
-        ServerWorld serverWorld = world.getServer().getWorld(registryKey);
-        boolean bl=registryKey.getValue().getPath().endsWith(END);
-        BlockPos blockPos = bl ? ServerWorld.END_SPAWN_POS : serverWorld.getSpawnPoint().getPos();
-        Vec3d vec3d = blockPos.toBottomCenterPos();
+        ServerLevel serverWorld = world.getServer().getLevel(registryKey);
+        boolean bl=registryKey.identifier().getPath().endsWith(END);
+        BlockPos blockPos = bl ? ServerLevel.END_SPAWN_POINT : serverWorld.getRespawnData().pos();
+        Vec3 vec3d = blockPos.getBottomCenter();
         if (bl) {
-                EndPlatformFeature.generate(serverWorld, BlockPos.ofFloored(vec3d).down(), true);
-                if (entity instanceof ServerPlayerEntity) {
+                EndPlatformFeature.createEndPlatform(serverWorld, BlockPos.containing(vec3d).below(), true);
+                if (entity instanceof ServerPlayer) {
                     vec3d = vec3d.subtract(0.0, 1.0, 0.0);
                 }
             } else {
-                if (entity instanceof ServerPlayerEntity serverPlayerEntity) {
-                    if(toOverworld(world.getServer(),serverPlayerEntity.getRespawnTarget(false, TeleportTarget.NO_OP).world()).equals(toOverworld(world.getServer(),serverWorld))){
-                    cir.setReturnValue(serverPlayerEntity.getRespawnTarget(false, TeleportTarget.NO_OP));
+                if (entity instanceof ServerPlayer serverPlayerEntity) {
+                    if(toOverworld(world.getServer(),serverPlayerEntity.findRespawnPositionAndUseSpawnBlock(false, TeleportTransition.DO_NOTHING).newLevel()).equals(toOverworld(world.getServer(),serverWorld))){
+                    cir.setReturnValue(serverPlayerEntity.findRespawnPositionAndUseSpawnBlock(false, TeleportTransition.DO_NOTHING));
                     return;
                     }
                 }
 
-                vec3d = entity.getWorldSpawnPos(serverWorld, blockPos).toBottomCenterPos();
+                vec3d = entity.adjustSpawnLocation(serverWorld, blockPos).getBottomCenter();
             }
-            cir.setReturnValue(new TeleportTarget(serverWorld, vec3d, entity.getVelocity(), 0, entity.getPitch(), TeleportTarget.SEND_TRAVEL_THROUGH_PORTAL_PACKET.then(TeleportTarget.ADD_PORTAL_CHUNK_TICKET)));
+            cir.setReturnValue(new TeleportTransition(serverWorld, vec3d, entity.getDeltaMovement(), 0, entity.getXRot(), TeleportTransition.PLAY_PORTAL_SOUND.then(TeleportTransition.PLACE_PORTAL_TICKET)));
     }
 }
