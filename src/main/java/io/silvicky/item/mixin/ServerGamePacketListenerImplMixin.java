@@ -1,6 +1,7 @@
 package io.silvicky.item.mixin;
 
 import com.llamalad7.mixinextras.sugar.Local;
+import io.silvicky.item.backrooms.ChunkUnusedException;
 import io.silvicky.item.backrooms.VecTransformer;
 import net.minecraft.network.protocol.game.*;
 import net.minecraft.world.entity.Entity;
@@ -35,8 +36,12 @@ public abstract class ServerGamePacketListenerImplMixin
     @Redirect(method = "handleUseItemOn", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/phys/Vec3;subtract(Lnet/minecraft/world/phys/Vec3;)Lnet/minecraft/world/phys/Vec3;"))
     private Vec3 inject1(Vec3 instance, Vec3 vec)
     {
-        VecTransformer vecTransformer=VecTransformer.getInstance(player);
-        return vecTransformer.s2cTransform(instance).subtract(vecTransformer.s2cTransform(vec));
+        try
+        {
+            VecTransformer vecTransformer = VecTransformer.getInstance(player);
+            return vecTransformer.s2cTransform(instance).subtract(vecTransformer.s2cTransform(vec));
+        }
+        catch (ChunkUnusedException e){return VecTransformer.INF;}
     }
     @Inject(method = "isEntityCollidingWithAnythingNew", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/LevelReader;getPreMoveCollisions(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/phys/AABB;Lnet/minecraft/world/phys/Vec3;)Ljava/lang/Iterable;"), cancellable = true)
     private void inject2(LevelReader world, Entity entity, AABB box, double newX, double newY, double newZ, CallbackInfoReturnable<Boolean> cir, @Local(ordinal = 1) AABB box2)

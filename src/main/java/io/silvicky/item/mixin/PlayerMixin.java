@@ -1,5 +1,6 @@
 package io.silvicky.item.mixin;
 
+import io.silvicky.item.backrooms.ChunkUnusedException;
 import io.silvicky.item.backrooms.VecTransformer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
@@ -16,12 +17,23 @@ public class PlayerMixin
     @Redirect(method = "isWithinBlockInteractionRange",at= @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/player/Player;getEyePosition()Lnet/minecraft/world/phys/Vec3;"))
     public Vec3 inject1(Player instance)
     {
-        return VecTransformer.getInstance((ServerPlayer) instance).s2cTransform(instance.getEyePosition());
+        try
+        {
+            return VecTransformer.getInstance((ServerPlayer) instance).s2cTransform(instance.getEyePosition());
+        }
+        catch (ChunkUnusedException e){return VecTransformer.INF;}
     }
     @ModifyArg(method = "isWithinBlockInteractionRange",at= @At(value = "INVOKE", target = "Lnet/minecraft/world/phys/AABB;<init>(Lnet/minecraft/core/BlockPos;)V"))
     public BlockPos inject2(BlockPos pos)
     {
-        Player instance=(Player) (Object) this;
-        return VecTransformer.getInstance((ServerPlayer)instance).s2cTransform(pos);
+        Player instance = (Player) (Object) this;
+        try
+        {
+            return VecTransformer.getInstance((ServerPlayer) instance).s2cTransform(pos);
+        }
+        catch (ChunkUnusedException e)
+        {
+            return instance.getOnPos().north(1000);
+        }
     }
 }

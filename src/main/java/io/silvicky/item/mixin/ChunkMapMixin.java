@@ -22,6 +22,7 @@ public class ChunkMapMixin
     @Inject(method="applyChunkTrackingView",at=@At("HEAD"))
     private void inject2(ServerPlayer serverPlayer, ChunkTrackingView chunkTrackingView, CallbackInfo ci)
     {
+        if(!(chunkTrackingView instanceof ChunkTrackingView.Positioned))return;
         ((PositionedAccess)chunkTrackingView).item_storage$setPlayer(serverPlayer);
     }
 }

@@ -140,13 +140,17 @@ public abstract class ServerLevelMixin
     public Vec3 inject11(Vec3 center, @Local ServerPlayer player)
     {
         //TODO move this
-        return VecTransformer.getInstance(player).s2cTransform(center);
+        try
+        {
+            return VecTransformer.getInstance(player).s2cTransform(center);
+        }catch (Exception e){return center;}
     }
     @Inject(method = "tick",at=@At("TAIL"))
     private void inject12(BooleanSupplier booleanSupplier, CallbackInfo ci)
     {
         for(ServerPlayer player:players)
         {
+            VecTransformer.getInstance(player).updateChunkPos(player.chunkPosition());
             VecTransformer.getInstance(player).addLoadingTicket();
         }
     }
