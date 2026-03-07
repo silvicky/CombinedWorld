@@ -4,7 +4,9 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "BaseFireBlockMixin",
+    "ChunkMapMixin",
     "ChunkTrackingViewMixin",
+    "ChunkTrackingViewPositionedMixin",
     "ClientboundAddEntityPacketMixin",
     "ClientboundDamageEventPacketMixin",
     "ClientboundEntityPositionSyncPacketMixin",

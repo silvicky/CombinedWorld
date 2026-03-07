@@ -21,11 +21,14 @@ import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 
 import static io.silvicky.item.common.Util.getDimensionId;
 
@@ -33,6 +36,10 @@ import static io.silvicky.item.common.Util.getDimensionId;
 public abstract class ServerLevelMixin
 {
     @Shadow @Final private MinecraftServer server;
+
+    @Shadow
+    @Final
+    List<ServerPlayer> players;
 
     @ModifyArg(method = "tick", at= @At(value = "INVOKE", target = "Lnet/minecraft/server/players/SleepStatus;areEnoughDeepSleeping(ILjava/util/List;)Z"))
     private List<ServerPlayer> inject1(List<ServerPlayer> x)
@@ -134,5 +141,13 @@ public abstract class ServerLevelMixin
     {
         //TODO
         return VecTransformer.instance.s2cTransform(center);
+    }
+    @Inject(method = "tick",at=@At("TAIL"))
+    private void inject12(BooleanSupplier booleanSupplier, CallbackInfo ci)
+    {
+        for(ServerPlayer player:players)
+        {
+            VecTransformer.instance.addLoadingTicket((ServerLevel) (Object)this,player);
+        }
     }
 }
