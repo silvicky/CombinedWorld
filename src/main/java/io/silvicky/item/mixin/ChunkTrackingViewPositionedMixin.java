@@ -1,6 +1,7 @@
 package io.silvicky.item.mixin;
 
 import io.silvicky.item.backrooms.VecTransformer;
+import io.silvicky.item.helper.PositionedAccess;
 import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
@@ -16,7 +17,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.function.Consumer;
 
 @Mixin(ChunkTrackingView.Positioned.class)
-public class ChunkTrackingViewPositionedMixin
+public class ChunkTrackingViewPositionedMixin implements PositionedAccess
 {
     @Shadow
     @Final
@@ -25,16 +26,22 @@ public class ChunkTrackingViewPositionedMixin
     @Final
     private int viewDistance;
     @Unique
-    private ServerPlayer player;
+    private ServerPlayer item_storage$player;
     @Inject(method = "contains",at=@At("HEAD"), cancellable = true)
     private void inject1(int i, int j, boolean bl, CallbackInfoReturnable<Boolean> cir)
     {
-        cir.setReturnValue(VecTransformer.instance.isWithinDistance(center.x, center.z, viewDistance, i, j, bl));
+        cir.setReturnValue(VecTransformer.getInstance(item_storage$player).isWithinDistance(center.x, center.z, viewDistance, i, j, bl));
     }
     @Inject(method = "forEach",at=@At("HEAD"), cancellable = true)
     private void inject2(Consumer<ChunkPos> consumer, CallbackInfo ci)
     {
-        VecTransformer.instance.forEachInChunkTrackingView((ChunkTrackingView.Positioned) (Object)this,consumer);
+        VecTransformer.getInstance(item_storage$player).forEachInChunkTrackingView((ChunkTrackingView.Positioned) (Object)this,consumer);
         ci.cancel();
+    }
+
+    @Override
+    public void item_storage$setPlayer(ServerPlayer player)
+    {
+        this.item_storage$player =player;
     }
 }

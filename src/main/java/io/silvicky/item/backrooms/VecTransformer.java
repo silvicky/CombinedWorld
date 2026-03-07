@@ -3,13 +3,15 @@ package io.silvicky.item.backrooms;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ChunkTrackingView;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.TicketType;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.function.Consumer;
 
 import static net.minecraft.util.Mth.floor;
@@ -17,11 +19,55 @@ import static net.minecraft.util.Mth.floor;
 public class VecTransformer
 {
     //TODO tmp
-    public static VecTransformer instance=new VecTransformer();
+    public static Map<ServerPlayer,VecTransformer> instances=new WeakHashMap<>();
+    public static VecTransformer getInstance(ServerPlayer player)
+    {
+        return instances.computeIfAbsent(player,i->new VecTransformer(i,5));
+    }
     private static final int tmp=21;
+    private final ServerPlayer player;
+    private final int viewDistance;
+    private int x;
+    private int z;
+    private final Map<ChunkPos,ChunkPos> s2cMap=new HashMap<>();
+    private final Map<ChunkPos,ChunkPos> c2sMap=new HashMap<>();
+
+    public VecTransformer(ServerPlayer player, int viewDistance)
+    {
+        this.player=player;
+        this.viewDistance = viewDistance;
+        this.x=player.chunkPosition().x;
+        this.z=player.chunkPosition().z;
+    }
+
+    private void put(ChunkPos s,ChunkPos c)
+    {
+        remove(c);
+        s2cMap.put(s,c);
+        c2sMap.put(c,s);
+    }
+    private void remove(ChunkPos c)
+    {
+        if(c2sMap.containsKey(c))
+        {
+            ChunkPos oldS=c2sMap.remove(c);
+            s2cMap.remove(oldS);
+        }
+    }
+    private void request(ChunkPos c)
+    {
+        //TODO
+        put(new ChunkPos(c.x^tmp,c.z^tmp),c);
+    }
+    public void onChunkPosChanged(ChunkPos oldPos, ChunkPos newPos)
+    {
+        //TODO
+    }
     public ChunkPos s2cTransform(ChunkPos pos)
     {
+        //TODO
         return new ChunkPos(pos.x^tmp,pos.z^tmp);
+        //return s2cMap.get(pos);
     }
     public BlockPos s2cTransform(BlockPos pos)
     {
@@ -46,7 +92,13 @@ public class VecTransformer
     }
     public ChunkPos c2sTransform(ChunkPos pos)
     {
+        //TODO
         return new ChunkPos(pos.x^tmp,pos.z^tmp);
+        /*if(!c2sMap.containsKey(pos))
+        {
+            request(pos);
+        }
+        return c2sMap.get(pos);*/
     }
     public BlockPos c2sTransform(BlockPos pos)
     {
@@ -71,15 +123,17 @@ public class VecTransformer
     }
     public boolean isWithinDistance(int i,int j,int k,int l,int m,boolean bl)
     {
-        return ChunkTrackingView.isWithinDistance(i^tmp,j^tmp,k,l^tmp,m^tmp,bl);
+        ChunkPos c1=s2cTransform(new ChunkPos(i,j));
+        ChunkPos c2=s2cTransform(new ChunkPos(l,m));
+        return ChunkTrackingView.isWithinDistance(c1.x,c1.z,k,c2.x,c2.z,bl);
     }
-    public void addLoadingTicket(ServerLevel level, ServerPlayer player)
+    public void addLoadingTicket()
     {
-        int d=level.getChunkSource().chunkMap.getPlayerViewDistance(player);
+        int d=player.level().getChunkSource().chunkMap.getPlayerViewDistance(player);
         ChunkPos pos=s2cTransform(player.chunkPosition());
         for(int i=-d;i<=d;i++)
             for(int j=-d;j<=d;j++)
-                level.getChunkSource().addTicketWithRadius(TicketType.ENDER_PEARL, c2sTransform(new ChunkPos(pos.x+i,pos.z+j)), 2);
+                player.level().getChunkSource().addTicketWithRadius(TicketType.ENDER_PEARL, c2sTransform(new ChunkPos(pos.x+i,pos.z+j)), 2);
     }
     public void forEachInChunkTrackingView(ChunkTrackingView.Positioned view,Consumer<ChunkPos> consumer)
     {

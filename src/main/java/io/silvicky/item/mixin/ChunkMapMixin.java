@@ -1,11 +1,15 @@
 package io.silvicky.item.mixin;
 
 import io.silvicky.item.backrooms.VecTransformer;
+import io.silvicky.item.helper.PositionedAccess;
 import net.minecraft.server.level.ChunkMap;
+import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.server.level.ServerPlayer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ChunkMap.class)
 public class ChunkMapMixin
@@ -13,6 +17,11 @@ public class ChunkMapMixin
     @Redirect(method = "getPlayers", at= @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ChunkMap;isChunkOnTrackedBorder(Lnet/minecraft/server/level/ServerPlayer;II)Z",ordinal = 0))
     private boolean inject1(ChunkMap instance, ServerPlayer serverPlayer, int i, int j)
     {
-        return VecTransformer.instance.isChunkOnTrackedBorder(serverPlayer,i,j);
+        return VecTransformer.getInstance(serverPlayer).isChunkOnTrackedBorder(serverPlayer,i,j);
+    }
+    @Inject(method="applyChunkTrackingView",at=@At("HEAD"))
+    private void inject2(ServerPlayer serverPlayer, ChunkTrackingView chunkTrackingView, CallbackInfo ci)
+    {
+        ((PositionedAccess)chunkTrackingView).item_storage$setPlayer(serverPlayer);
     }
 }
