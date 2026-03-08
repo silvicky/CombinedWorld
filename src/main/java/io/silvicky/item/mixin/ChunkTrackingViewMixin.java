@@ -2,7 +2,9 @@ package io.silvicky.item.mixin;
 
 import io.silvicky.item.backrooms.VecTransformer;
 import io.silvicky.item.helper.PositionedAccess;
+import net.minecraft.network.protocol.game.ClientboundForgetLevelChunkPacket;
 import net.minecraft.server.level.ChunkTrackingView;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -19,15 +21,24 @@ public interface ChunkTrackingViewMixin
     {
         if (!chunkTrackingView.equals(chunkTrackingView2))
         {
+            if(chunkTrackingView instanceof ChunkTrackingView.Positioned)
+            {
+                consumer2 = chunkPos ->
+                {
+                    ServerPlayer serverPlayer=((PositionedAccess) chunkTrackingView).item_storage$getPlayer();
+                    if(serverPlayer.connection.chunkSender.pendingChunks.remove(chunkPos.toLong())&&serverPlayer.isAlive())
+                        serverPlayer.connection.send(new ClientboundForgetLevelChunkPacket(((PositionedAccess)chunkTrackingView).item_storage$getS2cMap().get(chunkPos)));
+                };
+            }
             if (chunkTrackingView instanceof ChunkTrackingView.Positioned positioned
                     && chunkTrackingView2 instanceof ChunkTrackingView.Positioned positioned2)
             {
-                VecTransformer.getInstance(((PositionedAccess)chunkTrackingView).item_storage$getPlayer()).differenceInChunkTrackingView(positioned,positioned2,consumer,consumer2);
+                VecTransformer.differenceInChunkTrackingView(positioned,positioned2,consumer,consumer2);
             }
             else
             {
-                chunkTrackingView.forEach(consumer2);
-                chunkTrackingView2.forEach(consumer);
+                VecTransformer.forEachKey(chunkTrackingView,consumer2);
+                VecTransformer.forEachKey(chunkTrackingView2,consumer);
             }
             ci.cancel();
         }

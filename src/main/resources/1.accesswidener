@@ -67,3 +67,4 @@ accessible field net/minecraft/network/protocol/game/ClientboundPlayerLookAtPack
 mutable field net/minecraft/network/protocol/game/ClientboundPlayerLookAtPacket z D
 accessible method net/minecraft/server/level/ChunkMap getPlayerViewDistance (Lnet/minecraft/server/level/ServerPlayer;)I
 accessible field net/minecraft/server/level/ChunkMap playerMap Lnet/minecraft/server/level/PlayerMap;
+accessible field net/minecraft/server/network/PlayerChunkSender pendingChunks Lit/unimi/dsi/fastutil/longs/LongSet;

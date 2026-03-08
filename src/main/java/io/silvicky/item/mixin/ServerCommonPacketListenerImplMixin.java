@@ -75,11 +75,11 @@ public class ServerCommonPacketListenerImplMixin
                 }
                 return;
             }
-            if (packet instanceof ClientboundForgetLevelChunkPacket unloadChunkS2CPacket)
+            /*if (packet instanceof ClientboundForgetLevelChunkPacket unloadChunkS2CPacket)
             {
                 unloadChunkS2CPacket.pos = vecTransformer.s2cTransform(unloadChunkS2CPacket.pos);
                 return;
-            }
+            }*/
             if (packet instanceof ClientboundLightUpdatePacket lightUpdateS2CPacket)
             {
                 ChunkPos pos = vecTransformer.s2cTransform(new ChunkPos(lightUpdateS2CPacket.x, lightUpdateS2CPacket.z));

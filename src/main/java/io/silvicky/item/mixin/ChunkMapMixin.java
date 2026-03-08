@@ -24,5 +24,6 @@ public class ChunkMapMixin
     {
         if(!(chunkTrackingView instanceof ChunkTrackingView.Positioned))return;
         ((PositionedAccess)chunkTrackingView).item_storage$setPlayer(serverPlayer);
+        ((PositionedAccess)chunkTrackingView).item_storage$setS2cMap(VecTransformer.getInstance(serverPlayer).getS2c());
     }
 }

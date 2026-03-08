@@ -5,37 +5,32 @@ import io.silvicky.item.helper.PositionedAccess;
 import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import java.util.Map;
 import java.util.function.Consumer;
 
 @Mixin(ChunkTrackingView.Positioned.class)
 public class ChunkTrackingViewPositionedMixin implements PositionedAccess
 {
-    @Shadow
-    @Final
-    private ChunkPos center;
-    @Shadow
-    @Final
-    private int viewDistance;
     @Unique
     private ServerPlayer item_storage$player;
+    @Unique
+    private Map<ChunkPos,ChunkPos> item_storage$s2cMap;
     @Inject(method = "contains",at=@At("HEAD"), cancellable = true)
     private void inject1(int i, int j, boolean bl, CallbackInfoReturnable<Boolean> cir)
     {
-        cir.setReturnValue(VecTransformer.getInstance(item_storage$player).isWithinDistance(center.x, center.z, viewDistance, i, j, bl));
+        cir.setReturnValue(this.item_storage$s2cMap.containsKey(new ChunkPos(i,j)));
     }
     @Inject(method = "forEach",at=@At("HEAD"), cancellable = true)
     private void inject2(Consumer<ChunkPos> consumer, CallbackInfo ci)
     {
-        VecTransformer.getInstance(item_storage$player).forEachInChunkTrackingView((ChunkTrackingView.Positioned) (Object)this,consumer);
+        VecTransformer.forEachKey((ChunkTrackingView.Positioned) (Object)this,consumer);
         ci.cancel();
     }
 
@@ -49,5 +44,17 @@ public class ChunkTrackingViewPositionedMixin implements PositionedAccess
     public ServerPlayer item_storage$getPlayer()
     {
         return item_storage$player;
+    }
+
+    @Override
+    public void item_storage$setS2cMap(Map<ChunkPos, ChunkPos> s2cMap)
+    {
+        this.item_storage$s2cMap=s2cMap;
+    }
+
+    @Override
+    public Map<ChunkPos, ChunkPos> item_storage$getS2cMap()
+    {
+        return this.item_storage$s2cMap;
     }
 }
