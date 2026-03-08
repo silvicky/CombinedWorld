@@ -9,8 +9,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-import java.util.Map;
-import java.util.WeakHashMap;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
@@ -170,8 +169,9 @@ public class VecTransformer
     {
         for(ChunkPos pos:s2cMap.keySet())player.level().getChunkSource().addTicketWithRadius(TicketType.ENDER_PEARL, pos, 2);
     }
-    public void forEachInChunkTrackingView(ChunkTrackingView.Positioned view,Consumer<ChunkPos> consumer)
+    private Set<ChunkPos> listChunkTrackingViewContent(ChunkTrackingView.Positioned view)
     {
+        Set<ChunkPos> ret= Collections.synchronizedSet(new HashSet<>());
         try
         {
             int d = view.viewDistance() + 1;
@@ -181,10 +181,22 @@ public class VecTransformer
                 {
                     ChunkPos pos1 = c2sTransform(new ChunkPos(pos.x + i, pos.z + j));
                     if (view.contains(pos1))
-                        consumer.accept(pos1);
+                        ret.add(pos1);
                 }
         }
         catch (Exception ignored){}
+        return ret;
+    }
+    public void forEachInChunkTrackingView(ChunkTrackingView.Positioned view,Consumer<ChunkPos> consumer)
+    {
+        for(ChunkPos pos:listChunkTrackingViewContent(view))consumer.accept(pos);
+    }
+    public void differenceInChunkTrackingView(ChunkTrackingView.Positioned chunkTrackingView, ChunkTrackingView.Positioned chunkTrackingView2, Consumer<ChunkPos> consumer, Consumer<ChunkPos> consumer2)
+    {
+        Set<ChunkPos> list=listChunkTrackingViewContent(chunkTrackingView);
+        Set<ChunkPos> list2=listChunkTrackingViewContent(chunkTrackingView2);
+        for(ChunkPos i:list)if(!list2.contains(i))consumer2.accept(i);
+        for(ChunkPos i:list2)if(!list.contains(i))consumer.accept(i);
     }
     private boolean isChunkTracked(ServerPlayer serverPlayer, int i, int j) {
         return serverPlayer.getChunkTrackingView().contains(i, j) && !serverPlayer.connection.chunkSender.isPending(ChunkPos.asLong(i, j));

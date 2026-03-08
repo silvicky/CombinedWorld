@@ -44,4 +44,10 @@ public class ChunkTrackingViewPositionedMixin implements PositionedAccess
     {
         this.item_storage$player =player;
     }
+
+    @Override
+    public ServerPlayer item_storage$getPlayer()
+    {
+        return item_storage$player;
+    }
 }
