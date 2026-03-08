@@ -28,16 +28,16 @@ public class VecTransformer
     private final ServerPlayer player;
     private final int viewDistance;
     private ChunkPos lastS;
-    private ChunkPos lastC;
     private final Map<ChunkPos,ChunkPos> s2cMap=new ConcurrentHashMap<>();
     private final Map<ChunkPos,ChunkPos> c2sMap=new ConcurrentHashMap<>();
+    private final Queue<ChunkPos> pendingRemoval=new ArrayDeque<>();
 
     public VecTransformer(ServerPlayer player)
     {
         this.player=player;
         this.viewDistance = player.level().getChunkSource().chunkMap.getPlayerViewDistance(player);
         this.lastS=player.chunkPosition();
-        this.lastC=init(lastS);
+        init(lastS);
         onChunkPosChanged(player.chunkPosition());
     }
 
@@ -52,7 +52,7 @@ public class VecTransformer
         if(c2sMap.containsKey(c))
         {
             ChunkPos oldS=c2sMap.remove(c);
-            s2cMap.remove(oldS);
+            pendingRemoval.add(oldS);
         }
     }
     private void request(ChunkPos c)
@@ -72,33 +72,39 @@ public class VecTransformer
     {
         return Math.max(Math.abs(a.x-b.x),Math.abs(a.z-b.z));
     }
-    private void onChunkPosChanged(ChunkPos newPos)
+    private void onChunkPosChanged(ChunkPos newS)
     {
-        try
+        ChunkPos newC=init(newS);
+        //TODO idk why it has to be here
+        while(!pendingRemoval.isEmpty())
         {
-            lastS = newPos;
-            lastC = s2cMap.get(lastS);
-            for (ChunkPos i : c2sMap.keySet())
+            ChunkPos i=pendingRemoval.poll();
+            if(!c2sMap.containsValue(i))s2cMap.remove(i);
+        }
+        for (ChunkPos i : c2sMap.keySet())
+        {
+            if (chunkPosDistance(i, newC) > viewDistance) remove(i);
+            //if(!(i.equals(newC)||i.equals(lastC)))
+        }
+        for (int i = -viewDistance; i <= viewDistance; i++)
+            for (int j = -viewDistance; j <= viewDistance; j++)
             {
-                if (chunkPosDistance(i, lastC) > viewDistance) c2sMap.remove(i);
+                ChunkPos newBorder = new ChunkPos(newC.x + i, newC.z + j);
+                if (!c2sMap.containsKey(newBorder))
+                    request(newBorder);
             }
-            for (int i = -viewDistance; i <= viewDistance; i++)
-                for (int j = -viewDistance; j <= viewDistance; j++)
-                {
-                    ChunkPos newBorder = new ChunkPos(lastC.x + i, lastC.z + j);
-                    if (!c2sMap.containsKey(newBorder))
-                        request(newBorder);
-                }
-        }
-        catch (Exception e)
-        {
-            throw new RuntimeException(e);
-        }
+        lastS = newS;
     }
-    public void updateChunkPos(ChunkPos newPos)
+    private void updateChunkPos()
     {
+        ChunkPos newPos=player.chunkPosition();
         if(lastS==newPos)return;
         onChunkPosChanged(newPos);
+    }
+    public void tick()
+    {
+        updateChunkPos();
+        addLoadingTicket();
     }
     public ChunkPos s2cTransform(ChunkPos pos) throws ChunkUnusedException
     {
@@ -165,7 +171,7 @@ public class VecTransformer
         }
         catch (ChunkUnusedException e){return false;}
     }
-    public void addLoadingTicket()
+    private void addLoadingTicket()
     {
         for(ChunkPos pos:s2cMap.keySet())player.level().getChunkSource().addTicketWithRadius(TicketType.ENDER_PEARL, pos, 2);
     }

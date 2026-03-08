@@ -150,8 +150,7 @@ public abstract class ServerLevelMixin
     {
         for(ServerPlayer player:players)
         {
-            VecTransformer.getInstance(player).updateChunkPos(player.chunkPosition());
-            VecTransformer.getInstance(player).addLoadingTicket();
+            VecTransformer.getInstance(player).tick();
         }
     }
 }
