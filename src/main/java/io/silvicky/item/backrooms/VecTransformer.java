@@ -1,20 +1,17 @@
 package io.silvicky.item.backrooms;
 
-import io.silvicky.item.helper.PositionedAccess;
+import io.silvicky.item.common.Util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.TicketType;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
-
-import static net.minecraft.util.Mth.floor;
 
 public class VecTransformer
 {
@@ -73,16 +70,12 @@ public class VecTransformer
     {
         return Map.copyOf(s2cMap);
     }
-    public static int chunkPosDistance(ChunkPos a,ChunkPos b)
-    {
-        return Math.max(Math.abs(a.x-b.x),Math.abs(a.z-b.z));
-    }
     private void onChunkPosChanged(ChunkPos newS)
     {
         ChunkPos newC=init(newS);
         for (ChunkPos i : c2sMap.keySet())
         {
-            if (chunkPosDistance(i, newC) > 1) remove(i);
+            if (Util.chunkPosDistance(i, newC) > 1) remove(i);
             //if(!(i.equals(newC)||i.equals(lastC)))
         }
         for (int i = -viewDistance-2; i <= viewDistance+2; i++)
@@ -158,15 +151,6 @@ public class VecTransformer
         BlockPos transformedBlockPos=c2sTransform(blockPos);
         return pos.add(Vec3.atLowerCornerOf(transformedBlockPos)).add(Vec3.atLowerCornerOf(blockPos.multiply(-1)));
     }
-    public static boolean isCrossingChunkBorder(AABB box)
-    {
-        AABB box1=box.inflate(2.0E-5F);
-        return !getChunkPos(box1.minX,box1.minZ).equals(getChunkPos(box1.maxX,box1.maxZ));
-    }
-    public static ChunkPos getChunkPos(double x, double z)
-    {
-        return new ChunkPos(floor(x)>>4,floor(z)>>4);
-    }
     public boolean isWithinDistance(ChunkPos s,boolean bl)
     {
         try
@@ -189,12 +173,6 @@ public class VecTransformer
     {
         if(view instanceof ChunkTrackingView.Positioned positioned)
             for(ChunkPos pos:listChunkTrackingViewContent(positioned).keySet())consumer.accept(pos);
-        else view.forEach(consumer);
-    }
-    public static void forEachValue(ChunkTrackingView view, Consumer<ChunkPos> consumer)
-    {
-        if(view instanceof ChunkTrackingView.Positioned positioned)
-            for(ChunkPos pos:listChunkTrackingViewContent(positioned).values())consumer.accept(pos);
         else view.forEach(consumer);
     }
     public static void differenceInChunkTrackingView(ChunkTrackingView.Positioned chunkTrackingView, ChunkTrackingView.Positioned chunkTrackingView2, Consumer<ChunkPos> consumer, Consumer<ChunkPos> consumer2)

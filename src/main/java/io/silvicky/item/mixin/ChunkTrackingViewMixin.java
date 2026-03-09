@@ -1,7 +1,7 @@
 package io.silvicky.item.mixin;
 
 import io.silvicky.item.backrooms.VecTransformer;
-import io.silvicky.item.helper.PositionedAccess;
+import io.silvicky.item.backrooms.PositionedAccess;
 import net.minecraft.network.protocol.game.ClientboundForgetLevelChunkPacket;
 import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.server.level.ServerPlayer;

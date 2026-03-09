@@ -23,8 +23,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.Set;
 
-import static io.silvicky.item.backrooms.VecTransformer.getChunkPos;
-import static io.silvicky.item.backrooms.VecTransformer.isCrossingChunkBorder;
+import static io.silvicky.item.common.Util.getChunkPos;
+import static io.silvicky.item.common.Util.isCrossingChunkBorder;
 
 @Mixin(ServerGamePacketListenerImpl.class)
 public abstract class ServerGamePacketListenerImplMixin

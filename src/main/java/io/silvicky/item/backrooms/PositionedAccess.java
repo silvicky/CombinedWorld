@@ -1,4 +1,4 @@
-package io.silvicky.item.helper;
+package io.silvicky.item.backrooms;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;

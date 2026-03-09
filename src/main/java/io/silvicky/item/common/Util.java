@@ -28,6 +28,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.network.chat.Component;
@@ -36,6 +37,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.portal.TeleportTransition;
+import net.minecraft.world.phys.AABB;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,6 +58,7 @@ import static io.silvicky.item.InventoryManager.saveInventory;
 import static io.silvicky.item.cfg.JSONConfig.useStorage;
 import static java.nio.file.Files.copy;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
+import static net.minecraft.util.Mth.floor;
 
 public class Util
 {
@@ -306,13 +309,6 @@ public class Util
         }
         return ret;
     }
-    public static void sendToAllInWorld(ServerLevel world, Packet<?> packet)
-    {
-        for(ServerPlayer player:world.players())
-        {
-            player.connection.send(packet);
-        }
-    }
     public static void fakeTeleportTo(ServerPlayer player, TeleportTransition teleportTarget, StateSaver stateSaver)
     {
         Identifier source=player.level().dimension().identifier();
@@ -342,5 +338,21 @@ public class Util
                 }
             }
         }
+    }
+
+    public static boolean isCrossingChunkBorder(AABB box)
+    {
+        AABB box1=box.inflate(2.0E-5F);
+        return !getChunkPos(box1.minX,box1.minZ).equals(getChunkPos(box1.maxX,box1.maxZ));
+    }
+
+    public static ChunkPos getChunkPos(double x, double z)
+    {
+        return new ChunkPos(floor(x)>>4,floor(z)>>4);
+    }
+
+    public static int chunkPosDistance(ChunkPos a,ChunkPos b)
+    {
+        return Math.max(Math.abs(a.x-b.x),Math.abs(a.z-b.z));
     }
 }
