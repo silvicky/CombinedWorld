@@ -25,11 +25,12 @@ public class ChunkTrackingViewPositionedMixin implements PositionedAccess
     @Inject(method = "contains",at=@At("HEAD"), cancellable = true)
     private void inject1(int i, int j, boolean bl, CallbackInfoReturnable<Boolean> cir)
     {
-        cir.setReturnValue(this.item_storage$s2cMap.containsKey(new ChunkPos(i,j)));
+        cir.setReturnValue(VecTransformer.getInstance(item_storage$player).isWithinDistance(new ChunkPos(i,j),bl));
     }
     @Inject(method = "forEach",at=@At("HEAD"), cancellable = true)
     private void inject2(Consumer<ChunkPos> consumer, CallbackInfo ci)
     {
+        //TODO
         VecTransformer.forEachKey((ChunkTrackingView.Positioned) (Object)this,consumer);
         ci.cancel();
     }

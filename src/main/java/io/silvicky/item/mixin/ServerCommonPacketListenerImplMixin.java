@@ -80,6 +80,11 @@ public class ServerCommonPacketListenerImplMixin
                 unloadChunkS2CPacket.pos = vecTransformer.s2cTransform(unloadChunkS2CPacket.pos);
                 return;
             }*/
+            if(packet instanceof ClientboundExplodePacket clientboundExplodePacket)
+            {
+                clientboundExplodePacket.center=vecTransformer.s2cTransform(clientboundExplodePacket.center);
+                return;
+            }
             if (packet instanceof ClientboundLightUpdatePacket lightUpdateS2CPacket)
             {
                 ChunkPos pos = vecTransformer.s2cTransform(new ChunkPos(lightUpdateS2CPacket.x, lightUpdateS2CPacket.z));

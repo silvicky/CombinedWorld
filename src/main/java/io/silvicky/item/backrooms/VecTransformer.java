@@ -31,7 +31,6 @@ public class VecTransformer
     private ChunkPos lastS;
     private final Map<ChunkPos,ChunkPos> s2cMap=new ConcurrentHashMap<>();
     private final Map<ChunkPos,ChunkPos> c2sMap=new ConcurrentHashMap<>();
-    private final Queue<ChunkPos> pendingRemoval=new ArrayDeque<>();
 
     public VecTransformer(ServerPlayer player)
     {
@@ -53,21 +52,26 @@ public class VecTransformer
         if(c2sMap.containsKey(c))
         {
             ChunkPos oldS=c2sMap.remove(c);
-            pendingRemoval.add(oldS);
+            s2cMap.remove(oldS);
         }
     }
+    private final Random random=new Random();
+    private int getRandom(){return random.nextInt(7)-3;}
     private void request(ChunkPos c)
     {
         //TODO
-        put(new ChunkPos(c.x^tmp,c.z^tmp),c);
+        ChunkPos s=new ChunkPos(c.x+getRandom(),c.z+getRandom());
+        while(c2sMap.containsValue(s))s=new ChunkPos(c.x+getRandom(),c.z+getRandom());
+        put(s,c);
     }
     private ChunkPos init(ChunkPos s)
     {
         //TODO
-        if(s2cMap.containsKey(s))return s2cMap.get(s);
-        ChunkPos result= new ChunkPos(s.x^tmp,s.z^tmp);
-        put(s,result);
-        return result;
+        if(c2sMap.containsValue(s))return s2cMap.get(s);
+        ChunkPos c= new ChunkPos(s.x+getRandom(),s.z+getRandom());
+        while(c2sMap.containsKey(c))c=new ChunkPos(s.x+getRandom(),s.z+getRandom());
+        put(s,c);
+        return c;
     }
     public Map<ChunkPos,ChunkPos> getS2c()
     {
@@ -80,20 +84,13 @@ public class VecTransformer
     private void onChunkPosChanged(ChunkPos newS)
     {
         ChunkPos newC=init(newS);
-        //TODO idk why it has to be here
-
         for (ChunkPos i : c2sMap.keySet())
         {
-            if (chunkPosDistance(i, newC) > viewDistance) remove(i);
+            if (chunkPosDistance(i, newC) > 1) remove(i);
             //if(!(i.equals(newC)||i.equals(lastC)))
         }
-        while(!pendingRemoval.isEmpty())
-        {
-            ChunkPos i=pendingRemoval.poll();
-            if(!c2sMap.containsValue(i))s2cMap.remove(i);
-        }
-        for (int i = -viewDistance; i <= viewDistance; i++)
-            for (int j = -viewDistance; j <= viewDistance; j++)
+        for (int i = -viewDistance-2; i <= viewDistance+2; i++)
+            for (int j = -viewDistance-2; j <= viewDistance+2; j++)
             {
                 ChunkPos newBorder = new ChunkPos(newC.x + i, newC.z + j);
                 if (!c2sMap.containsKey(newBorder))
@@ -128,9 +125,9 @@ public class VecTransformer
         ChunkPos chunkPos=pos.chunk();
         ChunkPos transformerChunkPos=s2cTransform(chunkPos);
         return SectionPos.of(
-                pos.getX()+transformerChunkPos.x-chunkPos.x,
+                transformerChunkPos.x,
                 pos.getY(),
-                pos.getZ()+transformerChunkPos.z-chunkPos.z);
+                transformerChunkPos.z);
     }
     public Vec3 s2cTransform(Vec3 pos) throws ChunkUnusedException
     {
@@ -167,13 +164,13 @@ public class VecTransformer
     {
         return new ChunkPos(floor(x)>>4,floor(z)>>4);
     }
-    public boolean isWithinDistance(int i,int j,int k,int l,int m,boolean bl)
+    public boolean isWithinDistance(ChunkPos s,boolean bl)
     {
         try
         {
-            ChunkPos c1 = s2cTransform(new ChunkPos(i, j));
-            ChunkPos c2 = s2cTransform(new ChunkPos(l, m));
-            return ChunkTrackingView.isWithinDistance(c1.x, c1.z, k, c2.x, c2.z, bl);
+            ChunkPos c = s2cTransform(s);
+            ChunkPos lastC=init(lastS);
+            return ChunkTrackingView.isWithinDistance(c.x, c.z, viewDistance, lastC.x, lastC.z, bl);
         }
         catch (ChunkUnusedException e){return false;}
     }
@@ -202,9 +199,9 @@ public class VecTransformer
         Map<ChunkPos,ChunkPos> list=listChunkTrackingViewContent(chunkTrackingView);
         Map<ChunkPos,ChunkPos> list2=listChunkTrackingViewContent(chunkTrackingView2);
         for(ChunkPos i:list.keySet())if(!(list2.containsKey(i)&&list2.get(i).equals(list.get(i))))consumer2.accept(i);
-        for(ChunkPos i:list2.keySet())if(!(list.containsKey(i)&&list.get(i).equals(list.get(i))))consumer.accept(i);
+        for(ChunkPos i:list2.keySet())if(!(list.containsKey(i)&&list.get(i).equals(list2.get(i))))consumer.accept(i);
     }
-    private boolean isChunkTracked(ServerPlayer serverPlayer, int i, int j) {
+    public boolean isChunkTracked(ServerPlayer serverPlayer, int i, int j) {
         return serverPlayer.getChunkTrackingView().contains(i, j) && !serverPlayer.connection.chunkSender.isPending(ChunkPos.asLong(i, j));
     }
     public boolean isChunkOnTrackedBorder(ServerPlayer serverPlayer, int i, int j) {

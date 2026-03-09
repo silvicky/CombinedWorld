@@ -10,7 +10,6 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.level.storage.WorldData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.LevelData;
@@ -135,15 +134,6 @@ public abstract class ServerLevelMixin
             return;
         }
         StateSaver.getServerState(instance).worldSpawn.put(target,spawnPoint);
-    }
-    @ModifyArg(method = "explode",at= @At(value = "INVOKE", target = "Lnet/minecraft/network/protocol/game/ClientboundExplodePacket;<init>(Lnet/minecraft/world/phys/Vec3;FILjava/util/Optional;Lnet/minecraft/core/particles/ParticleOptions;Lnet/minecraft/core/Holder;Lnet/minecraft/util/random/WeightedList;)V",ordinal = 0))
-    public Vec3 inject11(Vec3 center, @Local ServerPlayer player)
-    {
-        //TODO move this
-        try
-        {
-            return VecTransformer.getInstance(player).s2cTransform(center);
-        }catch (Exception e){return center;}
     }
     @Inject(method = "tick",at=@At("TAIL"))
     private void inject12(BooleanSupplier booleanSupplier, CallbackInfo ci)

@@ -26,4 +26,9 @@ public class ChunkMapMixin
         ((PositionedAccess)chunkTrackingView).item_storage$setPlayer(serverPlayer);
         ((PositionedAccess)chunkTrackingView).item_storage$setS2cMap(VecTransformer.getInstance(serverPlayer).getS2c());
     }
+    @Inject(method = "updateChunkTracking",at=@At("HEAD"))
+    private void inject3(ServerPlayer serverPlayer, CallbackInfo ci)
+    {
+        VecTransformer.getInstance(serverPlayer).tick();
+    }
 }
