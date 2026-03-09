@@ -25,7 +25,7 @@ public class VecTransformer
         return instances.computeIfAbsent(player, VecTransformer::new);
     }
     public static Vec3 INF=new Vec3(1e9,1e9,1e9);
-    private static final int tmp=21;
+    private static final int randomRange=7;
     private final ServerPlayer player;
     private final int viewDistance;
     private ChunkPos lastS;
@@ -56,7 +56,7 @@ public class VecTransformer
         }
     }
     private final Random random=new Random();
-    private int getRandom(){return random.nextInt(7)-3;}
+    private int getRandom(){return random.nextInt(randomRange*2+1)-randomRange;}
     private void request(ChunkPos c)
     {
         //TODO
