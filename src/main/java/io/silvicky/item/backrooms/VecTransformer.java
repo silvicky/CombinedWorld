@@ -18,7 +18,6 @@ import static net.minecraft.util.Mth.floor;
 
 public class VecTransformer
 {
-    //TODO tmp
     public static Map<ServerPlayer,VecTransformer> instances=new WeakHashMap<>();
     public static VecTransformer getInstance(ServerPlayer player)
     {
@@ -36,9 +35,7 @@ public class VecTransformer
     {
         this.player=player;
         this.viewDistance = player.level().getChunkSource().chunkMap.getPlayerViewDistance(player);
-        this.lastS=player.chunkPosition();
-        init(lastS);
-        onChunkPosChanged(player.chunkPosition());
+        tick();
     }
 
     private void put(ChunkPos s,ChunkPos c)
@@ -66,7 +63,6 @@ public class VecTransformer
     }
     private ChunkPos init(ChunkPos s)
     {
-        //TODO
         if(c2sMap.containsValue(s))return s2cMap.get(s);
         ChunkPos c= new ChunkPos(s.x+getRandom(),s.z+getRandom());
         while(c2sMap.containsKey(c))c=new ChunkPos(s.x+getRandom(),s.z+getRandom());
@@ -108,6 +104,13 @@ public class VecTransformer
     {
         updateChunkPos();
         addLoadingTicket();
+    }
+    public void init()
+    {
+        s2cMap.clear();
+        c2sMap.clear();
+        lastS=null;
+        tick();
     }
     public ChunkPos s2cTransform(ChunkPos pos) throws ChunkUnusedException
     {
