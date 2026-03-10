@@ -13,11 +13,16 @@ public abstract class VecTransformer
     private static final Map<ServerPlayer,VecTransformer> instances=new WeakHashMap<>();
     public static VecTransformer getInstance(ServerPlayer player)
     {
-        return instances.computeIfAbsent(player, NopTransformer::new);
+        return instances.computeIfAbsent(player, VecTransformer::getInstanceByDimension);
     }
     public static void refreshInstance(ServerPlayer player)
     {
-        instances.put(player, new NopTransformer(player));
+        instances.put(player, getInstanceByDimension(player));
+    }
+    private static VecTransformer getInstanceByDimension(ServerPlayer player)
+    {
+        if(player.level().dimension.identifier().getNamespace().equals("minecraft"))return new NopTransformer(player);
+        else return new RandomTransformer(player);
     }
     public static final Vec3 INF=new Vec3(1e9,1e9,1e9);
     final ServerPlayer player;
