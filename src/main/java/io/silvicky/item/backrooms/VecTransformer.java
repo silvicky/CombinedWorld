@@ -13,11 +13,11 @@ public abstract class VecTransformer
     private static final Map<ServerPlayer,VecTransformer> instances=new WeakHashMap<>();
     public static VecTransformer getInstance(ServerPlayer player)
     {
-        return instances.computeIfAbsent(player, RandomTransformer::new);
+        return instances.computeIfAbsent(player, NopTransformer::new);
     }
     public static void refreshInstance(ServerPlayer player)
     {
-        instances.put(player, new RandomTransformer(player));
+        instances.put(player, new NopTransformer(player));
     }
     public static final Vec3 INF=new Vec3(1e9,1e9,1e9);
     final ServerPlayer player;
