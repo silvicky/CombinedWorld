@@ -30,7 +30,6 @@ public class ChunkTrackingViewPositionedMixin implements PositionedAccess
     @Inject(method = "forEach",at=@At("HEAD"), cancellable = true)
     private void inject2(Consumer<ChunkPos> consumer, CallbackInfo ci)
     {
-        //TODO
         PositionedHelper.forEachKey((ChunkTrackingView.Positioned) (Object)this,consumer);
         ci.cancel();
     }

@@ -29,7 +29,11 @@ public abstract class PositionedHelper
     public static void forEachKey(ChunkTrackingView view, Consumer<ChunkPos> consumer)
     {
         if(view instanceof ChunkTrackingView.Positioned positioned)
-            for(ChunkPos pos:listChunkTrackingViewContent(positioned).keySet())consumer.accept(pos);
+        {
+            for (ChunkPos pos : listChunkTrackingViewContent(positioned).keySet())
+                if (isWithinDistance(positioned, pos, true))
+                    consumer.accept(pos);
+        }
         else view.forEach(consumer);
     }
 
