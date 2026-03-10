@@ -21,7 +21,6 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtAccounter;
-import net.minecraft.network.protocol.Packet;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.MinecraftServer;
@@ -38,6 +37,7 @@ import net.minecraft.core.UUIDUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -354,5 +354,23 @@ public class Util
     public static int chunkPosDistance(ChunkPos a,ChunkPos b)
     {
         return Math.max(Math.abs(a.x-b.x),Math.abs(a.z-b.z));
+    }
+    public static boolean isVisible(Vec3 center,float yaw,double x,double z)
+    {
+        double radians=Math.toRadians(yaw);
+        double vx=-Math.sin(radians);
+        double vz=Math.cos(radians);
+        return vx*(x-center.x)+vz*(z-center.z)>=0;
+    }
+    public static boolean isVisible(Vec3 center,float yaw, ChunkPos chunkPos)
+    {
+        double minX=chunkPos.x<<4;
+        double minZ=chunkPos.z<<4;
+        double maxX=minX+16;
+        double maxZ=minZ+16;
+        return isVisible(center,yaw,minX,minZ)
+                ||isVisible(center,yaw,minX,maxZ)
+                ||isVisible(center,yaw,maxX,minZ)
+                ||isVisible(center,yaw,maxX,maxZ);
     }
 }

@@ -83,6 +83,6 @@ public abstract class ServerGamePacketListenerImplMixin
     @Inject(method = "teleport(Lnet/minecraft/world/entity/PositionMoveRotation;Ljava/util/Set;)V",at= @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerPlayer;teleportSetPosition(Lnet/minecraft/world/entity/PositionMoveRotation;Ljava/util/Set;)V",shift = At.Shift.AFTER))
     private void inject5(PositionMoveRotation positionMoveRotation, Set<Relative> set, CallbackInfo ci)
     {
-        VecTransformer.getInstance(player).init();
+        VecTransformer.refreshInstance(player);
     }
 }

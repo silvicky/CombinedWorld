@@ -3,7 +3,6 @@ package io.silvicky.item.backrooms;
 import io.silvicky.item.common.Util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
-import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.TicketType;
 import net.minecraft.world.level.ChunkPos;
@@ -11,16 +10,19 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Consumer;
 
 public class VecTransformer
 {
-    public static Map<ServerPlayer,VecTransformer> instances=new WeakHashMap<>();
+    private static final Map<ServerPlayer,VecTransformer> instances=new WeakHashMap<>();
     public static VecTransformer getInstance(ServerPlayer player)
     {
         return instances.computeIfAbsent(player, VecTransformer::new);
     }
-    public static Vec3 INF=new Vec3(1e9,1e9,1e9);
+    public static void refreshInstance(ServerPlayer player)
+    {
+        instances.put(player, new VecTransformer(player));
+    }
+    public static final Vec3 INF=new Vec3(1e9,1e9,1e9);
     private static final int randomRange=7;
     private final ServerPlayer player;
     private final int viewDistance;
@@ -73,11 +75,19 @@ public class VecTransformer
     private void onChunkPosChanged(ChunkPos newS)
     {
         ChunkPos newC=init(newS);
-        for (ChunkPos i : c2sMap.keySet())
+        List<ChunkPos> updatedChunks=new ArrayList<>();
+        for (ChunkPos c : c2sMap.keySet())
         {
-            if (Util.chunkPosDistance(i, newC) > 1) remove(i);
-            //if(!(i.equals(newC)||i.equals(lastC)))
+            try
+            {
+                if ((Util.chunkPosDistance(c, newC) > 1
+                        && !Util.isVisible(s2cTransform(player.getEyePosition()), player.getYRot(), c))
+                ||Util.chunkPosDistance(c, newC) > viewDistance)
+                    updatedChunks.add(c);
+            }
+            catch (Exception e){throw new RuntimeException();}
         }
+        for(ChunkPos c:updatedChunks)remove(c);
         for (int i = -viewDistance-2; i <= viewDistance+2; i++)
             for (int j = -viewDistance-2; j <= viewDistance+2; j++)
             {
@@ -97,13 +107,6 @@ public class VecTransformer
     {
         updateChunkPos();
         addLoadingTicket();
-    }
-    public void init()
-    {
-        s2cMap.clear();
-        c2sMap.clear();
-        lastS=null;
-        tick();
     }
     public ChunkPos s2cTransform(ChunkPos pos) throws ChunkUnusedException
     {
@@ -151,60 +154,8 @@ public class VecTransformer
         BlockPos transformedBlockPos=c2sTransform(blockPos);
         return pos.add(Vec3.atLowerCornerOf(transformedBlockPos)).add(Vec3.atLowerCornerOf(blockPos.multiply(-1)));
     }
-    public boolean isWithinDistance(ChunkPos s,boolean bl)
-    {
-        try
-        {
-            ChunkPos c = s2cTransform(s);
-            ChunkPos lastC=init(lastS);
-            return ChunkTrackingView.isWithinDistance(c.x, c.z, viewDistance, lastC.x, lastC.z, bl);
-        }
-        catch (ChunkUnusedException e){return false;}
-    }
     private void addLoadingTicket()
     {
         for(ChunkPos pos:s2cMap.keySet())player.level().getChunkSource().addTicketWithRadius(TicketType.ENDER_PEARL, pos, 2);
-    }
-    private static Map<ChunkPos,ChunkPos> listChunkTrackingViewContent(ChunkTrackingView.Positioned view)
-    {
-        return ((PositionedAccess)(ChunkTrackingView)view).item_storage$getS2cMap();
-    }
-    public static void forEachKey(ChunkTrackingView view, Consumer<ChunkPos> consumer)
-    {
-        if(view instanceof ChunkTrackingView.Positioned positioned)
-            for(ChunkPos pos:listChunkTrackingViewContent(positioned).keySet())consumer.accept(pos);
-        else view.forEach(consumer);
-    }
-    public static void differenceInChunkTrackingView(ChunkTrackingView.Positioned chunkTrackingView, ChunkTrackingView.Positioned chunkTrackingView2, Consumer<ChunkPos> consumer, Consumer<ChunkPos> consumer2)
-    {
-        Map<ChunkPos,ChunkPos> list=listChunkTrackingViewContent(chunkTrackingView);
-        Map<ChunkPos,ChunkPos> list2=listChunkTrackingViewContent(chunkTrackingView2);
-        for(ChunkPos i:list.keySet())if(!(list2.containsKey(i)&&list2.get(i).equals(list.get(i))))consumer2.accept(i);
-        for(ChunkPos i:list2.keySet())if(!(list.containsKey(i)&&list.get(i).equals(list2.get(i))))consumer.accept(i);
-    }
-    public boolean isChunkTracked(ServerPlayer serverPlayer, int i, int j) {
-        return serverPlayer.getChunkTrackingView().contains(i, j) && !serverPlayer.connection.chunkSender.isPending(ChunkPos.asLong(i, j));
-    }
-    public boolean isChunkOnTrackedBorder(ServerPlayer serverPlayer, int i, int j) {
-        if (this.isChunkTracked(serverPlayer, i, j))
-        {
-            try
-            {
-                ChunkPos pos = s2cTransform(new ChunkPos(i, j));
-                for (int k = -1; k <= 1; k++)
-                {
-                    for (int l = -1; l <= 1; l++)
-                    {
-                        ChunkPos pos1 = c2sTransform(new ChunkPos(pos.x + k, pos.z + l));
-                        if ((k != 0 || l != 0) && !this.isChunkTracked(serverPlayer, pos1.x, pos1.z))
-                        {
-                            return true;
-                        }
-                    }
-                }
-            }
-            catch (Exception ignored){}
-        }
-        return false;
     }
 }

@@ -1,6 +1,6 @@
 package io.silvicky.item.mixin;
 
-import io.silvicky.item.backrooms.VecTransformer;
+import io.silvicky.item.backrooms.PositionedHelper;
 import io.silvicky.item.backrooms.PositionedAccess;
 import net.minecraft.network.protocol.game.ClientboundForgetLevelChunkPacket;
 import net.minecraft.server.level.ChunkTrackingView;
@@ -33,12 +33,12 @@ public interface ChunkTrackingViewMixin
             if (chunkTrackingView instanceof ChunkTrackingView.Positioned positioned
                     && chunkTrackingView2 instanceof ChunkTrackingView.Positioned positioned2)
             {
-                VecTransformer.differenceInChunkTrackingView(positioned,positioned2,consumer,consumer2);
+                PositionedHelper.differenceInChunkTrackingView(positioned,positioned2,consumer,consumer2);
             }
             else
             {
-                VecTransformer.forEachKey(chunkTrackingView,consumer2);
-                VecTransformer.forEachKey(chunkTrackingView2,consumer);
+                PositionedHelper.forEachKey(chunkTrackingView,consumer2);
+                PositionedHelper.forEachKey(chunkTrackingView2,consumer);
             }
             ci.cancel();
         }

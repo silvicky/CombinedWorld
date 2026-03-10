@@ -1,5 +1,6 @@
 package io.silvicky.item.mixin;
 
+import io.silvicky.item.backrooms.PositionedHelper;
 import io.silvicky.item.backrooms.VecTransformer;
 import io.silvicky.item.backrooms.PositionedAccess;
 import net.minecraft.server.level.ChunkMap;
@@ -17,7 +18,7 @@ public class ChunkMapMixin
     @Redirect(method = "getPlayers", at= @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ChunkMap;isChunkOnTrackedBorder(Lnet/minecraft/server/level/ServerPlayer;II)Z",ordinal = 0))
     private boolean inject1(ChunkMap instance, ServerPlayer serverPlayer, int i, int j)
     {
-        return VecTransformer.getInstance(serverPlayer).isChunkOnTrackedBorder(serverPlayer,i,j);
+        return PositionedHelper.isChunkOnTrackedBorder(serverPlayer,i,j);
     }
     @Inject(method="applyChunkTrackingView",at=@At("HEAD"))
     private void inject2(ServerPlayer serverPlayer, ChunkTrackingView chunkTrackingView, CallbackInfo ci)
