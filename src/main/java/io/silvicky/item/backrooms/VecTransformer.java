@@ -21,7 +21,7 @@ public abstract class VecTransformer
     }
     private static VecTransformer getInstanceByDimension(ServerPlayer player)
     {
-        if(player.level().dimension.identifier().getNamespace().equals("minecraft"))return new NopTransformer(player);
+        if(player.level().dimension.identifier().getNamespace().equals("minecraft"))return new LinearTransformer(player);
         else return new RandomTransformer(player);
     }
     public static final Vec3 INF=new Vec3(1e9,1e9,1e9);
