@@ -55,7 +55,7 @@ public abstract class VecTransformer
     {
         ChunkPos chunkPos=new ChunkPos(pos);
         ChunkPos transformerChunkPos=s2cTransform(chunkPos);
-        return pos.offset(transformerChunkPos.getWorldPosition()).offset(chunkPos.getWorldPosition().multiply(-1));
+        return pos.offset(transformerChunkPos.getWorldPosition()).subtract(chunkPos.getWorldPosition());
     }
     public SectionPos s2cTransform(SectionPos pos) throws ChunkUnusedException
     {
@@ -70,19 +70,19 @@ public abstract class VecTransformer
     {
         BlockPos blockPos= BlockPos.containing(pos);
         BlockPos transformedBlockPos=s2cTransform(blockPos);
-        return pos.add(Vec3.atLowerCornerOf(transformedBlockPos)).add(Vec3.atLowerCornerOf(blockPos.multiply(-1)));
+        return pos.add(Vec3.atLowerCornerOf(transformedBlockPos)).subtract(Vec3.atLowerCornerOf(blockPos));
     }
     public abstract ChunkPos c2sTransform(ChunkPos pos);
     public BlockPos c2sTransform(BlockPos pos)
     {
         ChunkPos chunkPos=new ChunkPos(pos);
         ChunkPos transformerChunkPos=c2sTransform(chunkPos);
-        return pos.offset(transformerChunkPos.getWorldPosition()).offset(chunkPos.getWorldPosition().multiply(-1));
+        return pos.offset(transformerChunkPos.getWorldPosition()).subtract(chunkPos.getWorldPosition());
     }
     public Vec3 c2sTransform(Vec3 pos)
     {
         BlockPos blockPos= BlockPos.containing(pos);
         BlockPos transformedBlockPos=c2sTransform(blockPos);
-        return pos.add(Vec3.atLowerCornerOf(transformedBlockPos)).add(Vec3.atLowerCornerOf(blockPos.multiply(-1)));
+        return pos.add(Vec3.atLowerCornerOf(transformedBlockPos)).subtract(Vec3.atLowerCornerOf(blockPos));
     }
 }
