@@ -11,7 +11,7 @@ import java.util.*;
 
 public abstract class VecTransformer
 {
-    private static final Map<String,Class<? extends VecTransformer>> registry=Map.of(
+    public static final Map<String,Class<? extends VecTransformer>> registry=Map.of(
             "nop", NopTransformer.class,
             "random", RandomTransformer.class,
             "linear", LinearTransformer.class
