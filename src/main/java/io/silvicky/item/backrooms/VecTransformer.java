@@ -14,7 +14,8 @@ public abstract class VecTransformer
     public static final Map<String,Class<? extends VecTransformer>> registry=Map.of(
             "nop", NopTransformer.class,
             "random", RandomTransformer.class,
-            "linear", LinearTransformer.class
+            "linear", LinearTransformer.class,
+            "xor", XorTransformer.class
     );
     private static final Map<ServerPlayer,VecTransformer> instances=new WeakHashMap<>();
     public static VecTransformer getInstance(ServerPlayer player)

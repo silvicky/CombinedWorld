@@ -15,6 +15,8 @@ class Cfg
     long playerVisibilityRange=2;
     int randomChunkRange=7;
     int linearChunkRange=100;
+    int xXor=1;
+    int zXor=1;
 }
 public class JSONConfig {
     public static boolean useStorage=true;
@@ -22,6 +24,8 @@ public class JSONConfig {
     public static long playerVisibilityRange=2;
     public static int randomChunkRange=7;
     public static int linearChunkRange=100;
+    public static int xXor=1;
+    public static int zXor=1;
     protected static final File cfgFile = Paths.get(FabricLoader.getInstance().getConfigDir().toString(),"ItemStorage.json").toFile();
     protected static final Gson gson=new Gson();
 
@@ -55,6 +59,8 @@ public class JSONConfig {
                 playerVisibilityRange=Math.max(2L,cfg.playerVisibilityRange);
                 randomChunkRange=cfg.randomChunkRange;
                 linearChunkRange=Math.max(0,cfg.linearChunkRange);
+                xXor=cfg.xXor;
+                zXor=cfg.zXor;
             } catch (FileNotFoundException e) {
                 throw new RuntimeException(e);
             }
