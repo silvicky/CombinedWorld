@@ -8,12 +8,13 @@ import net.minecraft.world.level.ChunkPos;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static io.silvicky.item.cfg.JSONConfig.randomChunkRange;
+
 public class RandomTransformer extends VecTransformer
 {
     private final Map<ChunkPos,ChunkPos> s2cMap=new ConcurrentHashMap<>();
     private final Map<ChunkPos,ChunkPos> c2sMap=new ConcurrentHashMap<>();
     private ChunkPos lastS;
-    private static final int randomRange=7;
     public RandomTransformer(ServerPlayer player)
     {
         super(player);
@@ -34,19 +35,17 @@ public class RandomTransformer extends VecTransformer
             s2cMap.remove(oldS);
         }
     }
-    private final Random random=new Random();
-    private int getRandom(){return random.nextInt(randomRange*2+1)-randomRange;}
     private void request(ChunkPos c)
     {
-        ChunkPos s=new ChunkPos(c.x+getRandom(),c.z+getRandom());
-        while(c2sMap.containsValue(s))s=new ChunkPos(c.x+getRandom(),c.z+getRandom());
+        ChunkPos s=new ChunkPos(c.x+getRandom(randomChunkRange),c.z+getRandom(randomChunkRange));
+        while(c2sMap.containsValue(s))s=new ChunkPos(c.x+getRandom(randomChunkRange),c.z+getRandom(randomChunkRange));
         put(s,c);
     }
     private ChunkPos init(ChunkPos s)
     {
         if(c2sMap.containsValue(s))return s2cMap.get(s);
-        ChunkPos c= new ChunkPos(s.x+getRandom(),s.z+getRandom());
-        while(c2sMap.containsKey(c))c=new ChunkPos(s.x+getRandom(),s.z+getRandom());
+        ChunkPos c= new ChunkPos(s.x+getRandom(randomChunkRange),s.z+getRandom(randomChunkRange));
+        while(c2sMap.containsKey(c))c=new ChunkPos(s.x+getRandom(randomChunkRange),s.z+getRandom(randomChunkRange));
         put(s,c);
         return c;
     }

@@ -24,6 +24,8 @@ public abstract class VecTransformer
         if(player.level().dimension.identifier().getNamespace().equals("minecraft"))return new LinearTransformer(player);
         else return new RandomTransformer(player);
     }
+    private static final Random random=new Random();
+    public static int getRandom(int randomRange){return random.nextInt(randomRange*2+1)-randomRange;}
     public static final Vec3 INF=new Vec3(1e9,1e9,1e9);
     final ServerPlayer player;
     final int viewDistance;

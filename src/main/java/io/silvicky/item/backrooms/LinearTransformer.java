@@ -5,22 +5,18 @@ import net.minecraft.world.level.ChunkPos;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Random;
+
+import static io.silvicky.item.cfg.JSONConfig.linearChunkRange;
 
 public class LinearTransformer extends VecTransformer
 {
-    private static final int minX=-100;
-    private static final int maxX=100;
-    private static final int minZ=-100;
-    private static final int maxZ=100;
     private final int xOffset;
     private final int zOffset;
-    private static final Random random=new Random();
     public LinearTransformer(ServerPlayer player)
     {
         super(player);
-        xOffset=minX+random.nextInt(maxX-minX+1);
-        zOffset=minZ+random.nextInt(maxZ-minZ+1);
+        xOffset=getRandom(linearChunkRange);
+        zOffset=getRandom(linearChunkRange);
     }
 
     @Override
