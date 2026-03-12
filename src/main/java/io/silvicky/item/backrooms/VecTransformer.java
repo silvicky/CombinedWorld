@@ -1,5 +1,6 @@
 package io.silvicky.item.backrooms;
 
+import io.silvicky.item.StateSaver;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerPlayer;
@@ -10,6 +11,11 @@ import java.util.*;
 
 public abstract class VecTransformer
 {
+    private static final Map<String,Class<? extends VecTransformer>> registry=Map.of(
+            "nop", NopTransformer.class,
+            "random", RandomTransformer.class,
+            "linear", LinearTransformer.class
+    );
     private static final Map<ServerPlayer,VecTransformer> instances=new WeakHashMap<>();
     public static VecTransformer getInstance(ServerPlayer player)
     {
@@ -21,8 +27,15 @@ public abstract class VecTransformer
     }
     private static VecTransformer getInstanceByDimension(ServerPlayer player)
     {
-        if(player.level().dimension.identifier().getNamespace().equals("minecraft"))return new LinearTransformer(player);
-        else return new RandomTransformer(player);
+        try
+        {
+            return registry.getOrDefault(StateSaver.getServerState(player.level().getServer())
+                            .chunkTransformer
+                            .get(player.level().dimension.identifier()), NopTransformer.class)
+                    .getConstructor(ServerPlayer.class)
+                    .newInstance(player);
+        }
+        catch (Exception e){return new NopTransformer(player);}
     }
     private static final Random random=new Random();
     public static int getRandom(int randomRange){return random.nextInt(randomRange*2+1)-randomRange;}

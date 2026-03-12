@@ -40,6 +40,7 @@ public class StateSaver extends SavedData
     public final HashMap<Identifier, HashMap<String, ServerPlayer.RespawnConfig>> respawn;
     public final HashMap<Identifier, Integer> entityVisibility;
     public final HashMap<String, HashMap<String,Long>> playerVisibility;
+    public final HashMap<Identifier,String> chunkTransformer;
     public static final Codec<Pair<ItemStack,Byte>> SLOT_CODEC=Codec.pair(ItemStack.CODEC.orElse(ItemStack.EMPTY),Codec.BYTE.fieldOf(SLOT).codec());
     private static final Codec<StateSaver> CODEC= RecordCodecBuilder.create((instance)->
             instance.group
@@ -68,8 +69,10 @@ public class StateSaver extends SavedData
                                 stateSaver.respawn)),
                         Codec.unboundedMap(Identifier.CODEC, Codec.INT).xmap(HashMap::new, map->map).fieldOf("entity_visibility").orElse(new HashMap<>()).forGetter((stateSaver ->
                                 stateSaver.entityVisibility)),
-                        Codec.unboundedMap(Codec.STRING, Codec.unboundedMap(Codec.STRING,Codec.LONG).xmap(HashMap::new,map->map)).xmap(HashMap::new,map->map).fieldOf("player_visibility").orElse(new HashMap<>()).forGetter((stateSaver)->
-                                stateSaver.playerVisibility)
+                        Codec.unboundedMap(Codec.STRING, Codec.unboundedMap(Codec.STRING,Codec.LONG).xmap(HashMap::new,map->map)).xmap(HashMap::new,map->map).fieldOf("player_visibility").orElse(new HashMap<>()).forGetter((stateSaver->
+                                stateSaver.playerVisibility)),
+                        Codec.unboundedMap(Identifier.CODEC, Codec.STRING).xmap(HashMap::new,map->map).fieldOf("chunk_transformer").orElse(new HashMap<>()).forGetter((stateSaver->
+                                stateSaver.chunkTransformer))
                     ).apply(instance,StateSaver::new));
     private StateSaver(LinkedList<StorageInfo> nbtList,
                       LinkedList<PositionInfo> posList,
@@ -83,7 +86,8 @@ public class StateSaver extends SavedData
                       HashMap<Identifier, LevelData.RespawnData> worldSpawn,
                       HashMap<Identifier, HashMap<String, ServerPlayer.RespawnConfig>> respawn,
                        HashMap<Identifier,Integer> entityVisibility,
-                       HashMap<String,HashMap<String,Long>> playerVisibility)
+                       HashMap<String,HashMap<String,Long>> playerVisibility,
+                       HashMap<Identifier,String> chunkTransformer)
     {
         this.nbtList=nbtList;
         this.posList=posList;
@@ -98,11 +102,13 @@ public class StateSaver extends SavedData
         this.respawn=respawn;
         this.entityVisibility=entityVisibility;
         this.playerVisibility=playerVisibility;
+        this.chunkTransformer=chunkTransformer;
     }
     private StateSaver()
     {
         this(new LinkedList<>(),
                 new LinkedList<>(),
+                new HashMap<>(),
                 new HashMap<>(),
                 new HashMap<>(),
                 new HashMap<>(),
