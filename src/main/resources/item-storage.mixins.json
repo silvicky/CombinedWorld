@@ -10,6 +10,7 @@
     "ConnectionMixin",
     "DimensionDataStorageMixin",
     "EndPortalBlockMixin",
+    "EntityMixin",
     "NetherPortalBlockMixin",
     "PlayerMixin",
     "SaveLoadingMixin",
