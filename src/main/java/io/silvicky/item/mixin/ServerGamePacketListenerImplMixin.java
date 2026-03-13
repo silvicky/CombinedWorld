@@ -37,9 +37,6 @@ public abstract class ServerGamePacketListenerImplMixin
 
 
     @Shadow
-    protected abstract boolean shouldCheckPlayerMovement(boolean bl);
-
-    @Shadow
     private double lastGoodX;
 
     @Shadow
@@ -85,19 +82,6 @@ public abstract class ServerGamePacketListenerImplMixin
             return 1e9;
         }
     }
-    /*@Redirect(method = "handleMovePlayer", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerPlayer;isInPostImpulseGraceTime()Z"))
-    private boolean inject4(ServerPlayer instance, @Local(argsOnly = true) ServerboundMovePlayerPacket packet)
-    {
-        ChunkPos cur=player.chunkPosition();
-        ChunkPos las=getChunkPos(firstGoodX, firstGoodZ);
-        ChunkPos nxt=getChunkPos(packet.x,packet.z);
-        if(!(cur.equals(las)&&las.equals(nxt)&&nxt.equals(cur)))
-        {
-            return true;
-        }
-        return instance.isInPostImpulseGraceTime();
-        //TODO the correct impl. below would expose more underlying problems
-    }*/
     @ModifyVariable(method = "handleMovePlayer", at = @At(value = "STORE",ordinal = 1),name = "p")
     private double inject4(double value,
                            @Local(name = "d")double d,
