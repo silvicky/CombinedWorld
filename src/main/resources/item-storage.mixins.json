@@ -4,9 +4,11 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "BaseFireBlockMixin",
+    "BlockCollisionsMixin",
     "ChunkMapMixin",
     "ChunkTrackingViewMixin",
     "ChunkTrackingViewPositionedMixin",
+    "CollisionGetterMixin",
     "ConnectionMixin",
     "DimensionDataStorageMixin",
     "EndPortalBlockMixin",
