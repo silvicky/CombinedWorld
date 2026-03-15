@@ -20,8 +20,7 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 public interface CollisionGetterMixin
 {
     @ModifyArg(method = "findSupportingBlock", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/BlockCollisions;<init>(Lnet/minecraft/world/level/CollisionGetter;Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/phys/AABB;ZLjava/util/function/BiFunction;)V"))
-    private AABB inject1(AABB value,
-                         @Local(name = "entity") Entity entity)
+    private AABB inject1(AABB value, @Local(argsOnly = true) Entity entity)
     {
         if(!(entity instanceof ServerPlayer player1))return value;
         try

@@ -112,8 +112,7 @@ public abstract class ServerGamePacketListenerImplMixin
         }
     }
     @ModifyArg(method = "isEntityCollidingWithAnythingNew", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/phys/shapes/Shapes;create(Lnet/minecraft/world/phys/AABB;)Lnet/minecraft/world/phys/shapes/VoxelShape;"))
-    private AABB inject7(AABB value,
-                         @Local(name = "entity") Entity entity)
+    private AABB inject7(AABB value, @Local(argsOnly = true) Entity entity)
     {
         if(!(entity instanceof ServerPlayer player1))return value;
         try
