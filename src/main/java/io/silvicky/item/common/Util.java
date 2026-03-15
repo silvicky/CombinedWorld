@@ -36,7 +36,6 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.portal.TeleportTransition;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
@@ -58,7 +57,6 @@ import static io.silvicky.item.InventoryManager.saveInventory;
 import static io.silvicky.item.cfg.JSONConfig.useStorage;
 import static java.nio.file.Files.copy;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
-import static net.minecraft.util.Mth.floor;
 
 public class Util
 {
@@ -338,17 +336,6 @@ public class Util
                 }
             }
         }
-    }
-
-    public static boolean isCrossingChunkBorder(AABB box)
-    {
-        AABB box1=box.inflate(2.0E-5F);
-        return !getChunkPos(box1.minX,box1.minZ).equals(getChunkPos(box1.maxX,box1.maxZ));
-    }
-
-    public static ChunkPos getChunkPos(double x, double z)
-    {
-        return new ChunkPos(floor(x)>>4,floor(z)>>4);
     }
 
     public static int chunkPosDistance(ChunkPos a,ChunkPos b)

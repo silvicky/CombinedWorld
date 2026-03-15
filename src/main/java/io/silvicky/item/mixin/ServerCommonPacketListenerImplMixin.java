@@ -31,15 +31,8 @@ public class ServerCommonPacketListenerImplMixin
     @Shadow
     @Final
     protected Connection connection;
-    @Shadow
-    private long closedListenerTime;
     @Unique
     private static Set<Packet<?>> modified= Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
-
-    public ServerCommonPacketListenerImplMixin(long closedListenerTime)
-    {
-        this.closedListenerTime = closedListenerTime;
-    }
 
     @Inject(method = "send(Lnet/minecraft/network/protocol/Packet;Lio/netty/channel/ChannelFutureListener;)V",at=@At("HEAD"), cancellable = true)
     public void inject1(Packet<?> packet, @Nullable ChannelFutureListener channelFutureListener, CallbackInfo ci)
@@ -75,11 +68,11 @@ public class ServerCommonPacketListenerImplMixin
                 }
                 return;
             }
-            /*if (packet instanceof ClientboundForgetLevelChunkPacket unloadChunkS2CPacket)
+            if (packet instanceof ClientboundForgetLevelChunkPacket)
             {
-                unloadChunkS2CPacket.pos = vecTransformer.s2cTransform(unloadChunkS2CPacket.pos);
+                //this is processed elsewhere
                 return;
-            }*/
+            }
             if(packet instanceof ClientboundExplodePacket clientboundExplodePacket)
             {
                 clientboundExplodePacket.center=vecTransformer.s2cTransform(clientboundExplodePacket.center);
