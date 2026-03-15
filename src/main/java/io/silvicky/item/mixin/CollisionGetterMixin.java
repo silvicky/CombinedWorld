@@ -9,6 +9,8 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.CollisionGetter;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.EntityCollisionContext;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
@@ -50,5 +52,16 @@ public interface CollisionGetterMixin
     {
         if(!(entity instanceof ServerPlayer player1))return value;
         return VecTransformer.getInstance(player1).c2sTransform(value);
+    }
+    @ModifyVariable(method = "getBlockCollisionsFromContext", at = @At("HEAD"), argsOnly = true)
+    private AABB inject4(AABB value, @Local(argsOnly = true)CollisionContext collisionContext)
+    {
+        if(!(collisionContext instanceof EntityCollisionContext entityCollisionContext))return value;
+        if(!(entityCollisionContext.getEntity() instanceof ServerPlayer player1))return value;
+        try
+        {
+            return value.move(VecTransformer.getInstance(player1).s2cTransform(value.getBottomCenter()).subtract(value.getBottomCenter()));
+        }
+        catch (Exception e){return value;}
     }
 }

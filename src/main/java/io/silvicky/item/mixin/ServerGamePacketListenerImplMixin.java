@@ -64,7 +64,7 @@ public abstract class ServerGamePacketListenerImplMixin
             cir.setReturnValue(false);
         }
     }*/
-    @ModifyVariable(method = "isEntityCollidingWithAnythingNew", at = @At(value = "STORE"),name="aABB2")
+    /*@ModifyVariable(method = "isEntityCollidingWithAnythingNew", at = @At(value = "STORE"),name="aABB2")
     private AABB inject2(AABB value,
                          @Local(name = "d")double d,
                          @Local(name = "e")double e,
@@ -81,7 +81,7 @@ public abstract class ServerGamePacketListenerImplMixin
         {
             return value;
         }
-    }
+    }*/
     @ModifyVariable(method = "handleMovePlayer", at = @At(value = "STORE",ordinal = 0),name="p")
     private double inject3(double value,
                            @Local(name = "d")double d,
