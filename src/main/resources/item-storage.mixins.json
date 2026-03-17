@@ -13,6 +13,7 @@
     "DimensionDataStorageMixin",
     "EndPortalBlockMixin",
     "EntityMixin",
+    "LevelMixin",
     "NetherPortalBlockMixin",
     "PlayerMixin",
     "SaveLoadingMixin",
@@ -22,6 +23,7 @@
     "ServerLevelMixin",
     "ServerPlayerGameModeMixin",
     "ServerPlayerMixin",
+    "TrackedEntityMixin",
     "WorldGenSettingsMixin"
   ],
   "injectors": {

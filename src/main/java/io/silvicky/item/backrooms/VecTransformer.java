@@ -85,4 +85,13 @@ public abstract class VecTransformer
         BlockPos transformedBlockPos=c2sTransform(blockPos);
         return pos.add(Vec3.atLowerCornerOf(transformedBlockPos)).subtract(Vec3.atLowerCornerOf(blockPos));
     }
+    public SectionPos c2sTransform(SectionPos pos)
+    {
+        ChunkPos chunkPos=pos.chunk();
+        ChunkPos transformerChunkPos=c2sTransform(chunkPos);
+        return SectionPos.of(
+                transformerChunkPos.x,
+                pos.getY(),
+                transformerChunkPos.z);
+    }
 }
