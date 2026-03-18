@@ -23,7 +23,7 @@ public abstract class LevelMixin
     {
         if(!(entity instanceof ServerPlayer player))
         {
-
+            instance.get(aABB,tConsumer);
             return;
         }
         EntitySectionStorage<T> sectionStorage =((LevelEntityGetterAdapter<T>)instance).sectionStorage;
