@@ -11,6 +11,7 @@ import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.Relative;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.*;
@@ -117,8 +118,22 @@ public abstract class ServerGamePacketListenerImplMixin
         if(!(entity instanceof ServerPlayer player1))return value;
         try
         {
-            Vec3 v = VecTransformer.getInstance(player1).s2cTransform(player1.position());
-            return entity.getBoundingBox().move(v.x - entity.getX(), v.y - entity.getY(), v.z - entity.getZ()).deflate(1.0e-5F);
+            Vec3 v = VecTransformer.getInstance(player1).s2cTransform(value.getBottomCenter());
+            return value.move(v.subtract(value.getBottomCenter()));
+        }
+        catch (Exception exception)
+        {
+            return value;
+        }
+    }
+    @ModifyArg(method = "isEntityCollidingWithAnythingNew", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/phys/shapes/Shapes;joinIsNotEmpty(Lnet/minecraft/world/phys/shapes/VoxelShape;Lnet/minecraft/world/phys/shapes/VoxelShape;Lnet/minecraft/world/phys/shapes/BooleanOp;)Z"),index = 0)
+    private VoxelShape inject8(VoxelShape value, @Local(argsOnly = true) Entity entity)
+    {
+        if(!(entity instanceof ServerPlayer player1))return value;
+        try
+        {
+            Vec3 v = VecTransformer.getInstance(player1).s2cTransform(value.bounds().getBottomCenter());
+            return value.move(v.subtract(value.bounds().getBottomCenter()));
         }
         catch (Exception exception)
         {

@@ -75,3 +75,5 @@ mutable field net/minecraft/world/level/entity/LevelEntityGetterAdapter sectionS
 accessible field net/minecraft/world/level/entity/EntitySectionStorage sections Lit/unimi/dsi/fastutil/longs/Long2ObjectMap;
 mutable field net/minecraft/world/level/entity/EntitySectionStorage sections Lit/unimi/dsi/fastutil/longs/Long2ObjectMap;
 accessible class net/minecraft/server/level/ChunkMap$TrackedEntity
+accessible field net/minecraft/world/level/BlockCollisions box Lnet/minecraft/world/phys/AABB;
+mutable field net/minecraft/world/level/BlockCollisions box Lnet/minecraft/world/phys/AABB;
