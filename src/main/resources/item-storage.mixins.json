@@ -5,6 +5,7 @@
   "mixins": [
     "BaseFireBlockMixin",
     "BlockCollisionsMixin",
+    "BlockPlaceContextMixin",
     "ChunkMapMixin",
     "ChunkTrackingViewMixin",
     "ChunkTrackingViewPositionedMixin",
