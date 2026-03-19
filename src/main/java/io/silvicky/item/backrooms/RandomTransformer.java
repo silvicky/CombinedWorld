@@ -37,15 +37,23 @@ public class RandomTransformer extends VecTransformer
     }
     private void request(ChunkPos c)
     {
-        ChunkPos s=new ChunkPos(c.x+getRandom(randomChunkRange),c.z+getRandom(randomChunkRange));
-        while(c2sMap.containsValue(s))s=new ChunkPos(c.x+getRandom(randomChunkRange),c.z+getRandom(randomChunkRange));
+        ChunkPos s;
+        do
+        {
+            s = new ChunkPos(lastS.x + getRandom(randomChunkRange), lastS.z + getRandom(randomChunkRange));
+        }
+        while(c2sMap.containsValue(s));
         put(s,c);
     }
     private ChunkPos init(ChunkPos s)
     {
         if(c2sMap.containsValue(s))return s2cMap.get(s);
-        ChunkPos c= new ChunkPos(s.x+getRandom(randomChunkRange),s.z+getRandom(randomChunkRange));
-        while(c2sMap.containsKey(c))c=new ChunkPos(s.x+getRandom(randomChunkRange),s.z+getRandom(randomChunkRange));
+        ChunkPos c;
+        do
+        {
+            c = new ChunkPos(s.x + getRandom(randomChunkRange), s.z + getRandom(randomChunkRange));
+        }
+        while(c2sMap.containsKey(c));
         put(s,c);
         return c;
     }
@@ -54,9 +62,9 @@ public class RandomTransformer extends VecTransformer
     {
         return Map.copyOf(s2cMap);
     }
-    private void onChunkPosChanged(ChunkPos newS)
+    private void onChunkPosChanged()
     {
-        ChunkPos newC=init(newS);
+        ChunkPos newC=init(lastS);
         List<ChunkPos> updatedChunks=new ArrayList<>();
         for (ChunkPos c : c2sMap.keySet())
         {
@@ -77,13 +85,13 @@ public class RandomTransformer extends VecTransformer
                 if (!c2sMap.containsKey(newBorder))
                     request(newBorder);
             }
-        lastS = newS;
     }
     private void updateChunkPos()
     {
         ChunkPos newPos=player.chunkPosition();
         if(lastS==newPos)return;
-        onChunkPosChanged(newPos);
+        lastS=newPos;
+        onChunkPosChanged();
     }
     @Override
     public void tick()
