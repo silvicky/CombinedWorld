@@ -64,7 +64,7 @@ public class RandomTransformer extends VecTransformer
             {
                 if ((Util.chunkPosDistance(c, newC) > 1
                         && !Util.isVisible(s2cTransform(player.getEyePosition()), player.getYRot(), c))
-                        ||Util.chunkPosDistance(c, newC) > viewDistance)
+                        ||Util.chunkPosDistance(c, newC) > viewDistance+2)
                     updatedChunks.add(c);
             }
             catch (Exception e){throw new RuntimeException();}
