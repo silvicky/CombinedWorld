@@ -21,7 +21,6 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtAccounter;
-import net.minecraft.network.protocol.Packet;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.MinecraftServer;
@@ -34,7 +33,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.resources.Identifier;
 import net.minecraft.core.UUIDUtil;
-import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.portal.TeleportTransition;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
@@ -178,18 +176,6 @@ public class Util
     {
         return Identifier.fromNamespaceAndPath(id.getNamespace(),getDimensionId(id.getPath()));
     }
-    public static BlockPos transLoc(BlockPos sp, ServerLevel sw)
-    {
-        while((!sw.getBlockState(sp).isAir())||(!sw.getBlockState(sp.above()).isAir()))sp=sp.below();
-        while(sw.getBlockState(sp.below()).isAir()&&sp.getY()>sw.getMinY())sp=sp.below();
-        if(sp.getY()==sw.getMinY())
-        {
-            sp=sp.atY(sw.getLogicalHeight());
-            LOGGER.warn("Spawn point not found!");
-        }
-        return sp;
-    }
-
     public static List<String> getListOfPlayers(MinecraftServer server, Identifier dimension)
     {
         List<ServerPlayer> players=server.getPlayerList().getPlayers();
@@ -305,13 +291,6 @@ public class Util
             ret.add(packMono(tmp,name));
         }
         return ret;
-    }
-    public static void sendToAllInWorld(ServerLevel world, Packet<?> packet)
-    {
-        for(ServerPlayer player:world.players())
-        {
-            player.connection.send(packet);
-        }
     }
     public static void fakeTeleportTo(ServerPlayer player, TeleportTransition teleportTarget, StateSaver stateSaver)
     {
