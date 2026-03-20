@@ -63,7 +63,7 @@ public class InventoryManager {
         if(n==null)
         {
             LOGGER.info("Entering a new world... Good luck to the pioneer!");
-            BlockPos sp= transLoc(targetDimension.getRespawnData().pos().atY(targetDimension.getLogicalHeight()-1),targetDimension);
+            BlockPos sp=player.adjustSpawnLocation(targetDimension,targetDimension.getRespawnData().pos());
             TeleportTransition.PostTeleportTransition postDimensionTransition= TeleportTransition.DO_NOTHING;
             TeleportTransition target = new TeleportTransition(targetDimension,sp.getCenter(), Vec3.ZERO, 0f, 0f,postDimensionTransition);
             if(player.connection !=null)player.teleport(target);
