@@ -41,6 +41,7 @@ public class StateSaver extends SavedData
     public final HashMap<Identifier, Integer> entityVisibility;
     public final HashMap<String, HashMap<String,Long>> playerVisibility;
     public final HashMap<Identifier,String> chunkTransformer;
+    public final HashMap<Identifier, Integer> silence;
     public static final Codec<Pair<ItemStack,Byte>> SLOT_CODEC=Codec.pair(ItemStack.CODEC.orElse(ItemStack.EMPTY),Codec.BYTE.fieldOf(SLOT).codec());
     private static final Codec<StateSaver> CODEC= RecordCodecBuilder.create((instance)->
             instance.group
@@ -72,7 +73,9 @@ public class StateSaver extends SavedData
                         Codec.unboundedMap(Codec.STRING, Codec.unboundedMap(Codec.STRING,Codec.LONG).xmap(HashMap::new,map->map)).xmap(HashMap::new,map->map).fieldOf("player_visibility").orElse(new HashMap<>()).forGetter((stateSaver->
                                 stateSaver.playerVisibility)),
                         Codec.unboundedMap(Identifier.CODEC, Codec.STRING).xmap(HashMap::new,map->map).fieldOf("chunk_transformer").orElse(new HashMap<>()).forGetter((stateSaver->
-                                stateSaver.chunkTransformer))
+                                stateSaver.chunkTransformer)),
+                        Codec.unboundedMap(Identifier.CODEC, Codec.INT).xmap(HashMap::new, map->map).fieldOf("silence").orElse(new HashMap<>()).forGetter((stateSaver ->
+                                stateSaver.silence))
                     ).apply(instance,StateSaver::new));
     private StateSaver(LinkedList<StorageInfo> nbtList,
                       LinkedList<PositionInfo> posList,
@@ -87,7 +90,8 @@ public class StateSaver extends SavedData
                       HashMap<Identifier, HashMap<String, ServerPlayer.RespawnConfig>> respawn,
                        HashMap<Identifier,Integer> entityVisibility,
                        HashMap<String,HashMap<String,Long>> playerVisibility,
-                       HashMap<Identifier,String> chunkTransformer)
+                       HashMap<Identifier,String> chunkTransformer,
+                       HashMap<Identifier,Integer> silence)
     {
         this.nbtList=nbtList;
         this.posList=posList;
@@ -103,11 +107,13 @@ public class StateSaver extends SavedData
         this.entityVisibility=entityVisibility;
         this.playerVisibility=playerVisibility;
         this.chunkTransformer=chunkTransformer;
+        this.silence=silence;
     }
     private StateSaver()
     {
         this(new LinkedList<>(),
                 new LinkedList<>(),
+                new HashMap<>(),
                 new HashMap<>(),
                 new HashMap<>(),
                 new HashMap<>(),
