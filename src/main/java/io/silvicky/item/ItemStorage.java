@@ -2,6 +2,7 @@ package io.silvicky.item;
 
 import io.silvicky.item.cfg.JSONConfig;
 import io.silvicky.item.command.backrooms.ChunkTransformer;
+import io.silvicky.item.command.backrooms.Darkness;
 import io.silvicky.item.command.backrooms.Silence;
 import io.silvicky.item.command.backrooms.Visibility;
 import io.silvicky.item.command.list.ListDimensionPlayers;
@@ -40,5 +41,6 @@ public class ItemStorage implements ModInitializer {
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> Visibility.register(dispatcher));
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> ChunkTransformer.register(dispatcher));
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> Silence.register(dispatcher));
+		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> Darkness.register(dispatcher));
 	}
 }

@@ -77,3 +77,4 @@ mutable field net/minecraft/world/level/entity/EntitySectionStorage sections Lit
 accessible class net/minecraft/server/level/ChunkMap$TrackedEntity
 accessible field net/minecraft/world/level/BlockCollisions box Lnet/minecraft/world/phys/AABB;
 mutable field net/minecraft/world/level/BlockCollisions box Lnet/minecraft/world/phys/AABB;
+accessible field net/minecraft/world/level/lighting/LevelLightEngine levelHeightAccessor Lnet/minecraft/world/level/LevelHeightAccessor;
