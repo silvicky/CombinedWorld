@@ -18,6 +18,7 @@
     "EntityMixin",
     "LayerLightSectionStorageMixin",
     "LevelMixin",
+    "LightEngineMixin",
     "NetherPortalBlockMixin",
     "PlayerMixin",
     "SaveLoadingMixin",
