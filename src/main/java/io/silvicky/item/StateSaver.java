@@ -42,7 +42,7 @@ public class StateSaver extends SavedData
     public final HashMap<String, HashMap<String,Long>> playerVisibility;
     public final HashMap<Identifier,String> chunkTransformer;
     public final HashMap<Identifier, Integer> silence;
-    public final HashMap<Identifier, Boolean> darkness;
+    public final HashMap<Identifier, Integer> darkness;
     public static final Codec<Pair<ItemStack,Byte>> SLOT_CODEC=Codec.pair(ItemStack.CODEC.orElse(ItemStack.EMPTY),Codec.BYTE.fieldOf(SLOT).codec());
     private static final Codec<StateSaver> CODEC= RecordCodecBuilder.create((instance)->
             instance.group
@@ -77,7 +77,7 @@ public class StateSaver extends SavedData
                                 stateSaver.chunkTransformer)),
                         Codec.unboundedMap(Identifier.CODEC, Codec.INT).xmap(HashMap::new, map->map).fieldOf("silence").orElse(new HashMap<>()).forGetter((stateSaver ->
                                 stateSaver.silence)),
-                        Codec.unboundedMap(Identifier.CODEC, Codec.BOOL).xmap(HashMap::new, map->map).fieldOf("darkness").orElse(new HashMap<>()).forGetter((stateSaver ->
+                        Codec.unboundedMap(Identifier.CODEC, Codec.INT).xmap(HashMap::new, map->map).fieldOf("darkness").orElse(new HashMap<>()).forGetter((stateSaver ->
                                 stateSaver.darkness))
                     ).apply(instance,StateSaver::new));
     private StateSaver(LinkedList<StorageInfo> nbtList,
@@ -95,7 +95,7 @@ public class StateSaver extends SavedData
                        HashMap<String,HashMap<String,Long>> playerVisibility,
                        HashMap<Identifier,String> chunkTransformer,
                        HashMap<Identifier,Integer> silence,
-                       HashMap<Identifier,Boolean> darkness)
+                       HashMap<Identifier,Integer> darkness)
     {
         this.nbtList=nbtList;
         this.posList=posList;

@@ -1,7 +1,6 @@
 package io.silvicky.item.mixin;
 
 import com.llamalad7.mixinextras.sugar.Local;
-import io.silvicky.item.StateSaver;
 import net.minecraft.server.level.ChunkHolder;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -13,6 +12,8 @@ import org.spongepowered.asm.mixin.injection.invoke.arg.Args;
 
 import java.util.BitSet;
 
+import static io.silvicky.item.backrooms.DarknessManager.isRenderModified;
+
 @Mixin(ChunkHolder.class)
 public class ChunkHolderMixin
 {
@@ -20,8 +21,7 @@ public class ChunkHolderMixin
     private boolean inject2(boolean bl, @Local(argsOnly = true)LevelChunk chunk)
     {
         if(chunk.getLevel() instanceof ServerLevel serverLevel
-        && StateSaver.getServerState(serverLevel.getServer()).darkness
-                .getOrDefault(serverLevel.dimension.identifier(),false))
+        && isRenderModified(serverLevel))
         {
             return false;
         }
@@ -31,8 +31,7 @@ public class ChunkHolderMixin
     private void inject3(Args args, @Local(argsOnly = true)LevelChunk chunk)
     {
         if(chunk.getLevel() instanceof ServerLevel serverLevel
-                && StateSaver.getServerState(serverLevel.getServer()).darkness
-                .getOrDefault(serverLevel.dimension.identifier(),false))
+                && isRenderModified(serverLevel))
         {
             BitSet x=args.get(2);
             BitSet y=args.get(3);

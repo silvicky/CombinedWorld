@@ -2,10 +2,9 @@ package io.silvicky.item.command.backrooms;
 
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.arguments.BoolArgumentType;
-import io.silvicky.item.StateSaver;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.arguments.DimensionArgument;
+import net.minecraft.commands.arguments.HexColorArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.permissions.Permission;
@@ -14,6 +13,7 @@ import net.minecraft.server.permissions.PermissionLevel;
 import static io.silvicky.item.StateSaver.getServerState;
 import static io.silvicky.item.common.Util.DIMENSION;
 import static io.silvicky.item.common.Util.LEVEL;
+import static java.lang.String.format;
 import static net.minecraft.commands.Commands.argument;
 import static net.minecraft.commands.Commands.literal;
 
@@ -27,8 +27,8 @@ public class Darkness
                         .executes(context->help(context.getSource()))
                         .then(argument(DIMENSION, DimensionArgument.dimension())
                                 .executes(ctx->getDimensionLevel(ctx.getSource(), DimensionArgument.getDimension(ctx,DIMENSION)))
-                                .then(argument(LEVEL, BoolArgumentType.bool())
-                                        .executes(ctx->setDimensionLevel(ctx.getSource(), DimensionArgument.getDimension(ctx,DIMENSION), BoolArgumentType.getBool(ctx, LEVEL)))))
+                                .then(argument(LEVEL, HexColorArgument.hexColor())
+                                        .executes(ctx->setDimensionLevel(ctx.getSource(), DimensionArgument.getDimension(ctx,DIMENSION), HexColorArgument.getHexColor(ctx, LEVEL)))))
         );
     }
     private static int help(CommandSourceStack source)
@@ -40,10 +40,10 @@ public class Darkness
     }
     private static int getDimensionLevel(CommandSourceStack source, ServerLevel dimension)
     {
-        source.sendSuccess(()-> Component.literal(String.valueOf(StateSaver.getServerState(source.getServer()).darkness.getOrDefault(dimension.dimension().identifier(), false))),false);
+        source.sendSuccess(()-> Component.literal(format("%06X",getServerState(source.getServer()).darkness.getOrDefault(dimension.dimension().identifier(), 0)&0xFFFFFF)),false);
         return Command.SINGLE_SUCCESS;
     }
-    private static int setDimensionLevel(CommandSourceStack source, ServerLevel dimension, boolean level)
+    private static int setDimensionLevel(CommandSourceStack source, ServerLevel dimension, int level)
     {
         getServerState(source.getServer()).darkness.put(dimension.dimension().identifier(), level);
         source.sendSuccess(()-> Component.literal("Done."),false);
