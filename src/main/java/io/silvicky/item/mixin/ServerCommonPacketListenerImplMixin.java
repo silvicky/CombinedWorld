@@ -81,8 +81,8 @@ public class ServerCommonPacketListenerImplMixin
             if (packet instanceof ClientboundLightUpdatePacket lightUpdateS2CPacket)
             {
                 ChunkPos pos = vecTransformer.s2cTransform(new ChunkPos(lightUpdateS2CPacket.x, lightUpdateS2CPacket.z));
-                lightUpdateS2CPacket.x = pos.x;
-                lightUpdateS2CPacket.z = pos.z;
+                lightUpdateS2CPacket.x = pos.x();
+                lightUpdateS2CPacket.z = pos.z();
                 return;
             }
             if (packet instanceof ClientboundChunksBiomesPacket(
@@ -103,8 +103,8 @@ public class ServerCommonPacketListenerImplMixin
             if (packet instanceof ClientboundSetChunkCacheCenterPacket chunkRenderDistanceCenterS2CPacket)
             {
                 ChunkPos pos = vecTransformer.s2cTransform(new ChunkPos(chunkRenderDistanceCenterS2CPacket.x, chunkRenderDistanceCenterS2CPacket.z));
-                chunkRenderDistanceCenterS2CPacket.x = pos.x;
-                chunkRenderDistanceCenterS2CPacket.z = pos.z;
+                chunkRenderDistanceCenterS2CPacket.x = pos.x();
+                chunkRenderDistanceCenterS2CPacket.z = pos.z();
                 return;
             }
             if (packet instanceof ClientboundTrackedWaypointPacket waypointS2CPacket)
@@ -160,8 +160,8 @@ public class ServerCommonPacketListenerImplMixin
             if (packet instanceof ClientboundLevelChunkWithLightPacket clientboundLevelChunkWithLightPacket)
             {
                 ChunkPos pos = vecTransformer.s2cTransform(new ChunkPos(clientboundLevelChunkWithLightPacket.x, clientboundLevelChunkWithLightPacket.z));
-                clientboundLevelChunkWithLightPacket.x = pos.x;
-                clientboundLevelChunkWithLightPacket.z = pos.z;
+                clientboundLevelChunkWithLightPacket.x = pos.x();
+                clientboundLevelChunkWithLightPacket.z = pos.z();
                 return;
             }
             if (packet instanceof ClientboundEntityPositionSyncPacket clientboundEntityPositionSyncPacket)

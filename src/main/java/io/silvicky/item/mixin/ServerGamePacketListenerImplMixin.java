@@ -51,11 +51,11 @@ public abstract class ServerGamePacketListenerImplMixin
         }
         catch (ChunkUnusedException e){return VecTransformer.INF;}
     }
-    @ModifyVariable(method = "handleMovePlayer", at = @At(value = "STORE",ordinal = 0),name="p")
+    @ModifyVariable(method = "handleMovePlayer", at = @At(value = "STORE",ordinal = 0),name="movedDist")
     private double inject3(double value,
-                           @Local(name = "d")double d,
-                           @Local(name = "e")double e,
-                           @Local(name = "h")double h)
+                           @Local(name = "targetX")double d,
+                           @Local(name = "targetY")double e,
+                           @Local(name = "targetZ")double h)
     {
         try
         {
@@ -69,11 +69,11 @@ public abstract class ServerGamePacketListenerImplMixin
             return 1e9;
         }
     }
-    @ModifyVariable(method = "handleMovePlayer", at = @At(value = "STORE",ordinal = 1),name = "p")
+    @ModifyVariable(method = "handleMovePlayer", at = @At(value = "STORE",ordinal = 1),name = "movedDist")
     private double inject4(double value,
-                           @Local(name = "d")double d,
-                           @Local(name = "e")double e,
-                           @Local(name = "h")double h)
+                           @Local(name = "targetX")double d,
+                           @Local(name = "targetY")double e,
+                           @Local(name = "targetZ")double h)
     {
         try
         {
@@ -96,9 +96,9 @@ public abstract class ServerGamePacketListenerImplMixin
     }
     @ModifyArg(method = "handleMovePlayer", at= @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerPlayer;move(Lnet/minecraft/world/entity/MoverType;Lnet/minecraft/world/phys/Vec3;)V"),index = 1)
     private Vec3 inject6(Vec3 par2,
-                         @Local(name = "d")double d,
-                         @Local(name = "e")double e,
-                         @Local(name = "h")double h)
+                         @Local(name = "targetX")double d,
+                         @Local(name = "targetY")double e,
+                         @Local(name = "targetZ")double h)
     {
         try
         {

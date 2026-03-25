@@ -323,7 +323,7 @@ public class Util
 
     public static int chunkPosDistance(ChunkPos a,ChunkPos b)
     {
-        return Math.max(Math.abs(a.x-b.x),Math.abs(a.z-b.z));
+        return Math.max(Math.abs(a.x()-b.x()),Math.abs(a.z()-b.z()));
     }
     public static boolean isVisible(Vec3 center,float yaw,double x,double z)
     {
@@ -334,8 +334,8 @@ public class Util
     }
     public static boolean isVisible(Vec3 center,float yaw, ChunkPos chunkPos)
     {
-        double minX=chunkPos.x<<4;
-        double minZ=chunkPos.z<<4;
+        double minX=chunkPos.x()<<4;
+        double minZ=chunkPos.z()<<4;
         double maxX=minX+16;
         double maxZ=minZ+16;
         return isVisible(center,yaw,minX,minZ)

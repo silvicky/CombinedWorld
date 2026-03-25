@@ -40,7 +40,7 @@ public class RandomTransformer extends VecTransformer
         ChunkPos s;
         do
         {
-            s = new ChunkPos(lastS.x + getRandom(randomChunkRange), lastS.z + getRandom(randomChunkRange));
+            s = new ChunkPos(lastS.x() + getRandom(randomChunkRange), lastS.z() + getRandom(randomChunkRange));
         }
         while(c2sMap.containsValue(s));
         put(s,c);
@@ -51,7 +51,7 @@ public class RandomTransformer extends VecTransformer
         ChunkPos c;
         do
         {
-            c = new ChunkPos(s.x + getRandom(randomChunkRange), s.z + getRandom(randomChunkRange));
+            c = new ChunkPos(s.x() + getRandom(randomChunkRange), s.z() + getRandom(randomChunkRange));
         }
         while(c2sMap.containsKey(c));
         put(s,c);
@@ -81,7 +81,7 @@ public class RandomTransformer extends VecTransformer
         for (int i = -viewDistance-2; i <= viewDistance+2; i++)
             for (int j = -viewDistance-2; j <= viewDistance+2; j++)
             {
-                ChunkPos newBorder = new ChunkPos(newC.x + i, newC.z + j);
+                ChunkPos newBorder = new ChunkPos(newC.x() + i, newC.z() + j);
                 if (!c2sMap.containsKey(newBorder))
                     request(newBorder);
             }

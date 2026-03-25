@@ -13,7 +13,6 @@
     "ClientboundLightUpdatePacketDataMixin",
     "CollisionGetterMixin",
     "ConnectionMixin",
-    "DimensionDataStorageMixin",
     "EndPortalBlockMixin",
     "EntityMixin",
     "LayerLightSectionStorageMixin",

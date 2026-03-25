@@ -63,10 +63,6 @@ accessible field net/minecraft/network/protocol/game/ServerboundMoveVehiclePacke
 mutable field net/minecraft/network/protocol/game/ServerboundMoveVehiclePacket position Lnet/minecraft/world/phys/Vec3;
 accessible field net/minecraft/network/protocol/game/ClientboundMoveVehiclePacket position Lnet/minecraft/world/phys/Vec3;
 mutable field net/minecraft/network/protocol/game/ClientboundMoveVehiclePacket position Lnet/minecraft/world/phys/Vec3;
-accessible field net/minecraft/network/protocol/game/ServerboundInteractPacket action Lnet/minecraft/network/protocol/game/ServerboundInteractPacket$Action;
-accessible class net/minecraft/network/protocol/game/ServerboundInteractPacket$InteractionAtLocationAction
-accessible field net/minecraft/network/protocol/game/ServerboundInteractPacket$InteractionAtLocationAction location Lnet/minecraft/world/phys/Vec3;
-mutable field net/minecraft/network/protocol/game/ServerboundInteractPacket$InteractionAtLocationAction location Lnet/minecraft/world/phys/Vec3;
 accessible field net/minecraft/network/protocol/game/ClientboundDamageEventPacket sourcePosition Ljava/util/Optional;
 mutable field net/minecraft/network/protocol/game/ClientboundDamageEventPacket sourcePosition Ljava/util/Optional;
 accessible field net/minecraft/network/protocol/game/ClientboundPlayerLookAtPacket x D
@@ -86,3 +82,5 @@ accessible class net/minecraft/server/level/ChunkMap$TrackedEntity
 accessible field net/minecraft/world/level/BlockCollisions box Lnet/minecraft/world/phys/AABB;
 mutable field net/minecraft/world/level/BlockCollisions box Lnet/minecraft/world/phys/AABB;
 accessible field net/minecraft/world/level/lighting/LevelLightEngine levelHeightAccessor Lnet/minecraft/world/level/LevelHeightAccessor;
+accessible field net/minecraft/network/protocol/game/ServerboundInteractPacket location Lnet/minecraft/world/phys/Vec3;
+mutable field net/minecraft/network/protocol/game/ServerboundInteractPacket location Lnet/minecraft/world/phys/Vec3;

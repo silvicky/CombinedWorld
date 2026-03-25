@@ -18,7 +18,7 @@ public abstract class PositionedHelper
             Map<ChunkPos,ChunkPos> s2c=((PositionedAccess)(Object)view).item_storage$getS2cMap();
             ChunkPos c = s2c.get(s);
             ChunkPos lastC=s2c.get(view.center());
-            return ChunkTrackingView.isWithinDistance(c.x, c.z, view.viewDistance(), lastC.x, lastC.z, bl);
+            return ChunkTrackingView.isWithinDistance(c.x(), c.z(), view.viewDistance(), lastC.x(), lastC.z(), bl);
         }
         catch (NullPointerException e){return false;}
     }
@@ -52,7 +52,7 @@ public abstract class PositionedHelper
     }
 
     public static boolean isChunkTracked(ServerPlayer serverPlayer, int i, int j) {
-        return serverPlayer.getChunkTrackingView().contains(i, j) && !serverPlayer.connection.chunkSender.isPending(ChunkPos.asLong(i, j));
+        return serverPlayer.getChunkTrackingView().contains(i, j) && !serverPlayer.connection.chunkSender.isPending(ChunkPos.pack(i, j));
     }
 
     public static boolean isChunkOnTrackedBorder(ServerPlayer serverPlayer, int i, int j) {
@@ -64,7 +64,7 @@ public abstract class PositionedHelper
                 ChunkPos pos = s2c.get(new ChunkPos(i, j));
                 for(ChunkPos pos1:s2c.keySet())
                 {
-                    if (Util.chunkPosDistance(pos,s2c.get(pos1))==1 && !isChunkTracked(serverPlayer, pos1.x, pos1.z))
+                    if (Util.chunkPosDistance(pos,s2c.get(pos1))==1 && !isChunkTracked(serverPlayer, pos1.x(), pos1.z()))
                     {
                         return true;
                     }

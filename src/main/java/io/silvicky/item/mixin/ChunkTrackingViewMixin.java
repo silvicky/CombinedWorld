@@ -26,7 +26,7 @@ public interface ChunkTrackingViewMixin
                 consumer2 = chunkPos ->
                 {
                     ServerPlayer serverPlayer=((PositionedAccess) chunkTrackingView).item_storage$getPlayer();
-                    if((!serverPlayer.connection.chunkSender.pendingChunks.remove(chunkPos.toLong()))&&serverPlayer.isAlive())
+                    if((!serverPlayer.connection.chunkSender.pendingChunks.remove(chunkPos.pack()))&&serverPlayer.isAlive())
                         serverPlayer.connection.send(new ClientboundForgetLevelChunkPacket(((PositionedAccess)chunkTrackingView).item_storage$getS2cMap().get(chunkPos)));
                 };
             }

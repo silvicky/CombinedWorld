@@ -59,10 +59,7 @@ public abstract class ConnectionMixin
         }
         if(packet instanceof ServerboundInteractPacket playerInteractEntityC2SPacket)
         {
-            if(playerInteractEntityC2SPacket.action instanceof ServerboundInteractPacket.InteractionAtLocationAction interact)
-            {
-                interact.location =vecTransformer.c2sTransform(interact.location);
-            }
+            playerInteractEntityC2SPacket.location =vecTransformer.c2sTransform(playerInteractEntityC2SPacket.location);
             return;
         }
         for (Field field : packet.getClass().getDeclaredFields())

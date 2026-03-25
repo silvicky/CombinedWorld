@@ -21,8 +21,8 @@ public class EntityMixin
     @Shadow
     private Vec3 position;
 
-    @ModifyVariable(method = "move",at=@At("STORE"),name = "vec33")
-    private Vec3 inject1(Vec3 value, @Local(name = "vec32")Vec3 vec32,@Local(name = "e")double e)
+    @ModifyVariable(method = "move",at=@At("STORE"),name = "checkTo")
+    private Vec3 inject1(Vec3 value, @Local(name = "movement")Vec3 vec32,@Local(name = "checkDistance")double e)
     {
         Entity instance=(Entity)(Object)this;
         if(!(instance instanceof ServerPlayer player))return value;
@@ -36,8 +36,8 @@ public class EntityMixin
             return value;
         }
     }
-    @ModifyVariable(method = "move",at=@At("STORE"),name = "vec35")
-    private Vec3 inject2(Vec3 value, @Local(name = "vec32")Vec3 vec32)
+    @ModifyVariable(method = "move",at=@At("STORE"),name = "newPosition")
+    private Vec3 inject2(Vec3 value, @Local(name = "movement")Vec3 vec32)
     {
         Entity instance=(Entity)(Object)this;
         if(!(instance instanceof ServerPlayer player))return value;

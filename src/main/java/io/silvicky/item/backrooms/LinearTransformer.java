@@ -28,8 +28,8 @@ public class LinearTransformer extends VecTransformer
         for(int x=-viewDistance-2;x<=viewDistance+2;x++)
             for(int z=-viewDistance-2;z<=viewDistance+2;z++)
             {
-                ChunkPos s=new ChunkPos(center.x+x,center.z+z);
-                ChunkPos c=new ChunkPos(center.x+x+xOffset,center.z+z+zOffset);
+                ChunkPos s=new ChunkPos(center.x()+x,center.z()+z);
+                ChunkPos c=new ChunkPos(center.x()+x+xOffset,center.z()+z+zOffset);
                 s2c.put(s,c);
             }
         return Map.copyOf(s2c);
@@ -39,8 +39,8 @@ public class LinearTransformer extends VecTransformer
     public void tick() {}
 
     @Override
-    public ChunkPos s2cTransform(ChunkPos pos) {return new ChunkPos(pos.x+xOffset,pos.z+zOffset);}
+    public ChunkPos s2cTransform(ChunkPos pos) {return new ChunkPos(pos.x()+xOffset,pos.z()+zOffset);}
 
     @Override
-    public ChunkPos c2sTransform(ChunkPos pos) {return new ChunkPos(pos.x-xOffset,pos.z-zOffset);}
+    public ChunkPos c2sTransform(ChunkPos pos) {return new ChunkPos(pos.x()-xOffset,pos.z()-zOffset);}
 }

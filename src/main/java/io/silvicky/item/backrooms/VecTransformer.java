@@ -53,7 +53,7 @@ public abstract class VecTransformer
     public abstract ChunkPos s2cTransform(ChunkPos pos) throws ChunkUnusedException;
     public BlockPos s2cTransform(BlockPos pos) throws ChunkUnusedException
     {
-        ChunkPos chunkPos=new ChunkPos(pos);
+        ChunkPos chunkPos=ChunkPos.containing(pos);
         ChunkPos transformerChunkPos=s2cTransform(chunkPos);
         return pos.offset(transformerChunkPos.getWorldPosition()).subtract(chunkPos.getWorldPosition());
     }
@@ -62,9 +62,9 @@ public abstract class VecTransformer
         ChunkPos chunkPos=pos.chunk();
         ChunkPos transformerChunkPos=s2cTransform(chunkPos);
         return SectionPos.of(
-                transformerChunkPos.x,
+                transformerChunkPos.x(),
                 pos.getY(),
-                transformerChunkPos.z);
+                transformerChunkPos.z());
     }
     public Vec3 s2cTransform(Vec3 pos) throws ChunkUnusedException
     {
@@ -75,7 +75,7 @@ public abstract class VecTransformer
     public abstract ChunkPos c2sTransform(ChunkPos pos);
     public BlockPos c2sTransform(BlockPos pos)
     {
-        ChunkPos chunkPos=new ChunkPos(pos);
+        ChunkPos chunkPos=ChunkPos.containing(pos);
         ChunkPos transformerChunkPos=c2sTransform(chunkPos);
         return pos.offset(transformerChunkPos.getWorldPosition()).subtract(chunkPos.getWorldPosition());
     }
@@ -90,8 +90,8 @@ public abstract class VecTransformer
         ChunkPos chunkPos=pos.chunk();
         ChunkPos transformerChunkPos=c2sTransform(chunkPos);
         return SectionPos.of(
-                transformerChunkPos.x,
+                transformerChunkPos.x(),
                 pos.getY(),
-                transformerChunkPos.z);
+                transformerChunkPos.z());
     }
 }

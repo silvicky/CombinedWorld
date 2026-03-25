@@ -24,7 +24,7 @@ public class XorTransformer extends VecTransformer
         for(int x=-viewDistance-2;x<=viewDistance+2;x++)
             for(int z=-viewDistance-2;z<=viewDistance+2;z++)
             {
-                ChunkPos c=new ChunkPos(cc.x+x,cc.z+z);
+                ChunkPos c=new ChunkPos(cc.x()+x,cc.z()+z);
                 ChunkPos s=c2sTransform(c);
                 s2c.put(s,c);
             }
@@ -38,12 +38,12 @@ public class XorTransformer extends VecTransformer
     @Override
     public ChunkPos s2cTransform(ChunkPos pos)
     {
-        return new ChunkPos(pos.x^xXor,pos.z^zXor);
+        return new ChunkPos(pos.x()^xXor,pos.z()^zXor);
     }
     @Override
     public ChunkPos c2sTransform(ChunkPos pos)
     {
-        return new ChunkPos(pos.x^xXor,pos.z^zXor);
+        return new ChunkPos(pos.x()^xXor,pos.z()^zXor);
     }
     private void addLoadingTicket()
     {

@@ -22,7 +22,7 @@ public class NopTransformer extends VecTransformer
         for(int x=-viewDistance-2;x<=viewDistance+2;x++)
             for(int z=-viewDistance-2;z<=viewDistance+2;z++)
             {
-                ChunkPos c1=new ChunkPos(center.x+x,center.z+z);
+                ChunkPos c1=new ChunkPos(center.x()+x,center.z()+z);
                 s2c.put(c1,c1);
             }
         return Map.copyOf(s2c);

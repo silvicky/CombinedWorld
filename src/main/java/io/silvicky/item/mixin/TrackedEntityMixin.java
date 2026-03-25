@@ -17,9 +17,9 @@ public class TrackedEntityMixin
 {
     @Shadow
     @Final
-    Entity entity;
+    private Entity entity;
 
-    @ModifyVariable(method = "updatePlayer",at=@At("STORE"))
+    @ModifyVariable(method = "updatePlayer", at = @At("STORE"), name = "deltaToPlayer")
     private Vec3 inject1(Vec3 vec3, @Local(argsOnly = true)ServerPlayer player)
     {
         try
