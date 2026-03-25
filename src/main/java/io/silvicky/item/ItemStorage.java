@@ -25,18 +25,18 @@ public class ItemStorage implements ModInitializer {
 		// Proceed with mild caution.
 		LOGGER.info("Loading CombinedWorld...");
 		JSONConfig.config();
-		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> Warp.register(dispatcher));
-		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> ListWorldPlayers.register(dispatcher));
-		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> ListDimensionPlayers.register(dispatcher));
-		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> ListGroupPlayers.register(dispatcher));
-		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> ImportWorld.register(dispatcher));
-		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> DeleteWorld.register(dispatcher));
-		//CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> ExportWorld.register(dispatcher));
-		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> WarpTp.register(dispatcher));
-		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> BanWarp.register(dispatcher));
-		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> Evacuate.register(dispatcher));
-		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> PackMe.register(dispatcher));
-		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> Visibility.register(dispatcher));
-		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> Silence.register(dispatcher));
+		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> Warp.register(dispatcher));
+		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> ListWorldPlayers.register(dispatcher));
+		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> ListDimensionPlayers.register(dispatcher));
+		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> ListGroupPlayers.register(dispatcher));
+		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> ImportWorld.register(dispatcher));
+		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> DeleteWorld.register(dispatcher));
+		//CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> ExportWorld.register(dispatcher));
+		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> WarpTp.register(dispatcher));
+		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> BanWarp.register(dispatcher));
+		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> Evacuate.register(dispatcher));
+		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> PackMe.register(dispatcher));
+		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> Visibility.register(dispatcher));
+		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> Silence.register(dispatcher));
 	}
 }

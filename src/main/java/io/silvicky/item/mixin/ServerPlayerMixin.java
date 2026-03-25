@@ -50,7 +50,7 @@ public abstract class ServerPlayerMixin
         }
     }
     @Inject(method = "teleport(Lnet/minecraft/world/level/portal/TeleportTransition;)Lnet/minecraft/server/level/ServerPlayer;",at= @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerPlayer;teleportSpectators(Lnet/minecraft/world/level/portal/TeleportTransition;Lnet/minecraft/server/level/ServerLevel;)V"))
-    private void inject2(TeleportTransition teleportTarget, CallbackInfoReturnable<ServerPlayer> cir, @Local(ordinal=1) ServerLevel serverWorld2)
+    private void inject2(TeleportTransition teleportTarget, CallbackInfoReturnable<ServerPlayer> cir, @Local(name = "oldLevel") ServerLevel serverWorld2)
     {
         Identifier source=serverWorld2.dimension().identifier();
         Identifier target=teleportTarget.newLevel().dimension().identifier();
@@ -92,7 +92,7 @@ public abstract class ServerPlayerMixin
         }
         else
         {
-            HashMap<String, ServerPlayer.RespawnConfig> respawnMap=StateSaver.getServerState(level().getServer()).respawn.computeIfAbsent(id, i -> new HashMap<>());
+            HashMap<String, ServerPlayer.RespawnConfig> respawnMap=StateSaver.getServerState(level().getServer()).respawn.computeIfAbsent(id, _ -> new HashMap<>());
             if(!respawn.equals(respawnMap.get(player.getStringUUID())))player.sendSystemMessage(ServerPlayer.SPAWN_SET_MESSAGE);
             respawnMap.put(player.getStringUUID(), respawn);
         }
@@ -106,7 +106,7 @@ public abstract class ServerPlayerMixin
         LevelData.RespawnData defaultSpawn= level().getServer().getRespawnData();
         LevelData.RespawnData defaultCurrentSpawn= LevelData.RespawnData.of(ResourceKey.create(Registries.DIMENSION,id),defaultSpawn.pos(),defaultSpawn.yaw(),defaultSpawn.pitch());
         if(id.equals(Level.OVERWORLD.identifier())) cir.setReturnValue(player.respawnConfig);
-        else cir.setReturnValue(StateSaver.getServerState(level().getServer()).respawn.computeIfAbsent(id, i->new HashMap<>()).getOrDefault(player.getStringUUID(), new ServerPlayer.RespawnConfig(defaultCurrentSpawn,false)));
+        else cir.setReturnValue(StateSaver.getServerState(level().getServer()).respawn.computeIfAbsent(id, _ ->new HashMap<>()).getOrDefault(player.getStringUUID(), new ServerPlayer.RespawnConfig(defaultCurrentSpawn,false)));
     }
     @Redirect(method= "findRespawnPositionAndUseSpawnBlock",at= @At(value = "INVOKE", target = "Lnet/minecraft/world/level/portal/TeleportTransition;missingRespawnBlock(Lnet/minecraft/server/level/ServerPlayer;Lnet/minecraft/world/level/portal/TeleportTransition$PostTeleportTransition;)Lnet/minecraft/world/level/portal/TeleportTransition;"))
     private TeleportTransition inject5(ServerPlayer player, TeleportTransition.PostTeleportTransition postDimensionTransition)

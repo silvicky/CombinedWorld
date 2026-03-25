@@ -23,7 +23,7 @@ import static io.silvicky.item.common.Util.*;
 @Mixin(EndPortalBlock.class)
 public class EndPortalBlockMixin
 {
-    @ModifyVariable(method = "getPortalDestination", at = @At(value = "STORE"),ordinal =1)
+    @ModifyVariable(method = "getPortalDestination", at = @At(value = "STORE"), name = "newDimension")
     private ResourceKey<Level> injected(ResourceKey<Level> registryKey, @Local(argsOnly = true) ServerLevel world) {
         ResourceKey<Level> registryKey0=world.dimension();
         String path=registryKey0.identifier().getPath();
@@ -52,7 +52,7 @@ public class EndPortalBlockMixin
     }
     @Inject(method = "getPortalDestination",at = @At(value = "INVOKE_ASSIGN",  shift = At.Shift.AFTER, target = "Lnet/minecraft/server/level/ServerLevel;getServer()Lnet/minecraft/server/MinecraftServer;"), cancellable = true)
     private void injected3(ServerLevel world, Entity entity, BlockPos pos, CallbackInfoReturnable<TeleportTransition> cir
-    , @Local(ordinal = 0, argsOnly = true) ServerLevel serverWorl, @Local(ordinal = 1) ResourceKey<Level> registryKey)
+    , @Local(name = "newDimension") ResourceKey<Level> registryKey)
     {
         ServerLevel serverWorld = world.getServer().getLevel(registryKey);
         boolean bl=registryKey.identifier().getPath().endsWith(END);
