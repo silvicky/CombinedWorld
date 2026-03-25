@@ -1,6 +1,5 @@
 package io.silvicky.item.mixin;
 
-import com.llamalad7.mixinextras.sugar.Local;
 import io.silvicky.item.StateSaver;
 import net.minecraft.core.Holder;
 import net.minecraft.core.RegistryAccess;
@@ -8,21 +7,17 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.dimension.DimensionType;
-import net.minecraft.world.level.dimension.end.EndDragonFight;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.level.storage.WorldData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.LevelData;
-import net.minecraft.world.level.dimension.BuiltinDimensionTypes;
 import net.minecraft.world.level.levelgen.WorldOptions;
 import net.minecraft.world.level.storage.WritableLevelData;
 import org.jspecify.annotations.Nullable;
-import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -57,50 +52,17 @@ public abstract class ServerLevelMixin extends Level
     {
         return server.getPlayerList().getPlayers();
     }
-    @Redirect(method= "tick",at= @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerLevel;setDayTime(J)V"))
-    private void inject3(ServerLevel instance, long timeOfDay)
-    {
-        for(ServerLevel world:server.getAllLevels())world.setDayTime(timeOfDay);
-    }
     @Redirect(method= "tick",at= @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerLevel;resetWeatherCycle()V"))
     private void inject4(ServerLevel instance)
     {
         for(ServerLevel world:server.getAllLevels())world.resetWeatherCycle();
-    }
-    @Redirect(method= "<init>",at= @At(value = "FIELD", target = "Lnet/minecraft/server/level/ServerLevel;dragonFight:Lnet/minecraft/world/level/dimension/end/EndDragonFight;",opcode = Opcodes.PUTFIELD,ordinal = 1))
-    private void inject5(ServerLevel instance, EndDragonFight value, @Local(argsOnly = true) long l)
-    {
-        if(!instance.dimensionTypeRegistration().is(BuiltinDimensionTypes.END)){instance.dragonFight =null;return;}
-        HashMap<Identifier, EndDragonFight.Data> dragonFightHashMap;
-        if(instance.dimension()!= Level.OVERWORLD)dragonFightHashMap=StateSaver.getServerState(server).dragonFight;
-        //this should not happen but...
-        else dragonFightHashMap=StateSaver.getServerState(instance).dragonFight;
-        Identifier cur=instance.dimension().identifier();
-        instance.dragonFight = new EndDragonFight(instance, l, dragonFightHashMap.getOrDefault(cur, EndDragonFight.Data.DEFAULT));
-    }
-    @Redirect(method= "saveLevelData",at= @At(value = "INVOKE", target = "Lnet/minecraft/world/level/storage/WorldData;setEndDragonFightData(Lnet/minecraft/world/level/dimension/end/EndDragonFight$Data;)V"))
-    private void inject6(WorldData instance, EndDragonFight.Data data)
-    {
-        ServerLevel target=(ServerLevel) (Object)this;
-        HashMap<Identifier, EndDragonFight.Data> dragonFightHashMap;
-        if(target.dimension()!= Level.OVERWORLD)dragonFightHashMap=StateSaver.getServerState(server).dragonFight;
-            //this should not happen but...
-        else dragonFightHashMap=StateSaver.getServerState(target).dragonFight;
-        Identifier cur=target.dimension().identifier();
-        if(target.dragonFight ==null)return;
-        if(target.dimension()== Level.END)
-            server.getWorldData().setEndDragonFightData(target.dragonFight.saveData());
-        else
-            dragonFightHashMap.put(cur,target.dragonFight.saveData());
     }
     @Redirect(method= "<init>",at= @At(value = "INVOKE", target = "Lnet/minecraft/world/level/levelgen/WorldOptions;seed()J"))
     private long inject7(WorldOptions instance)
     {
         ServerLevel target=(ServerLevel) (Object)this;
         HashMap<Identifier,Long> seedMap;
-        if(target.dimension()!= Level.OVERWORLD)seedMap=StateSaver.getServerState(server).seed;
-            //this should not happen but...
-        else seedMap=StateSaver.getServerState(target).seed;
+        seedMap=StateSaver.getServerState(server).seed;
         Identifier cur=target.dimension().identifier();
         if(seedMap.containsKey(cur))return seedMap.get(cur);
         return instance.seed();
@@ -110,11 +72,7 @@ public abstract class ServerLevelMixin extends Level
     {
         ServerLevel target=(ServerLevel) (Object)this;
         HashMap<Identifier,Long> seedMap;
-        if(target.dimension()!= Level.OVERWORLD)seedMap=StateSaver.getServerState(server).seed;
-            //this should not happen but...
-        else
-            try{seedMap=StateSaver.getServerState(target).seed;}
-            catch(NullPointerException e){return instance.seed();}
+        seedMap=StateSaver.getServerState(server).seed;
         Identifier cur=target.dimension().identifier();
         if(seedMap.containsKey(cur))return seedMap.get(cur);
         return instance.seed();

@@ -16,7 +16,7 @@ import static io.silvicky.item.command.world.ImportWorld.*;
 @Mixin(WorldGenSettings.class)
 public class WorldGenSettingsMixin
 {
-    @ModifyArg(method = "encode(Lcom/mojang/serialization/DynamicOps;Lnet/minecraft/world/level/levelgen/WorldOptions;Lnet/minecraft/world/level/levelgen/WorldDimensions;)Lcom/mojang/serialization/DataResult;",at= @At(value = "INVOKE", target = "Lnet/minecraft/world/level/levelgen/WorldGenSettings;<init>(Lnet/minecraft/world/level/levelgen/WorldOptions;Lnet/minecraft/world/level/levelgen/WorldDimensions;)V"),index = 1)
+    @ModifyArg(method = "of",at= @At(value = "INVOKE", target = "Lnet/minecraft/world/level/levelgen/WorldGenSettings;<init>(Lnet/minecraft/world/level/levelgen/WorldOptions;Lnet/minecraft/world/level/levelgen/WorldDimensions;)V"),index = 1)
     private static WorldDimensions inject1(WorldDimensions dimensionOptionsRegistryHolder)
     {
         HashMap<ResourceKey<LevelStem>, LevelStem> dimensions = new HashMap<>();

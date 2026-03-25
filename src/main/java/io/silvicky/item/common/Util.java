@@ -62,10 +62,6 @@ public class Util
 
     public static final String DIMENSION_ID="dimension_id";
     public static final String DIMENSION_PATH="path";
-    public static final String DATA="data";
-    public static final String POI="poi";
-    public static final String REGION="region";
-    public static final String ENTITIES="entities";
     public static final String INVENTORY="inventory";
     public static final String SAVED="saved";
     public static final String SAVED_MAP="saved_map";
@@ -81,7 +77,7 @@ public class Util
     public static final String END="the_end";
     public static final String CORD="coordination";
     public static final String TARGET="target";
-    public static final String MOD_ID = "ItemStorage";
+    public static final String MOD_ID = "item";
     public static final Component INVENTORY_ITEMS= Component.literal("Inventory Items");
     public static final Component ENDER_ITEMS= Component.literal("Ender Items");
     public static final Logger LOGGER = LoggerFactory.getLogger("item-storage");

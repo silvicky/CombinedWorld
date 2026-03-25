@@ -3,23 +3,24 @@ package io.silvicky.item;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import io.silvicky.item.common.Util;
 import net.minecraft.util.datafix.DataFixTypes;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.dimension.end.EndDragonFight;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.resources.Identifier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
-import net.minecraft.world.level.storage.DimensionDataStorage;
 import net.minecraft.world.level.storage.LevelData;
+import net.minecraft.world.level.storage.SavedDataStorage;
 import net.minecraft.world.phys.Vec3;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
 
 import static io.silvicky.item.common.Util.*;
@@ -27,11 +28,12 @@ import static java.lang.String.format;
 
 public class StateSaver extends SavedData
 {
+    public static MinecraftServer server;
+    public static final Identifier id=Identifier.fromNamespaceAndPath("silvicky", Util.MOD_ID);
     private final LinkedList<StorageInfo> nbtList;
     private final LinkedList<PositionInfo> posList;
     public final HashMap<Identifier,HashMap<String,PositionInfoNew>> posMap;
     public final HashMap<String,HashMap<String,StorageInfoNew>> savedMap;
-    public final HashMap<Identifier, EndDragonFight.Data> dragonFight;
     public final HashMap<Identifier, WarpRestrictionInfo> restrictionInfoHashMap;
     public final HashMap<Identifier, Long> seed;
     public final HashMap<String, Integer> gamemode;
@@ -55,8 +57,6 @@ public class StateSaver extends SavedData
                                 stateSaver.posMap),
                         Codec.unboundedMap(Codec.STRING, Codec.unboundedMap(Codec.STRING,StorageInfoNew.CODEC).xmap(HashMap::new,map->map)).xmap(HashMap::new,map->map).fieldOf(SAVED_MAP).orElse(new HashMap<>()).forGetter((stateSaver)->
                                 stateSaver.savedMap),
-                        Codec.unboundedMap(Identifier.CODEC, EndDragonFight.Data.CODEC).xmap(HashMap::new, map->map).fieldOf("dragon").orElse(new HashMap<>()).forGetter((stateSaver ->
-                                stateSaver.dragonFight)),
                         Codec.unboundedMap(Identifier.CODEC, Codec.LONG).xmap(HashMap::new, map->map).fieldOf("seed").orElse(new HashMap<>()).forGetter((stateSaver ->
                                 stateSaver.seed)),
                         Codec.unboundedMap(Identifier.CODEC, WarpRestrictionInfo.CODEC).xmap(HashMap::new, map->map).fieldOf("restriction").orElse(new HashMap<>()).forGetter((stateSaver ->
@@ -84,7 +84,6 @@ public class StateSaver extends SavedData
                       LinkedList<PositionInfo> posList,
                        HashMap<Identifier,HashMap<String,PositionInfoNew>> posMap,
                        HashMap<String,HashMap<String,StorageInfoNew>> savedMap,
-                      HashMap<Identifier, EndDragonFight.Data> dragonFight,
                       HashMap<Identifier,Long> seed,
                       HashMap<Identifier,WarpRestrictionInfo> restrictionInfoHashMap,
                       HashMap<String, Integer> gamemode,
@@ -101,7 +100,6 @@ public class StateSaver extends SavedData
         this.posList=posList;
         this.posMap=posMap;
         this.savedMap=savedMap;
-        this.dragonFight=dragonFight;
         this.seed=seed;
         this.restrictionInfoHashMap=restrictionInfoHashMap;
         this.gamemode=gamemode;
@@ -130,17 +128,30 @@ public class StateSaver extends SavedData
                 new HashMap<>(),
                 new HashMap<>(),
                 new HashMap<>(),
-                new HashMap<>(),
                 new HashMap<>()
         );
     }
     private static final SavedDataType<StateSaver> type = new SavedDataType<>(
-            MOD_ID,
+            id,
             StateSaver::new,
             CODEC,
             DataFixTypes.PLAYER
     );
-
+    private static void migrate(MinecraftServer server)
+    {
+        Path root= server.getDataStorage().dataFolder;
+        Path oldPath=root.resolve("ItemStorage.dat");
+        Path newPath=id.withSuffix(".dat").resolveAgainst(root);
+        newPath.getParent().toFile().mkdir();
+        if(oldPath.toFile().exists())
+        {
+            try
+            {
+                Files.move(oldPath, newPath, StandardCopyOption.REPLACE_EXISTING);
+            }
+            catch(Exception e){throw new RuntimeException(e);}
+        }
+    }
     static ArrayList<Pair<ItemStack,Byte>> listToArrayList(List<Pair<ItemStack,Byte>> src)
     {
         ArrayList<Pair<ItemStack,Byte>> ret=new ArrayList<>();
@@ -164,7 +175,7 @@ public class StateSaver extends SavedData
         spawn.clear();
         for(PositionInfo positionInfo:posList)
         {
-            posMap.computeIfAbsent(Identifier.parse(positionInfo.dimension), i->new HashMap<>())
+            posMap.computeIfAbsent(Identifier.parse(positionInfo.dimension), _ ->new HashMap<>())
                     .put(positionInfo.player, new PositionInfoNew(
                             Identifier.parse(positionInfo.rdim),
                             positionInfo.pos,
@@ -176,7 +187,7 @@ public class StateSaver extends SavedData
         posList.clear();
         for(StorageInfo storageInfo:nbtList)
         {
-            savedMap.computeIfAbsent(storageInfo.dimension,i->new HashMap<>())
+            savedMap.computeIfAbsent(storageInfo.dimension, _ ->new HashMap<>())
                     .put(storageInfo.player,new StorageInfoNew(
                             storageInfo.inventory,
                             storageInfo.ender,
@@ -191,11 +202,9 @@ public class StateSaver extends SavedData
         nbtList.clear();
     }
     public static StateSaver getServerState(MinecraftServer server) {
-        return getServerState(Objects.requireNonNull(server.getLevel(Level.OVERWORLD)));
-    }
-    //DO NOT USE THIS UNLESS DURING CONSTRUCTION OF OVERWORLD
-    public static StateSaver getServerState(ServerLevel world) {
-        DimensionDataStorage persistentStateManager = world.getDataStorage();
+        StateSaver.server=server;
+        migrate(server);
+        SavedDataStorage persistentStateManager = server.getDataStorage();
         StateSaver state = persistentStateManager.computeIfAbsent(type);
         state.setDirty();
         state.update();

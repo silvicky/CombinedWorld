@@ -130,21 +130,6 @@ public class DeleteWorld {
         }
         try
         {
-            if(!isSinglet)
-            {
-                if(stateSaver.dragonFight.remove(idEnd)!=null)
-                {
-                    source.sendSuccess(()-> Component.literal("Dragon fight deleted."),false);
-                }
-            }
-        }
-        catch(Exception e)
-        {
-            e.printStackTrace();
-            source.sendSuccess(()-> Component.literal("ERR: Failed to delete dragon fight! Please manually delete them."),false);
-        }
-        try
-        {
             Set<String> removedPlayers = stateSaver.posMap.getOrDefault(id,new HashMap<>()).keySet();
             int cnt = removedPlayers.size();
             for(String i:removedPlayers)stateSaver.savedMap.getOrDefault(id.getNamespace(),new HashMap<>()).remove(i);

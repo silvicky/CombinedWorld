@@ -15,7 +15,7 @@ import static io.silvicky.item.common.Util.*;
 @Mixin(NetherPortalBlock.class)
 public class NetherPortalBlockMixin
 {
-    @ModifyVariable(method = "getPortalDestination", at = @At(value = "STORE"),ordinal =0)
+    @ModifyVariable(method = "getPortalDestination", at = @At(value = "STORE"), name = "newDimension")
     private ResourceKey<Level> injected(ResourceKey<Level> registryKey, @Local(argsOnly = true) ServerLevel world) {
         ResourceKey<Level> registryKey0=world.dimension();
         String path=registryKey0.identifier().getPath();
