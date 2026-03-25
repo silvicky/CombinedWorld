@@ -45,6 +45,31 @@ public class StateSaver extends SavedData
     public final HashMap<Identifier,String> chunkTransformer;
     public final HashMap<Identifier, Integer> silence;
     public final HashMap<Identifier, Integer> darkness;
+    public final StateSaverExt ext;
+    public static class StateSaverExt
+    {
+        public final HashMap<Identifier, Integer> view;
+        public final HashMap<Identifier, Integer> sim;
+
+        StateSaverExt(HashMap<Identifier, Integer> view, HashMap<Identifier, Integer> sim)
+        {
+            this.view = view;
+            this.sim = sim;
+        }
+        StateSaverExt()
+        {
+            this(new HashMap<>(),new HashMap<>());
+        }
+        static final Codec<StateSaverExt> CODEC=RecordCodecBuilder.create((instance)->
+                instance.group
+                        (
+                                Codec.unboundedMap(Identifier.CODEC, Codec.INT).xmap(HashMap::new, map->map).fieldOf("view").orElse(new HashMap<>()).forGetter((stateSaver ->
+                                        stateSaver.view)),
+                                Codec.unboundedMap(Identifier.CODEC, Codec.INT).xmap(HashMap::new, map->map).fieldOf("sim").orElse(new HashMap<>()).forGetter((stateSaver ->
+                                        stateSaver.sim))
+                        ).apply(instance,StateSaverExt::new));
+    }
+
     public static final Codec<Pair<ItemStack,Byte>> SLOT_CODEC=Codec.pair(ItemStack.CODEC.orElse(ItemStack.EMPTY),Codec.BYTE.fieldOf(SLOT).codec());
     private static final Codec<StateSaver> CODEC= RecordCodecBuilder.create((instance)->
             instance.group
@@ -78,7 +103,9 @@ public class StateSaver extends SavedData
                         Codec.unboundedMap(Identifier.CODEC, Codec.INT).xmap(HashMap::new, map->map).fieldOf("silence").orElse(new HashMap<>()).forGetter((stateSaver ->
                                 stateSaver.silence)),
                         Codec.unboundedMap(Identifier.CODEC, Codec.INT).xmap(HashMap::new, map->map).fieldOf("darkness").orElse(new HashMap<>()).forGetter((stateSaver ->
-                                stateSaver.darkness))
+                                stateSaver.darkness)),
+                        StateSaverExt.CODEC.fieldOf("ext").orElse(new StateSaverExt()).forGetter((stateSaver ->
+                                stateSaver.ext))
                     ).apply(instance,StateSaver::new));
     private StateSaver(LinkedList<StorageInfo> nbtList,
                       LinkedList<PositionInfo> posList,
@@ -94,7 +121,8 @@ public class StateSaver extends SavedData
                        HashMap<String,HashMap<String,Long>> playerVisibility,
                        HashMap<Identifier,String> chunkTransformer,
                        HashMap<Identifier,Integer> silence,
-                       HashMap<Identifier,Integer> darkness)
+                       HashMap<Identifier,Integer> darkness,
+                       StateSaverExt ext)
     {
         this.nbtList=nbtList;
         this.posList=posList;
@@ -111,6 +139,7 @@ public class StateSaver extends SavedData
         this.chunkTransformer=chunkTransformer;
         this.silence=silence;
         this.darkness=darkness;
+        this.ext=ext;
     }
     private StateSaver()
     {
@@ -128,7 +157,8 @@ public class StateSaver extends SavedData
                 new HashMap<>(),
                 new HashMap<>(),
                 new HashMap<>(),
-                new HashMap<>()
+                new HashMap<>(),
+                new StateSaverExt()
         );
     }
     private static final SavedDataType<StateSaver> type = new SavedDataType<>(

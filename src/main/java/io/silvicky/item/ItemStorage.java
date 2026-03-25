@@ -1,18 +1,12 @@
 package io.silvicky.item;
 
 import io.silvicky.item.cfg.JSONConfig;
-import io.silvicky.item.command.backrooms.ChunkTransformer;
-import io.silvicky.item.command.backrooms.Darkness;
-import io.silvicky.item.command.backrooms.Silence;
-import io.silvicky.item.command.backrooms.Visibility;
+import io.silvicky.item.command.backrooms.*;
 import io.silvicky.item.command.list.ListDimensionPlayers;
 import io.silvicky.item.command.list.ListGroupPlayers;
 import io.silvicky.item.command.list.ListWorldPlayers;
 import io.silvicky.item.command.utility.PackMe;
-import io.silvicky.item.command.warp.BanWarp;
-import io.silvicky.item.command.warp.Evacuate;
-import io.silvicky.item.command.warp.Warp;
-import io.silvicky.item.command.warp.WarpTp;
+import io.silvicky.item.command.warp.*;
 import io.silvicky.item.command.world.DeleteWorld;
 import io.silvicky.item.command.world.ImportWorld;
 import net.fabricmc.api.ModInitializer;
@@ -33,6 +27,7 @@ public class ItemStorage implements ModInitializer {
 		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> ListGroupPlayers.register(dispatcher));
 		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> ImportWorld.register(dispatcher));
 		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> DeleteWorld.register(dispatcher));
+		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> DefaultMode.register(dispatcher));
 		//CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> ExportWorld.register(dispatcher));
 		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> WarpTp.register(dispatcher));
 		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> BanWarp.register(dispatcher));
@@ -42,5 +37,6 @@ public class ItemStorage implements ModInitializer {
 		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> Silence.register(dispatcher));
         CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> ChunkTransformer.register(dispatcher));
         CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> Darkness.register(dispatcher));
+		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> Distance.register(dispatcher));
     }
 }

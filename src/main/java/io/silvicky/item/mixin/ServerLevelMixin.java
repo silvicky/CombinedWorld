@@ -1,8 +1,10 @@
 package io.silvicky.item.mixin;
 
+import com.llamalad7.mixinextras.sugar.Local;
 import io.silvicky.item.StateSaver;
 import net.minecraft.core.Holder;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.server.players.PlayerList;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
@@ -109,5 +111,15 @@ public abstract class ServerLevelMixin extends Level
     private void inject12(@Nullable Entity entity, Entity entity2, Holder<SoundEvent> holder, SoundSource soundSource, float f, float g, long l, CallbackInfo ci)
     {
         if((StateSaver.getServerState(server).silence.getOrDefault(dimension.identifier(),0)&2)==2)ci.cancel();
+    }
+    @Redirect(method = "<init>",at= @At(value = "INVOKE", target = "Lnet/minecraft/server/players/PlayerList;getViewDistance()I"))
+    private int inject13(PlayerList instance, @Local(name = "dimension")ResourceKey<Level> dimension, @Local(argsOnly = true) MinecraftServer server)
+    {
+        return StateSaver.getServerState(server).ext.view.getOrDefault(dimension.identifier(),instance.getViewDistance());
+    }
+    @Redirect(method = "<init>",at= @At(value = "INVOKE", target = "Lnet/minecraft/server/players/PlayerList;getSimulationDistance()I"))
+    private int inject14(PlayerList instance, @Local(name = "dimension")ResourceKey<Level> dimension, @Local(argsOnly = true) MinecraftServer server)
+    {
+        return StateSaver.getServerState(server).ext.sim.getOrDefault(dimension.identifier(),instance.getSimulationDistance());
     }
 }
