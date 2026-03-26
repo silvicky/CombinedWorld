@@ -29,6 +29,8 @@ import static java.lang.String.format;
 public class StateSaver extends SavedData
 {
     public static MinecraftServer server;
+    private static boolean checkMigrate=true;
+    private static boolean checkUpdate=true;
     public static final Identifier id=Identifier.fromNamespaceAndPath("silvicky", Util.MOD_ID);
     private final LinkedList<StorageInfo> nbtList;
     private final LinkedList<PositionInfo> posList;
@@ -191,11 +193,19 @@ public class StateSaver extends SavedData
     }
     public static StateSaver getServerState(MinecraftServer server) {
         StateSaver.server=server;
-        migrate(server);
+        if(checkMigrate)
+        {
+            migrate(server);
+            checkMigrate=false;
+        }
         SavedDataStorage persistentStateManager = server.getDataStorage();
         StateSaver state = persistentStateManager.computeIfAbsent(type);
+        if(checkUpdate)
+        {
+            state.update();
+            checkUpdate=false;
+        }
         state.setDirty();
-        state.update();
         return state;
     }
     private static class StorageInfo {
