@@ -22,14 +22,14 @@ public class EntityVisibilityManager
     public static long getPlayerVisibility(MinecraftServer server, String namespace, String player)
     {
         return getServerState(server).playerVisibility
-                .computeIfAbsent(namespace,i->new HashMap<>())
-                .compute(player, (k, v) -> (v == null) ? 0L : v % playerVisibilityRange);
+                .computeIfAbsent(namespace, _ ->new HashMap<>())
+                .compute(player, (_, v) -> (v == null) ? 0L : v % playerVisibilityRange);
     }
     public static void updatePlayerVisibility(MinecraftServer server, String namespace, String player)
     {
         getServerState(server).playerVisibility
-                .computeIfAbsent(namespace,i->new HashMap<>())
-                .compute(player, (k, v) ->
+                .computeIfAbsent(namespace, _ ->new HashMap<>())
+                .compute(player, (_, v) ->
                         (
                                 ((v == null) ? 0L : v )
                                         +(playerVisibilityRandomize?random.nextLong()%(playerVisibilityRange-1):0L)
@@ -39,7 +39,7 @@ public class EntityVisibilityManager
     public static void setPlayerVisibility(MinecraftServer server, String namespace, String player, long level)
     {
         getServerState(server).playerVisibility
-                .computeIfAbsent(namespace,i->new HashMap<>())
+                .computeIfAbsent(namespace, _ ->new HashMap<>())
                 .put(player, level % playerVisibilityRange);
     }
     public static void initPlayerVisibility(MinecraftServer server, String namespace)
