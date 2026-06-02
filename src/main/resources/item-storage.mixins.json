@@ -14,6 +14,7 @@
     "CollisionGetterMixin",
     "ConnectionMixin",
     "EndPortalBlockMixin",
+    "LevelStorageAccessMixin",
     "EntityMixin",
     "LayerLightSectionStorageMixin",
     "LevelMixin",
@@ -28,6 +29,7 @@
     "ServerGamePacketListenerImplMixin",
     "ServerLevelMixin",
     "ServerPlayerGameModeMixin",
+    "ServerPlayerMixin"
     "ServerPlayerMixin",
     "TrackedEntityMixin",
     "WorldGenSettingsMixin"
