@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static io.silvicky.item.InventoryManager.loadPos;
+import static io.silvicky.item.InventoryManager.removePos;
 import static io.silvicky.item.StateSaver.server;
 
 public class NoclipManager
@@ -29,15 +30,16 @@ public class NoclipManager
         if((!cur)&&player.isInWall())
         {
             StateSaver stateSaver=StateSaver.getServerState(player.level().getServer());
+            Identifier source=player.level().dimension.identifier();
             Identifier target=stateSaver
                     .ext
                     .noclip
-                    .computeIfAbsent(player.level().dimension.identifier(),_->new WeightedSelector<>())
+                    .computeIfAbsent(source,_->new WeightedSelector<>())
                     .select();
             if(target==null)return;
             ServerLevel level=player.level().getServer().getLevel(ResourceKey.create(Registries.DIMENSION,target));
-            try{loadPos(server, player, level, stateSaver);}
-            catch (Exception e){throw new RuntimeException(e);}//TODO reset respawn
+            try{loadPos(server, player, level, stateSaver);removePos(player,stateSaver,source);}
+            catch (Exception e){throw new RuntimeException(e);}
         }
     }
 }

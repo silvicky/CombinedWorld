@@ -46,7 +46,7 @@ public class NoclipVoid
     private static int getWeights(CommandSourceStack source, ServerLevel dimension)
     {
         StateSaver stateSaver=StateSaver.getServerState(dimension.getServer());
-        for(Map.Entry<Identifier,Integer> entry:stateSaver.ext.noclip.getOrDefault(dimension.dimension.identifier(),new WeightedSelector<>()).asMap().entrySet())
+        for(Map.Entry<Identifier,Integer> entry:stateSaver.ext.noclipVoid.getOrDefault(dimension.dimension.identifier(),new WeightedSelector<>()).asMap().entrySet())
         {
             source.sendSuccess(()-> Component.literal(format("%s -> %d", entry.getKey(),entry.getValue())),false);
         }
@@ -55,7 +55,7 @@ public class NoclipVoid
     }
     private static int setWeight(CommandSourceStack source, ServerLevel dimension, ServerLevel target, int level)
     {
-        getServerState(source.getServer()).ext.noclip.computeIfAbsent(dimension.dimension().identifier(),_->new WeightedSelector<>()).put(target.dimension().identifier(), level);
+        getServerState(source.getServer()).ext.noclipVoid.computeIfAbsent(dimension.dimension().identifier(),_->new WeightedSelector<>()).put(target.dimension().identifier(), level);
         source.sendSuccess(()-> Component.literal("Done."),false);
         return Command.SINGLE_SUCCESS;
     }

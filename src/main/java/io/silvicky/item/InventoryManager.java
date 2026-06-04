@@ -27,7 +27,7 @@ public class InventoryManager {
     public static void savePos(ServerPlayer player, StateSaver stateSaver, Identifier fakeDimension)
     {
         stateSaver.posMap
-                .computeIfAbsent(getDimensionId(fakeDimension),i->new HashMap<>())
+                .computeIfAbsent(getDimensionId(fakeDimension), _ ->new HashMap<>())
                 .put(player.getStringUUID(),new StateSaver.PositionInfoNew(
                         fakeDimension,
                         player.position(),
@@ -35,14 +35,19 @@ public class InventoryManager {
                         player.getYRot(),
                         player.getXRot()));
     }
-
+    public static void removePos(ServerPlayer player, StateSaver stateSaver, Identifier source)
+    {
+        stateSaver.posMap
+                .computeIfAbsent(getDimensionId(source), _ ->new HashMap<>())
+                .remove(player.getStringUUID());
+    }
     public static void saveInventory(ServerPlayer player, StateSaver stateSaver)
     {
         saveInventory(player,stateSaver,player.level().dimension().identifier());
     }
     public static void saveInventory(ServerPlayer player, StateSaver stateSaver, Identifier fakeDimension)
     {
-        stateSaver.savedMap.computeIfAbsent(fakeDimension.getNamespace(),i->new HashMap<>())
+        stateSaver.savedMap.computeIfAbsent(fakeDimension.getNamespace(), _ ->new HashMap<>())
                 .put(player.getStringUUID(),new StateSaver.StorageInfoNew
                         (
                         inventoryToStack(player.getInventory()),
@@ -58,7 +63,7 @@ public class InventoryManager {
     public static void loadPos(MinecraftServer server, ServerPlayer player, ServerLevel targetDimension, StateSaver stateSaver) throws CommandSyntaxException {
         targetDimension= toOverworld(server,targetDimension);
         StateSaver.PositionInfoNew n=stateSaver.posMap
-                .computeIfAbsent(getDimensionId(targetDimension.dimension().identifier()), i->new HashMap<>())
+                .computeIfAbsent(getDimensionId(targetDimension.dimension().identifier()), _ ->new HashMap<>())
                 .get(player.getStringUUID());
         if(n==null)
         {
@@ -84,7 +89,7 @@ public class InventoryManager {
     }
     public static void loadInventory(ServerPlayer player, ServerLevel targetDimension, StateSaver stateSaver) throws CommandSyntaxException {
         StateSaver.StorageInfoNew n=stateSaver.savedMap
-                .computeIfAbsent(targetDimension.dimension().identifier().getNamespace(), i->new HashMap<>())
+                .computeIfAbsent(targetDimension.dimension().identifier().getNamespace(), _ ->new HashMap<>())
                 .get(player.getStringUUID());
         if(n!=null)
         {

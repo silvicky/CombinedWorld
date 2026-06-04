@@ -14,6 +14,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import static io.silvicky.item.InventoryManager.loadPos;
+import static io.silvicky.item.InventoryManager.removePos;
 import static io.silvicky.item.StateSaver.server;
 
 @Mixin(LivingEntity.class)
@@ -25,14 +26,15 @@ public class LivingEntityMixin
         LivingEntity instance=(LivingEntity) (Object)this;
         if(!(instance instanceof ServerPlayer player))return;
         StateSaver stateSaver=StateSaver.getServerState(instance.level().getServer());
-        WeightedSelector<Identifier> selector= stateSaver.ext.noclipVoid.computeIfAbsent(instance.level().dimension.identifier(), _->new WeightedSelector<>());
+        Identifier source=instance.level().dimension.identifier();
+        WeightedSelector<Identifier> selector= stateSaver.ext.noclipVoid.computeIfAbsent(source, _->new WeightedSelector<>());
         if(selector.asMap().isEmpty())return;
         Identifier target=selector.select();
         if(target==null)ci.cancel();
         else
         {
             ServerLevel level=player.level().getServer().getLevel(ResourceKey.create(Registries.DIMENSION,target));
-            try{loadPos(server, player, level, stateSaver);}
+            try{loadPos(server, player, level, stateSaver);removePos(player,stateSaver,source);}
             catch (Exception e){throw new RuntimeException(e);}
         }
     }
