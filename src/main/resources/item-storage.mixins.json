@@ -14,11 +14,12 @@
     "CollisionGetterMixin",
     "ConnectionMixin",
     "EndPortalBlockMixin",
-    "LevelStorageAccessMixin",
     "EntityMixin",
     "LayerLightSectionStorageMixin",
     "LevelMixin",
+    "LevelStorageAccessMixin",
     "LightEngineMixin",
+    "LivingEntityMixin",
     "NetherPortalBlockMixin",
     "PlayerListMixin",
     "PlayerMixin",
@@ -29,10 +30,8 @@
     "ServerGamePacketListenerImplMixin",
     "ServerLevelMixin",
     "ServerPlayerGameModeMixin",
-    "ServerPlayerMixin"
     "ServerPlayerMixin",
-    "TrackedEntityMixin",
-    "WorldGenSettingsMixin"
+    "TrackedEntityMixin"
   ],
   "injectors": {
     "defaultRequire": 1

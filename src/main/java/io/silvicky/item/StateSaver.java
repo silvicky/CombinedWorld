@@ -54,15 +54,20 @@ public class StateSaver extends SavedData
         public final HashMap<Identifier, Integer> view;
         public final HashMap<Identifier, Integer> sim;
         public final HashMap<Identifier, WeightedSelector<Identifier>> noclip;
-        StateSaverExt(HashMap<Identifier, Integer> view, HashMap<Identifier, Integer> sim, HashMap<Identifier,WeightedSelector<Identifier>> noclip)
+        public final HashMap<Identifier, WeightedSelector<Identifier>> noclipVoid;
+        StateSaverExt(HashMap<Identifier, Integer> view,
+                      HashMap<Identifier, Integer> sim,
+                      HashMap<Identifier,WeightedSelector<Identifier>> noclip,
+                      HashMap<Identifier,WeightedSelector<Identifier>> noclipVoid)
         {
             this.view = view;
             this.sim = sim;
             this.noclip=noclip;
+            this.noclipVoid=noclipVoid;
         }
         StateSaverExt()
         {
-            this(new HashMap<>(),new HashMap<>(),new HashMap<>());
+            this(new HashMap<>(),new HashMap<>(),new HashMap<>(),new HashMap<>());
         }
         static final Codec<StateSaverExt> CODEC=RecordCodecBuilder.create((instance)->
                 instance.group
@@ -72,7 +77,9 @@ public class StateSaver extends SavedData
                                 Codec.unboundedMap(Identifier.CODEC, Codec.INT).xmap(HashMap::new, map->map).fieldOf("sim").orElse(new HashMap<>()).forGetter((stateSaver ->
                                         stateSaver.sim)),
                                 Codec.unboundedMap(Identifier.CODEC, Codec.unboundedMap(Identifier.CODEC,Codec.INT).xmap(WeightedSelector::new,WeightedSelector::asMap)).xmap(HashMap::new, map->map).fieldOf("noclip").orElse(new HashMap<>()).forGetter((stateSaver ->
-                                        stateSaver.noclip))
+                                        stateSaver.noclip)),
+                                Codec.unboundedMap(Identifier.CODEC, Codec.unboundedMap(Identifier.CODEC,Codec.INT).xmap(WeightedSelector::new,WeightedSelector::asMap)).xmap(HashMap::new, map->map).fieldOf("noclipvoid").orElse(new HashMap<>()).forGetter((stateSaver ->
+                                        stateSaver.noclipVoid))
                         ).apply(instance,StateSaverExt::new));
     }
 

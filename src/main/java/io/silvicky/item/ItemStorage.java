@@ -44,5 +44,7 @@ public class ItemStorage implements ModInitializer {
         CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> ChunkTransformer.register(dispatcher));
         CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> Darkness.register(dispatcher));
 		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> Distance.register(dispatcher));
+		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> Noclip.register(dispatcher));
+		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> NoclipVoid.register(dispatcher));
     }
 }

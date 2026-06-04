@@ -2,6 +2,7 @@ package io.silvicky.item.mixin;
 
 import com.llamalad7.mixinextras.sugar.Local;
 import io.silvicky.item.StateSaver;
+import io.silvicky.item.backrooms.NoclipManager;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.core.registries.Registries;
@@ -57,6 +58,7 @@ public abstract class ServerPlayerMixin
         ServerPlayer entity=(ServerPlayer) (Object)this;
         StateSaver stateSaver=StateSaver.getServerState(level().getServer());
         if(getDimensionId(source).equals(getDimensionId(target)))return;
+        NoclipManager.init(entity);
         if(!source.getNamespace().equals(target.getNamespace()))
         {
             if(useStorage)
@@ -133,5 +135,11 @@ public abstract class ServerPlayerMixin
         updatePlayerVisibility(player.level().getServer(),
                 player.level().dimension().identifier().getNamespace(),
                 player.getStringUUID());
+    }
+    @Inject(method = "tick",at = @At("RETURN"))
+    private void inject8(CallbackInfo ci)
+    {
+        ServerPlayer player =((ServerPlayer)(Object)this);
+        NoclipManager.update(player);
     }
 }
