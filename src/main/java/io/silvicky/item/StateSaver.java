@@ -4,6 +4,7 @@ import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.silvicky.item.common.Util;
+import io.silvicky.item.common.WeightedSelector;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.resources.ResourceKey;
@@ -52,15 +53,16 @@ public class StateSaver extends SavedData
     {
         public final HashMap<Identifier, Integer> view;
         public final HashMap<Identifier, Integer> sim;
-
-        StateSaverExt(HashMap<Identifier, Integer> view, HashMap<Identifier, Integer> sim)
+        public final HashMap<Identifier, WeightedSelector<Identifier>> noclip;
+        StateSaverExt(HashMap<Identifier, Integer> view, HashMap<Identifier, Integer> sim, HashMap<Identifier,WeightedSelector<Identifier>> noclip)
         {
             this.view = view;
             this.sim = sim;
+            this.noclip=noclip;
         }
         StateSaverExt()
         {
-            this(new HashMap<>(),new HashMap<>());
+            this(new HashMap<>(),new HashMap<>(),new HashMap<>());
         }
         static final Codec<StateSaverExt> CODEC=RecordCodecBuilder.create((instance)->
                 instance.group
@@ -68,7 +70,9 @@ public class StateSaver extends SavedData
                                 Codec.unboundedMap(Identifier.CODEC, Codec.INT).xmap(HashMap::new, map->map).fieldOf("view").orElse(new HashMap<>()).forGetter((stateSaver ->
                                         stateSaver.view)),
                                 Codec.unboundedMap(Identifier.CODEC, Codec.INT).xmap(HashMap::new, map->map).fieldOf("sim").orElse(new HashMap<>()).forGetter((stateSaver ->
-                                        stateSaver.sim))
+                                        stateSaver.sim)),
+                                Codec.unboundedMap(Identifier.CODEC, Codec.unboundedMap(Identifier.CODEC,Codec.INT).xmap(WeightedSelector::new,WeightedSelector::asMap)).xmap(HashMap::new, map->map).fieldOf("noclip").orElse(new HashMap<>()).forGetter((stateSaver ->
+                                        stateSaver.noclip))
                         ).apply(instance,StateSaverExt::new));
     }
 

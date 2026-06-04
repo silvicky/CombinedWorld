@@ -1,9 +1,6 @@
 package io.silvicky.item.common;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
-import java.util.TreeMap;
+import java.util.*;
 
 public class WeightedSelector<T>
 {
@@ -19,6 +16,12 @@ public class WeightedSelector<T>
             cur+=entry.getValue();
             borders.put(cur, entry.getKey());
         }
+    }
+    public WeightedSelector(){}
+    public WeightedSelector(Map<T,Integer> weights)
+    {
+        this.weights.putAll(weights);
+        update();
     }
     public void put(T key, int value)
     {
@@ -38,4 +41,5 @@ public class WeightedSelector<T>
         Map.Entry<Integer,T> entry=borders.higherEntry(key);
         return entry==null?null:entry.getValue();
     }
+    public Map<T, Integer> asMap(){return weights;}
 }
