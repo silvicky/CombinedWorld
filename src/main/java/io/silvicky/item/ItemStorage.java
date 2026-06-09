@@ -14,6 +14,7 @@ import io.silvicky.item.command.world.CreateWorld;
 import io.silvicky.item.command.warp.DefaultMode;
 import io.silvicky.item.command.world.DeleteWorld;
 import io.silvicky.item.command.world.ImportWorld;
+import io.silvicky.item.worldgen.WorldGens;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 
@@ -25,6 +26,7 @@ public class ItemStorage implements ModInitializer {
 		// However, some things (like resources) may still be uninitialized.
 		// Proceed with mild caution.
 		LOGGER.info("Loading CombinedWorld...");
+		WorldGens.register();
 		JSONConfig.config();
 		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> Warp.register(dispatcher));
 		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> ListWorldPlayers.register(dispatcher));
