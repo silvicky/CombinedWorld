@@ -18,5 +18,7 @@ public class WorldGens
     {
         Registry.register(BuiltInRegistries.CHUNK_GENERATOR, Identifier.parse("silvicky:custom"), CustomWorldGen.CODEC);
         registerWorldGen(new ExampleCustomRule());
+        Registry.register(BuiltInRegistries.CHUNK_GENERATOR, Identifier.parse("silvicky:decay"), DecayWorldGen.CODEC);
+
     }
 }
