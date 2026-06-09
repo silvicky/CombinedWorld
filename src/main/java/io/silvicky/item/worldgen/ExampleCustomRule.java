@@ -1,14 +1,15 @@
 package io.silvicky.item.worldgen;
 
-import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.chunk.ChunkAccess;
+import org.jspecify.annotations.NonNull;
 
 public class ExampleCustomRule implements CustomRule
 {
     @Override
-    public void gen(WorldGenRegion level)
+    public void gen(@NonNull ChunkAccess chunk)
     {
-        level.setBlock(level.getCenter().getBlockAt(8,0,8), Blocks.GLOWSTONE.defaultBlockState(),16);
+        chunk.setBlockState(chunk.getPos().getBlockAt(8,0,8), Blocks.GLOWSTONE.defaultBlockState());
     }
 
     @Override
