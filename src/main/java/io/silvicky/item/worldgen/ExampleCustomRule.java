@@ -3,7 +3,7 @@ package io.silvicky.item.worldgen;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.block.Blocks;
 
-public class ExampleWorldGen implements BasicWorldGen
+public class ExampleCustomRule implements CustomRule
 {
     @Override
     public void gen(WorldGenRegion level)

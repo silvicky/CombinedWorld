@@ -23,19 +23,19 @@ import org.jspecify.annotations.NonNull;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-public class WorldGenHolder extends ChunkGenerator
+public class CustomWorldGen extends ChunkGenerator
 {
-    public static final MapCodec<WorldGenHolder> CODEC = RecordCodecBuilder.mapCodec(
+    public static final MapCodec<CustomWorldGen> CODEC = RecordCodecBuilder.mapCodec(
             instance -> instance.group(
                     BiomeSource.CODEC.fieldOf("biome_source").forGetter(generator -> generator.biomeSource),
-                    Codec.STRING.xmap(WorldGens.worldGenMap::get, BasicWorldGen::name).fieldOf("settings").forGetter(generator -> generator.worldGen)
-            ).apply(instance, instance.stable(WorldGenHolder::new)));
+                    Codec.STRING.xmap(WorldGens.worldGenMap::get, CustomRule::name).fieldOf("settings").forGetter(generator -> generator.worldGen)
+            ).apply(instance, instance.stable(CustomWorldGen::new)));
 
     private final BiomeSource biomeSource;
 
-    private final BasicWorldGen worldGen;
+    private final CustomRule worldGen;
 
-    public WorldGenHolder(BiomeSource biomeSource, BasicWorldGen worldGen)
+    public CustomWorldGen(BiomeSource biomeSource, CustomRule worldGen)
     {
         super(biomeSource);
         this.biomeSource = biomeSource;

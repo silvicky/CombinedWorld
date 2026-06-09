@@ -9,14 +9,14 @@ import java.util.Map;
 
 public class WorldGens
 {
-    public static final Map<String, BasicWorldGen> worldGenMap=new HashMap<>();
-    public static void registerWorldGen(BasicWorldGen worldGen)
+    public static final Map<String, CustomRule> worldGenMap=new HashMap<>();
+    public static void registerWorldGen(CustomRule worldGen)
     {
         worldGenMap.put(worldGen.name(), worldGen);
     }
     public static void register()
     {
-        Registry.register(BuiltInRegistries.CHUNK_GENERATOR, Identifier.parse("silvicky:custom"), WorldGenHolder.CODEC);
-        registerWorldGen(new ExampleWorldGen());
+        Registry.register(BuiltInRegistries.CHUNK_GENERATOR, Identifier.parse("silvicky:custom"), CustomWorldGen.CODEC);
+        registerWorldGen(new ExampleCustomRule());
     }
 }
