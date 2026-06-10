@@ -1,0 +1,31 @@
+{
+	"schemaVersion": 1,
+	"id": "combined-world-backrooms",
+	"version": "${version}",
+	"name": "Combined World Backrooms Addon",
+	"description": "Switch between dimensions as if they are different servers.",
+	"authors": [
+		"Vicky Silviana"
+	],
+	"contact": {
+		"homepage": "https://fabricmc.net/",
+		"sources": "https://github.com/FabricMC/fabric-example-mod"
+	},
+	"license": "CC0-1.0",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"io.silvicky.item_br.ItemStorageBackrooms"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.16.9",
+		"minecraft": ">=26.1",
+		"java": ">=25",
+		"fabric-api": "*",
+		"combined-world": "*"
+	},
+	"suggests": {
+		"another-mod": "*"
+	}
+}
