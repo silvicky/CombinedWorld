@@ -16,6 +16,8 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.chunk.ChunkGeneratorStructureState;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
+import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.blending.Blender;
 import net.minecraft.world.level.levelgen.structure.Structure;
@@ -41,6 +43,19 @@ public class DecayWorldGen extends ChunkGenerator
     {
         super(baseGen.getBiomeSource());
         this.baseGen=baseGen;
+    }
+
+    public NoiseGeneratorSettings noise()
+    {
+        if(baseGen instanceof NoiseBasedChunkGenerator generator)
+        {
+            return generator.generatorSettings().value();
+        }
+        if(baseGen instanceof DecayWorldGen decayWorldGen)
+        {
+            return decayWorldGen.noise();
+        }
+        return NoiseGeneratorSettings.dummy();
     }
 
     @Override

@@ -1,14 +1,19 @@
 package io.silvicky.item.mixin;
 
+import com.llamalad7.mixinextras.sugar.Local;
 import io.silvicky.item.backrooms.PositionedHelper;
 import io.silvicky.item.backrooms.VecTransformer;
 import io.silvicky.item.backrooms.PositionedAccess;
+import io.silvicky.item.worldgen.WorldGenUtil;
 import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
@@ -31,5 +36,10 @@ public class ChunkMapMixin
     private void inject3(ServerPlayer serverPlayer, CallbackInfo ci)
     {
         VecTransformer.getInstance(serverPlayer).tick();
+    }
+    @ModifyArg(method = "<init>",at=@At(value = "INVOKE", target = "Lnet/minecraft/world/level/levelgen/RandomState;create(Lnet/minecraft/world/level/levelgen/NoiseGeneratorSettings;Lnet/minecraft/core/HolderGetter;J)Lnet/minecraft/world/level/levelgen/RandomState;", ordinal = 1),index = 0)
+    private NoiseGeneratorSettings inject4(NoiseGeneratorSettings settings, @Local(argsOnly = true)ChunkGenerator generator)
+    {
+        return WorldGenUtil.getNoise(generator);
     }
 }
