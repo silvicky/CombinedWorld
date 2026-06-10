@@ -10,15 +10,20 @@ import java.util.Map;
 public class WorldGens
 {
     public static final Map<String, CustomRule> worldGenMap=new HashMap<>();
+    public static final Map<String, DecayRule> decayRuleMap=new HashMap<>();
     public static void registerWorldGen(CustomRule worldGen)
     {
         worldGenMap.put(worldGen.name(), worldGen);
+    }
+    public static void registerDecayRule(DecayRule worldGen)
+    {
+        decayRuleMap.put(worldGen.name(), worldGen);
     }
     public static void register()
     {
         Registry.register(BuiltInRegistries.CHUNK_GENERATOR, Identifier.parse("silvicky:custom"), CustomWorldGen.CODEC);
         registerWorldGen(new ExampleCustomRule());
         Registry.register(BuiltInRegistries.CHUNK_GENERATOR, Identifier.parse("silvicky:decay"), DecayWorldGen.CODEC);
-
+        registerDecayRule(new ExampleDecayRule());
     }
 }

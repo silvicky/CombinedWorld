@@ -1,6 +1,7 @@
 package io.silvicky.item.worldgen;
 
 import com.mojang.datafixers.util.Pair;
+import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.*;
@@ -34,15 +35,19 @@ public class DecayWorldGen extends ChunkGenerator
 {
     public static final MapCodec<DecayWorldGen> CODEC = RecordCodecBuilder.mapCodec(
             instance -> instance.group(
-                    ChunkGenerator.CODEC.fieldOf("base").forGetter(generator -> generator.baseGen)
+                    ChunkGenerator.CODEC.fieldOf("base").forGetter(generator -> generator.baseGen),
+                    Codec.STRING.xmap(WorldGens.decayRuleMap::get, DecayRule::name).fieldOf("settings").forGetter(generator -> generator.rule)
             ).apply(instance, instance.stable(DecayWorldGen::new)));
 
     private final ChunkGenerator baseGen;
 
-    public DecayWorldGen(ChunkGenerator baseGen)
+    private final DecayRule rule;
+
+    public DecayWorldGen(ChunkGenerator baseGen, DecayRule rule)
     {
         super(baseGen.getBiomeSource());
         this.baseGen=baseGen;
+        this.rule=rule;
     }
 
     public NoiseGeneratorSettings noise()
@@ -151,6 +156,7 @@ public class DecayWorldGen extends ChunkGenerator
     @Override
     public @NonNull CompletableFuture<ChunkAccess> fillFromNoise(@NonNull Blender blender, @NonNull RandomState randomState, @NonNull StructureManager structureManager, @NonNull ChunkAccess centerChunk)
     {
+        if(rule.decay(centerChunk))return CompletableFuture.completedFuture(centerChunk);
         return baseGen.fillFromNoise(blender,randomState,structureManager,centerChunk);
     }
 
