@@ -42,9 +42,9 @@ public class CustomWorldGen extends ChunkGenerator
         this.worldGen = worldGen;
     }
 
-    private void gen(@NonNull ChunkAccess chunk)
+    private void gen(@NonNull ChunkAccess chunk, @NonNull RandomState randomState)
     {
-        worldGen.gen(chunk);
+        worldGen.gen(chunk,randomState);
     }
 
     @Override
@@ -80,7 +80,7 @@ public class CustomWorldGen extends ChunkGenerator
     @Override
     public @NonNull CompletableFuture<ChunkAccess> fillFromNoise(@NonNull Blender blender, @NonNull RandomState randomState, @NonNull StructureManager structureManager, @NonNull ChunkAccess centerChunk)
     {
-        gen(centerChunk);
+        gen(centerChunk, randomState);
         return CompletableFuture.completedFuture(centerChunk);
     }
 

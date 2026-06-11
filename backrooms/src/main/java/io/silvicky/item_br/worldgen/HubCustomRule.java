@@ -3,13 +3,14 @@ package io.silvicky.item_br.worldgen;
 import io.silvicky.item.worldgen.CustomRule;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.levelgen.RandomState;
 import org.jspecify.annotations.NonNull;
 
 public class HubCustomRule implements CustomRule
 {
     private static final int[][] dome={{0,1},{0,2},{0,3},{1,4},{1,5},{2,6},{3,7},{4,7},{5,8},{6,8},{7,8}};
     @Override
-    public void gen(@NonNull ChunkAccess chunk)
+    public void gen(@NonNull ChunkAccess chunk, @NonNull RandomState randomState)
     {
         if(chunk.getPos().x()!=0)return;
         for(int z=0;z<16;z++)
