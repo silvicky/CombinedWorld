@@ -85,6 +85,7 @@ public class InventoryManager {
             TeleportTransition target = new TeleportTransition(sw2,n.pos(), n.velocity(), n.yaw(), n.pitch(), TeleportTransition.DO_NOTHING);
             if(player.connection !=null)player.teleport(target);
             else fakeTeleportTo(player,target,stateSaver);
+            player.resetFallDistance();
         }
     }
     public static void loadInventory(ServerPlayer player, ServerLevel targetDimension, StateSaver stateSaver) throws CommandSyntaxException {
