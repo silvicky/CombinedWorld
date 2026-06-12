@@ -17,7 +17,7 @@ public class Level0CustomRule implements CustomRule
         int cx=chunk.getPos().x();
         int cz=chunk.getPos().z();
         RandomSource random=randomState.getOrCreateRandomFactory(key).at(cx,0,cz);
-        int type = (cx ^ cz ^ random.nextInt()) & 63;
+        int type = random.nextInt(256);
         //Ceiling
         for (int x = 0; x < 16; x++)
             for (int z = 0; z < 16; z++)
@@ -57,7 +57,86 @@ public class Level0CustomRule implements CustomRule
             }
         }
         //Random walls
-        //TODO
+        if(type!=0)
+        {
+            int mode=random.nextInt(7);
+            switch(mode)
+            {
+                case 0 ->//cross
+                {
+                    int crx= random.nextInt(11)+3;
+                    int crz=random.nextInt(11)+3;
+                    for(int y=0;y<4;y++)for(int x=3;x<=13;x++)
+                    {
+                        chunk.setBlockState(chunk.getPos().getBlockAt(crx, 16 + y, x), Blocks.STRIPPED_BIRCH_LOG.defaultBlockState());
+                        chunk.setBlockState(chunk.getPos().getBlockAt(x, 16 + y, crz), Blocks.STRIPPED_BIRCH_LOG.defaultBlockState());
+                    }
+                }
+                case 1 ->//x wall
+                {
+                    int xrb= random.nextInt(3)+11;
+                    int xlb= random.nextInt(3)+3;
+                    int crz=random.nextInt(11)+3;
+                    for(int y=0;y<4;y++)for(int x=xlb;x<=xrb;x++)
+                    {
+                        chunk.setBlockState(chunk.getPos().getBlockAt(x, 16 + y, crz), Blocks.STRIPPED_BIRCH_LOG.defaultBlockState());
+                    }
+                }
+                case 2 ->//z wall
+                {
+                    int xrb= random.nextInt(3)+11;
+                    int xlb= random.nextInt(3)+3;
+                    int crz=random.nextInt(11)+3;
+                    for(int y=0;y<4;y++)for(int x=xlb;x<=xrb;x++)
+                    {
+                        chunk.setBlockState(chunk.getPos().getBlockAt(crz, 16 + y, x), Blocks.STRIPPED_BIRCH_LOG.defaultBlockState());
+                    }
+                }
+                case 3 ->//x wall with a hole
+                {
+                    int xrw=random.nextInt(3)+2;
+                    int xrr=random.nextInt(16-xrw)+1;
+                    int crz=random.nextInt(11)+3;
+                    for (int y = 0; y < 4; y++)
+                    {
+                        for (int x = 0; x < xrr; x++)
+                        {
+                            chunk.setBlockState(chunk.getPos().getBlockAt(x, 16 + y, crz), Blocks.STRIPPED_BIRCH_LOG.defaultBlockState());
+                        }
+                        for (int x = xrr+xrw; x < 16; x++)
+                        {
+                            chunk.setBlockState(chunk.getPos().getBlockAt(x, 16 + y, crz), Blocks.STRIPPED_BIRCH_LOG.defaultBlockState());
+                        }
+                    }
+                }
+                case 4 ->//z wall with a hole
+                {
+                    int xrw=random.nextInt(3)+2;
+                    int xrr=random.nextInt(16-xrw)+1;
+                    int crz=random.nextInt(11)+3;
+                    for (int y = 0; y < 4; y++)
+                    {
+                        for (int x = 0; x < xrr; x++)
+                        {
+                            chunk.setBlockState(chunk.getPos().getBlockAt(crz, 16 + y, x), Blocks.STRIPPED_BIRCH_LOG.defaultBlockState());
+                        }
+                        for (int x = xrr+xrw; x < 16; x++)
+                        {
+                            chunk.setBlockState(chunk.getPos().getBlockAt(crz, 16 + y, x), Blocks.STRIPPED_BIRCH_LOG.defaultBlockState());
+                        }
+                    }
+                }
+                case 5 ->//matrix
+                {
+                    for(int y=0;y<4;y++)for(int x=0;x<5;x++)for(int z=0;z<5;z++)
+                    {
+                        chunk.setBlockState(chunk.getPos().getBlockAt(x*3+2, 16 + y, z*3+2), Blocks.STRIPPED_BIRCH_LOG.defaultBlockState());
+                    }
+                }
+                case 6 ->//none
+                {}
+            }
+        }
         //Floor
         if (type == 0)
         {
