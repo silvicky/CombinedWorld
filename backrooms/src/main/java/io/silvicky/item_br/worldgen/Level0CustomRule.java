@@ -26,12 +26,14 @@ public class Level0CustomRule implements CustomRule
                 chunk.setBlockState(chunk.getPos().getBlockAt(x, 21, z), Blocks.WHITE_CARPET.defaultBlockState());
             }
         //Light
-        for (int x = 0; x < 4; x++)
-            for (int z = 0; z < 4; z++)
-            {
-                chunk.setBlockState(chunk.getPos().getBlockAt(x * 4 + 3, 20, z * 4 + 2), Blocks.OCHRE_FROGLIGHT.defaultBlockState());
-                chunk.setBlockState(chunk.getPos().getBlockAt(x * 4 + 2, 20, z * 4 + 2), Blocks.OCHRE_FROGLIGHT.defaultBlockState());
-            }
+        int l=random.nextInt(8);
+        if(l!=0)
+            for (int x = 0; x < 4; x++)
+                for (int z = 0; z < 4; z++)
+                {
+                    chunk.setBlockState(chunk.getPos().getBlockAt(x * 4 + 3, 20, z * 4 + 2), Blocks.OCHRE_FROGLIGHT.defaultBlockState());
+                    chunk.setBlockState(chunk.getPos().getBlockAt(x * 4 + 2, 20, z * 4 + 2), Blocks.OCHRE_FROGLIGHT.defaultBlockState());
+                }
         //Common walls
         int xw=random.nextInt(3)+2;
         int zw=random.nextInt(3)+2;
