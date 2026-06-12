@@ -37,53 +37,48 @@ public class RandomTransformer extends VecTransformer
     }
     private void request(ChunkPos c)
     {
-        ChunkPos s;
-        int cnt=0;
-        do
+        ChunkPos s=new ChunkPos(lastS.x()+randomChunkRange+1,lastS.z()+randomChunkRange+1);
+        List<ChunkPos> posList=new ArrayList<>((randomChunkRange*2+1)*(randomChunkRange*2+1));
+        for(int x=-randomChunkRange;x<=randomChunkRange;x++)
         {
-            if(cnt>1000)
+            for(int z=-randomChunkRange;z<=randomChunkRange;z++)
             {
-                int maxX=Integer.MIN_VALUE;
-                int maxZ=Integer.MIN_VALUE;
-                for(ChunkPos chunkPos:c2sMap.values())
-                {
-                    maxX=Math.max(maxX,chunkPos.x());
-                    maxZ=Math.max(maxZ,chunkPos.z());
-                }
-                s=new ChunkPos(maxX+1, maxZ+1);
-                System.out.println("Infinite loop warning: request");
+                posList.add(new ChunkPos(lastS.x()+x,lastS.z()+z));
+            }
+        }
+        Collections.shuffle(posList);
+        for(ChunkPos pos:posList)
+        {
+            if(!s2cMap.containsKey(pos))
+            {
+                s=pos;
                 break;
             }
-            s = new ChunkPos(lastS.x() + getRandom(randomChunkRange), lastS.z() + getRandom(randomChunkRange));
-            cnt++;
         }
-        while(c2sMap.containsValue(s));
         put(s,c);
     }
     private ChunkPos init(ChunkPos s)
     {
-        if(c2sMap.containsValue(s))return s2cMap.get(s);
-        ChunkPos c;
-        int cnt=0;
-        do
+        if(s2cMap.containsKey(s))return s2cMap.get(s);
+        ChunkPos c=new ChunkPos(s.x()+randomChunkRange+1,s.z()+randomChunkRange+1);
+        List<ChunkPos> posList=new ArrayList<>((randomChunkRange*2+1)*(randomChunkRange*2+1));
+        for(int x=-randomChunkRange;x<=randomChunkRange;x++)
         {
-            if(cnt>1000)
+            for(int z=-randomChunkRange;z<=randomChunkRange;z++)
             {
-                int maxX=Integer.MIN_VALUE;
-                int maxZ=Integer.MIN_VALUE;
-                for(ChunkPos chunkPos:c2sMap.keySet())
-                {
-                    maxX=Math.max(maxX,chunkPos.x());
-                    maxZ=Math.max(maxZ,chunkPos.z());
-                }
-                c=new ChunkPos(maxX+1, maxZ+1);
-                System.out.println("Infinite loop warning: init");
+                posList.add(new ChunkPos(s.x()+x,s.z()+z));
+            }
+        }
+        Collections.shuffle(posList);
+        for(ChunkPos pos:posList)
+        {
+            if(!c2sMap.containsKey(pos))
+            {
+                c=pos;
                 break;
             }
-            c = new ChunkPos(s.x() + getRandom(randomChunkRange), s.z() + getRandom(randomChunkRange));
-            cnt++;
         }
-        while(c2sMap.containsKey(c));
+        //TODO but why do we need this??
         put(s,c);
         return c;
     }
