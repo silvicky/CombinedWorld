@@ -38,9 +38,24 @@ public class RandomTransformer extends VecTransformer
     private void request(ChunkPos c)
     {
         ChunkPos s;
+        int cnt=0;
         do
         {
+            if(cnt>1000)
+            {
+                int maxX=Integer.MIN_VALUE;
+                int maxZ=Integer.MIN_VALUE;
+                for(ChunkPos chunkPos:c2sMap.values())
+                {
+                    maxX=Math.max(maxX,chunkPos.x());
+                    maxZ=Math.max(maxZ,chunkPos.z());
+                }
+                s=new ChunkPos(maxX+1, maxZ+1);
+                System.out.println("Infinite loop warning: request");
+                break;
+            }
             s = new ChunkPos(lastS.x() + getRandom(randomChunkRange), lastS.z() + getRandom(randomChunkRange));
+            cnt++;
         }
         while(c2sMap.containsValue(s));
         put(s,c);
@@ -49,9 +64,24 @@ public class RandomTransformer extends VecTransformer
     {
         if(c2sMap.containsValue(s))return s2cMap.get(s);
         ChunkPos c;
+        int cnt=0;
         do
         {
+            if(cnt>1000)
+            {
+                int maxX=Integer.MIN_VALUE;
+                int maxZ=Integer.MIN_VALUE;
+                for(ChunkPos chunkPos:c2sMap.keySet())
+                {
+                    maxX=Math.max(maxX,chunkPos.x());
+                    maxZ=Math.max(maxZ,chunkPos.z());
+                }
+                c=new ChunkPos(maxX+1, maxZ+1);
+                System.out.println("Infinite loop warning: init");
+                break;
+            }
             c = new ChunkPos(s.x() + getRandom(randomChunkRange), s.z() + getRandom(randomChunkRange));
+            cnt++;
         }
         while(c2sMap.containsKey(c));
         put(s,c);
