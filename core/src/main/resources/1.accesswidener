@@ -84,3 +84,5 @@ mutable field net/minecraft/world/level/BlockCollisions box Lnet/minecraft/world
 accessible field net/minecraft/world/level/lighting/LevelLightEngine levelHeightAccessor Lnet/minecraft/world/level/LevelHeightAccessor;
 accessible field net/minecraft/network/protocol/game/ServerboundInteractPacket location Lnet/minecraft/world/phys/Vec3;
 mutable field net/minecraft/network/protocol/game/ServerboundInteractPacket location Lnet/minecraft/world/phys/Vec3;
+accessible field net/minecraft/network/protocol/game/ServerboundPickItemFromBlockPacket pos Lnet/minecraft/core/BlockPos;
+mutable field net/minecraft/network/protocol/game/ServerboundPickItemFromBlockPacket pos Lnet/minecraft/core/BlockPos;

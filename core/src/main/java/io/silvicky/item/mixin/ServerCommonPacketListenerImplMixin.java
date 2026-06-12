@@ -200,6 +200,7 @@ public class ServerCommonPacketListenerImplMixin
         }
         catch (ChunkUnusedException e)
         {
+            System.out.println("Packet discarded: "+packet);
             ci.cancel();
         }
     }
