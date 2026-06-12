@@ -82,10 +82,10 @@ public class InventoryManager {
                 LOGGER.error("A dimension named "+n.dimension()+" is NOT FOUND!");
                 throw ERR_DIMENSION_NOT_FOUND.create();
             }
+            player.resetFallDistance();
             TeleportTransition target = new TeleportTransition(sw2,n.pos(), n.velocity(), n.yaw(), n.pitch(), TeleportTransition.DO_NOTHING);
             if(player.connection !=null)player.teleport(target);
             else fakeTeleportTo(player,target,stateSaver);
-            player.resetFallDistance();
         }
     }
     public static void loadInventory(ServerPlayer player, ServerLevel targetDimension, StateSaver stateSaver) throws CommandSyntaxException {
