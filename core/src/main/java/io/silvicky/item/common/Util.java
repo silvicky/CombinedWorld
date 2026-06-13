@@ -10,11 +10,10 @@ import io.silvicky.item.StateSaver;
 import net.minecraft.core.component.TypedDataComponent;
 import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.Container;
 import net.minecraft.world.item.component.ItemContainerContents;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.util.datafix.DataFixers;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.PlayerEnderChestContainer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.nbt.CompoundTag;
@@ -201,10 +200,10 @@ public class Util
         return tot.toString();
     }
 
-    public static ArrayList<Pair<ItemStack,Byte>> inventoryToStack(Inventory inventory)
+    public static ArrayList<Pair<ItemStack,Byte>> inventoryToStack(Container inventory)
     {
         ArrayList<Pair<ItemStack,Byte>> ret=new ArrayList<>();
-        for (int i = 0; i < playerInventorySize; i++) {
+        for (int i = 0; i < inventory.getContainerSize(); i++) {
             ItemStack itemStack=inventory.getItem(i);
             if (!(itemStack.isEmpty()||itemStack.is(Items.AIR.builtInRegistryHolder())||itemStack.getCount()<=0||itemStack.getCount()>99)) {
                 ret.add(new Pair<>(itemStack,(byte)i));
@@ -213,39 +212,15 @@ public class Util
         return ret;
     }
 
-    public static ArrayList<Pair<ItemStack,Byte>> enderToStack(PlayerEnderChestContainer inventory)
-    {
-        ArrayList<Pair<ItemStack,Byte>> ret=new ArrayList<>();
-        for(int i = 0; i < inventory.getContainerSize(); ++i) {
-            ItemStack itemStack = inventory.getItem(i);
-            if (!(itemStack.isEmpty()||itemStack.is(Items.AIR.builtInRegistryHolder())||itemStack.getCount()<=0||itemStack.getCount()>99)) {
-                ret.add(new Pair<>(itemStack,(byte) i));
-            }
-        }
-        return ret;
-    }
-
-    public static void stackToInventory(Inventory inventory, List<Pair<ItemStack,Byte>> stack)
+    public static void stackToInventory(Container inventory, List<Pair<ItemStack,Byte>> stack)
     {
         inventory.clearContent();
 
         for (Pair<ItemStack, Byte> pair : stack) {
             int j = pair.getSecond();
             ItemStack itemStack = pair.getFirst();
-            if (j < playerInventorySize) {
-                inventory.setItem(j, itemStack);
-            }
-        }
-    }
-
-    public static void stackToEnder(PlayerEnderChestContainer inventory, List<Pair<ItemStack,Byte>> stack)
-    {
-        inventory.clearContent();
-
-        for (Pair<ItemStack, Byte> pair : stack) {
-            int j = pair.getSecond();
             if (j < inventory.getContainerSize()) {
-                inventory.setItem(j, pair.getFirst());
+                inventory.setItem(j, itemStack);
             }
         }
     }

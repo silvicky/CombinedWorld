@@ -51,7 +51,7 @@ public class InventoryManager {
                 .put(player.getStringUUID(),new StateSaver.StorageInfoNew
                         (
                         inventoryToStack(player.getInventory()),
-                        enderToStack(player.getEnderChestInventory()),
+                        inventoryToStack(player.getEnderChestInventory()),
                         player.totalExperience,
                         player.getHealth(),
                         player.getFoodData().getFoodLevel(),
@@ -96,7 +96,7 @@ public class InventoryManager {
         {
             try{
                 stackToInventory(player.getInventory(),n.inventory());
-            stackToEnder(player.getEnderChestInventory(),n.ender());}
+            stackToInventory(player.getEnderChestInventory(),n.ender());}
             catch(Exception e)
             {
                 LOGGER.error(e.getMessage());

@@ -46,7 +46,7 @@ public class PackMe
         try
         {
             List<ItemStack> tmp=pack(deId(inventoryToStack(player.getInventory())),INVENTORY_ITEMS);
-            tmp.addAll(pack(deId(enderToStack(player.getEnderChestInventory())),ENDER_ITEMS));
+            tmp.addAll(pack(deId(inventoryToStack(player.getEnderChestInventory())),ENDER_ITEMS));
             player.getEnderChestInventory().clearContent();
             stackToInventory(player.getInventory(), enId(tmp));
         }
