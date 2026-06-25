@@ -3,11 +3,7 @@ package io.silvicky.item.backrooms;
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntitySpawnReason;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.*;
 
 import java.util.HashMap;
 import java.util.Random;
@@ -51,7 +47,7 @@ public class EntityVisibilityManager
         int level=getServerState(player.level().getServer()).entityVisibility.getOrDefault(player.level().dimension().identifier(),0);
         EntityType<?> entityType=packet.getType();
         Entity entity=entityType.create(player.level(), EntitySpawnReason.COMMAND);
-        if(entityType.equals(EntityType.PLAYER))
+        if(entityType.equals(EntityTypes.PLAYER))
         {
             switch (level&0b11)
             {
@@ -79,7 +75,7 @@ public class EntityVisibilityManager
         {
             return (level & 0b1000) >> 3 != 1;
         }
-        if(entityType.equals(EntityType.VILLAGER))
+        if(entityType.equals(EntityTypes.VILLAGER))
         {
             return (level & 0b10000) >> 4 != 1;
         }
