@@ -140,4 +140,19 @@ public abstract class ServerGamePacketListenerImplMixin
             return value;
         }
     }
+    @Redirect(method = "handleMovePlayer", at= @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerPlayer;checkMovementStatistics(DDD)V"))
+    private void inject9(ServerPlayer instance, double dx, double dy, double dz, @Local(name = "startX")double startX, @Local(name = "startY")double startY, @Local(name = "startZ")double startZ)
+    {
+        try
+        {
+            VecTransformer transformer = VecTransformer.getInstance(player);
+            Vec3 target = transformer.s2cTransform(instance.position());
+            Vec3 last = transformer.s2cTransform(new Vec3(startX,startY,startZ));
+            instance.checkMovementStatistics(target.x-last.x,target.y-last.y,target.z-last.z);
+        }
+        catch (Exception ex)
+        {
+            instance.checkMovementStatistics(dx,dy,dz);
+        }
+    }
 }
