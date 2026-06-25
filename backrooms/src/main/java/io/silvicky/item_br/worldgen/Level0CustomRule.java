@@ -23,7 +23,7 @@ public class Level0CustomRule implements CustomRule
             for (int z = 0; z < 16; z++)
             {
                 chunk.setBlockState(chunk.getPos().getBlockAt(x, 20, z), Blocks.SMOOTH_SANDSTONE.defaultBlockState());
-                chunk.setBlockState(chunk.getPos().getBlockAt(x, 21, z), Blocks.WHITE_CARPET.defaultBlockState());
+                chunk.setBlockState(chunk.getPos().getBlockAt(x, 21, z), Blocks.CARPET.white().defaultBlockState());
             }
         //Light
         int l=random.nextInt(8);

@@ -26,11 +26,11 @@ public class HubCustomRule implements CustomRule
             {
                 chunk.setBlockState(chunk.getPos().getBlockAt(i, 1, z), Blocks.STONE_SLAB.defaultBlockState());
             }
-            chunk.setBlockState(chunk.getPos().getBlockAt(3, 0, z), Blocks.WHITE_CONCRETE.defaultBlockState());
-            chunk.setBlockState(chunk.getPos().getBlockAt(11, 0, z), Blocks.WHITE_CONCRETE.defaultBlockState());
+            chunk.setBlockState(chunk.getPos().getBlockAt(3, 0, z), Blocks.CONCRETE.white().defaultBlockState());
+            chunk.setBlockState(chunk.getPos().getBlockAt(11, 0, z), Blocks.CONCRETE.white().defaultBlockState());
             for(int i=4;i<=10;i++)
             {
-                chunk.setBlockState(chunk.getPos().getBlockAt(i, 0, z), Blocks.BLACK_CONCRETE.defaultBlockState());
+                chunk.setBlockState(chunk.getPos().getBlockAt(i, 0, z), Blocks.CONCRETE.black().defaultBlockState());
             }
             if(z%4==0)
             {
@@ -39,7 +39,7 @@ public class HubCustomRule implements CustomRule
             }
             if(z%8<4)
             {
-                chunk.setBlockState(chunk.getPos().getBlockAt(7, 0, z), Blocks.WHITE_CONCRETE.defaultBlockState());
+                chunk.setBlockState(chunk.getPos().getBlockAt(7, 0, z), Blocks.CONCRETE.white().defaultBlockState());
             }
         }
     }

@@ -29,31 +29,31 @@ public class RoadCustomRule implements CustomRule
     {
         int cx=chunk.getPos().x();
         int cz=chunk.getPos().z();
-        for(int x=0;x<16;x++)for(int z=0;z<16;z++)chunk.setBlockState(chunk.getPos().getBlockAt(x,0,z),Blocks.WHITE_CONCRETE.defaultBlockState());
+        for(int x=0;x<16;x++)for(int z=0;z<16;z++)chunk.setBlockState(chunk.getPos().getBlockAt(x,0,z),Blocks.CONCRETE.white().defaultBlockState());
         boolean bl=false;
         if(cx%2==0&&cz%2==0)
         {
             boolean[] dir = getNodeCoordination(randomState, cx>>1, cz>>1);
             if(!(dir[0]||dir[1]||dir[2]||dir[3]))bl=true;
             if (dir[0])
-                chunk.setBlockState(chunk.getPos().getBlockAt(15, 1, 8), Blocks.RED_CONCRETE.defaultBlockState());
+                chunk.setBlockState(chunk.getPos().getBlockAt(15, 1, 8), Blocks.CONCRETE.red().defaultBlockState());
             if (dir[1])
-                chunk.setBlockState(chunk.getPos().getBlockAt(8, 1, 15), Blocks.RED_CONCRETE.defaultBlockState());
+                chunk.setBlockState(chunk.getPos().getBlockAt(8, 1, 15), Blocks.CONCRETE.red().defaultBlockState());
             if (dir[2])
-                chunk.setBlockState(chunk.getPos().getBlockAt(0, 1, 8), Blocks.BLUE_CONCRETE.defaultBlockState());
+                chunk.setBlockState(chunk.getPos().getBlockAt(0, 1, 8), Blocks.CONCRETE.blue().defaultBlockState());
             if (dir[3])
-                chunk.setBlockState(chunk.getPos().getBlockAt(8, 1, 0), Blocks.BLUE_CONCRETE.defaultBlockState());
+                chunk.setBlockState(chunk.getPos().getBlockAt(8, 1, 0), Blocks.CONCRETE.blue().defaultBlockState());
         }
         else if(cx%2==0)
         {
             boolean dir=getNodeCoordination(randomState,cx>>1,cz>>1,1);
-            if(dir)for(int z=0;z<16;z++)chunk.setBlockState(chunk.getPos().getBlockAt(8,1,z),Blocks.YELLOW_CONCRETE.defaultBlockState());
+            if(dir)for(int z=0;z<16;z++)chunk.setBlockState(chunk.getPos().getBlockAt(8,1,z),Blocks.CONCRETE.yellow().defaultBlockState());
             else bl=true;
         }
         else if(cz%2==0)
         {
             boolean dir=getNodeCoordination(randomState,cx>>1,cz>>1,0);
-            if(dir)for(int z=0;z<16;z++)chunk.setBlockState(chunk.getPos().getBlockAt(z,1,8),Blocks.YELLOW_CONCRETE.defaultBlockState());
+            if(dir)for(int z=0;z<16;z++)chunk.setBlockState(chunk.getPos().getBlockAt(z,1,8),Blocks.CONCRETE.yellow().defaultBlockState());
             else bl=true;
         }
         else
@@ -62,7 +62,7 @@ public class RoadCustomRule implements CustomRule
         }
         if(bl)
         {
-            for(int x=0;x<16;x++)for(int z=0;z<16;z++)chunk.setBlockState(chunk.getPos().getBlockAt(x,1,z),Blocks.GREEN_CONCRETE.defaultBlockState());
+            for(int x=0;x<16;x++)for(int z=0;z<16;z++)chunk.setBlockState(chunk.getPos().getBlockAt(x,1,z),Blocks.CONCRETE.green().defaultBlockState());
         }
     }
 
