@@ -57,7 +57,7 @@ public class EndPortalBlockMixin
         ServerLevel serverWorld = world.getServer().getLevel(registryKey);
         boolean bl=registryKey.identifier().getPath().endsWith(END);
         BlockPos blockPos = bl ? ServerLevel.END_SPAWN_POINT : serverWorld.getRespawnData().pos();
-        Vec3 vec3d = blockPos.getBottomCenter();
+        Vec3 vec3d = Vec3.atBottomCenterOf(blockPos);
         if (bl) {
                 EndPlatformFeature.createEndPlatform(serverWorld, BlockPos.containing(vec3d).below(), true);
                 if (entity instanceof ServerPlayer) {
@@ -71,7 +71,7 @@ public class EndPortalBlockMixin
                     }
                 }
 
-                vec3d = entity.adjustSpawnLocation(serverWorld, blockPos).getBottomCenter();
+                vec3d = Vec3.atBottomCenterOf(entity.adjustSpawnLocation(serverWorld, blockPos));
             }
             cir.setReturnValue(new TeleportTransition(serverWorld, vec3d, entity.getDeltaMovement(), 0, entity.getXRot(), TeleportTransition.PLAY_PORTAL_SOUND.then(TeleportTransition.PLACE_PORTAL_TICKET)));
     }
