@@ -1,27 +1,31 @@
 package io.silvicky.item_br.worldgen;
 
 import io.silvicky.item.worldgen.CustomRule;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.levelgen.Noises;
 import net.minecraft.world.level.levelgen.RandomState;
 import org.jspecify.annotations.NonNull;
 
 public class RoadCustomRule implements CustomRule
 {
-    private static final Identifier key=Identifier.parse("silvicky:road");
-    private boolean getNodeCoordination(RandomState random, int x, int z, int direction)
+    private static final int rLarge=10000;
+    private static final int rMedium=50;
+    private boolean getNodeCoordination(RandomState random, int x, int z, boolean direction)
     {
-        return random.getOrCreateRandomFactory(key).at(x,direction,z).nextBoolean();
+        double val;
+        if(direction)val=random.getOrCreateNoise(Noises.CONTINENTALNESS).getValue(x*rLarge,0,z*rMedium);
+        else val=random.getOrCreateNoise(Noises.CONTINENTALNESS).getValue(x*rMedium,rLarge,z*rLarge);
+        return val>=0;
     }
 
     private boolean[] getNodeCoordination(RandomState random, int x, int z)
     {
         boolean[] dir=new boolean[4];
-        dir[0]=getNodeCoordination(random,x,z,0);
-        dir[1]=getNodeCoordination(random,x,z,1);
-        dir[2]=getNodeCoordination(random,x-1,z,0);
-        dir[3]=getNodeCoordination(random,x,z-1,1);
+        dir[0]=getNodeCoordination(random,x,z,false);
+        dir[1]=getNodeCoordination(random,x,z,true);
+        dir[2]=getNodeCoordination(random,x-1,z,false);
+        dir[3]=getNodeCoordination(random,x,z-1,true);
         return dir;
     }
     @Override
@@ -46,13 +50,13 @@ public class RoadCustomRule implements CustomRule
         }
         else if(cx%2==0)
         {
-            boolean dir=getNodeCoordination(randomState,cx>>1,cz>>1,1);
+            boolean dir=getNodeCoordination(randomState,cx>>1,cz>>1,true);
             if(dir)for(int z=0;z<16;z++)chunk.setBlockState(chunk.getPos().getBlockAt(8,1,z),Blocks.CONCRETE.yellow().defaultBlockState());
             else bl=true;
         }
         else if(cz%2==0)
         {
-            boolean dir=getNodeCoordination(randomState,cx>>1,cz>>1,0);
+            boolean dir=getNodeCoordination(randomState,cx>>1,cz>>1,false);
             if(dir)for(int z=0;z<16;z++)chunk.setBlockState(chunk.getPos().getBlockAt(z,1,8),Blocks.CONCRETE.yellow().defaultBlockState());
             else bl=true;
         }
