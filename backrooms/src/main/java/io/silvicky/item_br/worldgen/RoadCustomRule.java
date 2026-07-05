@@ -11,12 +11,15 @@ public class RoadCustomRule implements CustomRule
 {
     private static final int rLarge=10000;
     private static final int rMedium=50;
+    private static final int spaceShift=2;
+    private static final int space=1<<spaceShift;
+    private static final double threshold=0;
     private boolean getNodeCoordination(RandomState random, int x, int z, boolean direction)
     {
         double val;
         if(direction)val=random.getOrCreateNoise(Noises.CONTINENTALNESS).getValue(x*rLarge,0,z*rMedium);
         else val=random.getOrCreateNoise(Noises.CONTINENTALNESS).getValue(x*rMedium,rLarge,z*rLarge);
-        return val>=0;
+        return val>=threshold;
     }
 
     private boolean[] getNodeCoordination(RandomState random, int x, int z)
@@ -35,9 +38,9 @@ public class RoadCustomRule implements CustomRule
         int cz=chunk.getPos().z();
         for(int x=0;x<16;x++)for(int z=0;z<16;z++)chunk.setBlockState(chunk.getPos().getBlockAt(x,0,z),Blocks.CONCRETE.white().defaultBlockState());
         boolean bl=false;
-        if(cx%2==0&&cz%2==0)
+        if(cx%space==0&&cz%space==0)
         {
-            boolean[] dir = getNodeCoordination(randomState, cx>>1, cz>>1);
+            boolean[] dir = getNodeCoordination(randomState, cx>>spaceShift, cz>>spaceShift);
             if(!(dir[0]||dir[1]||dir[2]||dir[3]))bl=true;
             if (dir[0])
                 chunk.setBlockState(chunk.getPos().getBlockAt(15, 1, 8), Blocks.CONCRETE.red().defaultBlockState());
@@ -48,15 +51,15 @@ public class RoadCustomRule implements CustomRule
             if (dir[3])
                 chunk.setBlockState(chunk.getPos().getBlockAt(8, 1, 0), Blocks.CONCRETE.blue().defaultBlockState());
         }
-        else if(cx%2==0)
+        else if(cx%space==0)
         {
-            boolean dir=getNodeCoordination(randomState,cx>>1,cz>>1,true);
+            boolean dir=getNodeCoordination(randomState,cx>>spaceShift,cz>>spaceShift,true);
             if(dir)for(int z=0;z<16;z++)chunk.setBlockState(chunk.getPos().getBlockAt(8,1,z),Blocks.CONCRETE.yellow().defaultBlockState());
             else bl=true;
         }
-        else if(cz%2==0)
+        else if(cz%space==0)
         {
-            boolean dir=getNodeCoordination(randomState,cx>>1,cz>>1,false);
+            boolean dir=getNodeCoordination(randomState,cx>>spaceShift,cz>>spaceShift,false);
             if(dir)for(int z=0;z<16;z++)chunk.setBlockState(chunk.getPos().getBlockAt(z,1,8),Blocks.CONCRETE.yellow().defaultBlockState());
             else bl=true;
         }
