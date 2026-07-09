@@ -146,7 +146,7 @@ public class ImportWorld {
         {
             CompoundTag nbtCompound=NbtIo.readCompressed(levelDat, NbtAccounter.unlimitedHeap());
             nbtCompound= DataFixTypes.LEVEL.updateToCurrentVersion(DataFixers.getDataFixer(),nbtCompound, NbtUtils.getDataVersion(nbtCompound,-1));
-            levelDynamic = new Dynamic<>(NbtOps.INSTANCE,nbtCompound);
+            levelDynamic = new Dynamic<>(NbtOps.INSTANCE,nbtCompound).get("Data").orElseEmptyMap();
         }
         catch(Exception e)
         {
