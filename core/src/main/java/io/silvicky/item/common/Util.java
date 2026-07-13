@@ -206,7 +206,7 @@ public class Util
         for (int i = 0; i < inventory.getContainerSize(); i++) {
             ItemStack itemStack=inventory.getItem(i);
             if (!(itemStack.isEmpty()||itemStack.is(Items.AIR.builtInRegistryHolder())||itemStack.getCount()<=0||itemStack.getCount()>99)) {
-                ret.add(new Pair<>(itemStack,(byte)i));
+                ret.add(new Pair<>(itemStack.copy(),(byte)i));
             }
         }
         return ret;
@@ -220,7 +220,7 @@ public class Util
             int j = pair.getSecond();
             ItemStack itemStack = pair.getFirst();
             if (j < inventory.getContainerSize()) {
-                inventory.setItem(j, itemStack);
+                inventory.setItem(j, itemStack.copy());
             }
         }
     }
