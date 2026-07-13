@@ -204,7 +204,7 @@ public class Util
         ArrayList<Pair<ItemStack,Byte>> ret=new ArrayList<>();
         for (int i = 0; i < playerInventorySize; i++) {
             if (!inventory.getItem(i).isEmpty()) {
-                ret.add(new Pair<>(inventory.getItem(i),(byte)i));
+                ret.add(new Pair<>(inventory.getItem(i).copy(),(byte)i));
             }
         }
         return ret;
@@ -216,7 +216,7 @@ public class Util
         for(int i = 0; i < inventory.getContainerSize(); ++i) {
             ItemStack itemStack = inventory.getItem(i);
             if (!itemStack.isEmpty()) {
-                ret.add(new Pair<>(itemStack,(byte) i));
+                ret.add(new Pair<>(itemStack.copy(),(byte) i));
             }
         }
         return ret;
@@ -230,7 +230,7 @@ public class Util
             int j = pair.getSecond();
             ItemStack itemStack = pair.getFirst();
             if (j < playerInventorySize) {
-                inventory.setItem(j, itemStack);
+                inventory.setItem(j, itemStack.copy());
             }
         }
     }
@@ -242,7 +242,7 @@ public class Util
         for (Pair<ItemStack, Byte> pair : stack) {
             int j = pair.getSecond();
             if (j < inventory.getContainerSize()) {
-                inventory.setItem(j, pair.getFirst());
+                inventory.setItem(j, pair.getFirst().copy());
             }
         }
     }
