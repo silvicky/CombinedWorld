@@ -98,7 +98,7 @@ public class ImportWorld {
         rollbackPlayer();
     }
 
-    private static int importWorld(CommandSourceStack source, Path path, Identifier idTmp) throws CommandSyntaxException
+    private static int importWorld(CommandSourceStack source, Path path, Identifier idTmp)
     {
         if(firstType)
         {
@@ -106,184 +106,210 @@ public class ImportWorld {
             source.sendSuccess(()-> Component.literal("Hello, admin! This command can import a world(currently vanilla only), and although it has been tested, it is still strongly suggested that you backup your save first. Also you need to read the result carefully. Type this command without arguments to see the help. Type this command again if you already understand what you are doing."),false);
             return Command.SINGLE_SUCCESS;
         }
-        server=source.getServer();
-        stateSaver=StateSaver.getServerState(server);
-        id=getDimensionId(idTmp);
-        for(ServerLevel i:server.getAllLevels())
-        {
-            if(i.dimension().identifier().equals(id)) throw ERR_DIMENSION_EXIST.create();
-        }
-        for(ResourceKey<LevelStem> i:newDimensions.keySet())
-        {
-            if(i.identifier().equals(id)) throw ERR_DIMENSION_EXIST.create();
-        }
-        for(ServerLevel i:server.getAllLevels())
-        {
-            if(i.dimension().identifier().getNamespace().equals(id.getNamespace())) throw ERR_NAMESPACE_EXIST.create();
-        }
-        for(ResourceKey<LevelStem> i:newDimensions.keySet())
-        {
-            if(i.identifier().getNamespace().equals(id.getNamespace())) throw ERR_NAMESPACE_EXIST.create();
-        }
-        identifiers=new ArrayList<>();
-        identifiers.add(id);
-        final boolean isSinglet= !id.getPath().endsWith(OVERWORLD);
-        Identifier idNether=null;
-        Identifier idEnd=null;
-        if(!isSinglet)
-        {
-            String tmp1 = id.getPath().substring(0, id.getPath().length() - OVERWORLD.length());
-            idNether = Identifier.fromNamespaceAndPath(id.getNamespace(), tmp1 + NETHER);
-            idEnd = Identifier.fromNamespaceAndPath(id.getNamespace(), tmp1 + END);
-            identifiers.add(idNether);
-            identifiers.add(idEnd);
-        }
-        if(!(path.toFile().exists()&&path.toFile().isDirectory())) throw ERR_FOLDER_NOT_EXIST.create();
-        Path levelDat=path.resolve("level.dat");
-        if(!levelDat.toFile().exists()) throw ERR_LEVEL_NOT_EXIST.create();
-        Dynamic<?> levelDynamic;
-        try
-        {
-            CompoundTag nbtCompound=NbtIo.readCompressed(levelDat, NbtAccounter.unlimitedHeap());
-            nbtCompound= DataFixTypes.LEVEL.updateToCurrentVersion(DataFixers.getDataFixer(),nbtCompound, NbtUtils.getDataVersion(nbtCompound,-1));
-            levelDynamic = new Dynamic<>(NbtOps.INSTANCE,nbtCompound).get("Data").orElseEmptyMap();
-        }
-        catch(Exception e)
-        {
-            e.printStackTrace();
-            throw ERR_FAIL_TO_READ_LEVEL.create();
-        }
-        int gamemode=0;
-        try
-        {
-            gamemode=levelDynamic.get("GameType").asInt(0);
-        }
-        catch(Exception ignored){}
-        WorldGenSettings worldGenSettings;
-        try
-        {
-            Path worldGenDat=path.resolve("data").resolve("minecraft").resolve("world_gen_settings.dat");
-            CompoundTag nbtCompound=NbtIo.readCompressed(worldGenDat, NbtAccounter.unlimitedHeap());
-            nbtCompound= DataFixTypes.WORLD_GEN_SETTINGS.updateToCurrentVersion(DataFixers.getDataFixer(),nbtCompound, NbtUtils.getDataVersion(nbtCompound,-1));
-            Dynamic<?> dynamic = new Dynamic<>(NbtOps.INSTANCE,nbtCompound);
-            Dynamic<?> dynamic2= RegistryOps.injectRegistryContext(dynamic,wrapper);
-            worldGenSettings= WorldGenSettings.CODEC.parse(dynamic2.get("data").orElseEmptyMap()).getOrThrow();
-        }
-        catch(Exception e)
-        {
-            e.printStackTrace();
-            throw ERR_WORLD_GEN.create();
-        }
-        source.sendSuccess(()-> Component.literal("Fetched WorldGenSettings."),false);
-        long seed= worldGenSettings.options().seed();
-        stateSaver.seed.put(id,seed);
-        stateSaver.gamemode.put(id.getNamespace(),gamemode);
-        if(!isSinglet)
-        {
-            stateSaver.seed.put(idNether, seed);
-            stateSaver.seed.put(idEnd, seed);
-        }
-        source.sendSuccess(()-> Component.literal("Seed configured."),false);
-        try
-        {
-            LevelData.RespawnData spawn= LevelData.RespawnData.CODEC.parse(levelDynamic.get("spawn").orElseEmptyMap()).getOrThrow();
-            String spawnWorldPath=spawn.dimension().identifier().getPath();
-            Identifier spawnWorld;
-            if(spawnWorldPath.endsWith(END))spawnWorld=idEnd;
-            else if(spawnWorldPath.endsWith(NETHER))spawnWorld=idNether;
-            else spawnWorld=id;
-            stateSaver.worldSpawn.put(id, LevelData.RespawnData.of(ResourceKey.create(Registries.DIMENSION,spawnWorld),spawn.pos(),spawn.yaw(),spawn.pitch()));
-            source.sendSuccess(() -> Component.literal("Configured spawn point."), false);
-        }
-        catch(Exception e)
-        {
-            e.printStackTrace();
-            source.sendSuccess(()-> Component.literal("Failed to fetch spawn point... but not a big deal."),false);
-        }
-        Path playerData=path.resolve("players").resolve("data");
-        if(!playerData.toFile().exists())throw ERR_PLAYER.create();
-        int cnt=0;
-        int failedCnt=0;
-        for (File i : playerData.toFile().listFiles())
+        source.sendSuccess(()-> Component.literal("Running..."),false);
+        new Thread(()->
         {
             try
             {
-                if (!i.getPath().endsWith(".dat")) continue;
+                server = source.getServer();
+                stateSaver = StateSaver.getServerState(server);
+                id = getDimensionId(idTmp);
+                for (ServerLevel i : server.getAllLevels())
+                {
+                    if (i.dimension().identifier().equals(id)) throw ERR_DIMENSION_EXIST.create();
+                }
+                for (ResourceKey<LevelStem> i : newDimensions.keySet())
+                {
+                    if (i.identifier().equals(id)) throw ERR_DIMENSION_EXIST.create();
+                }
+                for (ServerLevel i : server.getAllLevels())
+                {
+                    if (i.dimension().identifier().getNamespace().equals(id.getNamespace()))
+                        throw ERR_NAMESPACE_EXIST.create();
+                }
+                for (ResourceKey<LevelStem> i : newDimensions.keySet())
+                {
+                    if (i.identifier().getNamespace().equals(id.getNamespace())) throw ERR_NAMESPACE_EXIST.create();
+                }
+                identifiers = new ArrayList<>();
+                identifiers.add(id);
+                final boolean isSinglet = !id.getPath().endsWith(OVERWORLD);
+                Identifier idNether = null;
+                Identifier idEnd = null;
+                if (!isSinglet)
+                {
+                    String tmp1 = id.getPath().substring(0, id.getPath().length() - OVERWORLD.length());
+                    idNether = Identifier.fromNamespaceAndPath(id.getNamespace(), tmp1 + NETHER);
+                    idEnd = Identifier.fromNamespaceAndPath(id.getNamespace(), tmp1 + END);
+                    identifiers.add(idNether);
+                    identifiers.add(idEnd);
+                }
+                if (!(path.toFile().exists() && path.toFile().isDirectory())) throw ERR_FOLDER_NOT_EXIST.create();
+                Path levelDat = path.resolve("level.dat");
+                if (!levelDat.toFile().exists()) throw ERR_LEVEL_NOT_EXIST.create();
+                Dynamic<?> levelDynamic;
+                try
+                {
+                    CompoundTag nbtCompound = NbtIo.readCompressed(levelDat, NbtAccounter.unlimitedHeap());
+                    nbtCompound = DataFixTypes.LEVEL.updateToCurrentVersion(DataFixers.getDataFixer(), nbtCompound, NbtUtils.getDataVersion(nbtCompound, -1));
+                    levelDynamic = new Dynamic<>(NbtOps.INSTANCE, nbtCompound).get("Data").orElseEmptyMap();
+                }
+                catch (Exception e)
+                {
+                    e.printStackTrace();
+                    throw ERR_FAIL_TO_READ_LEVEL.create();
+                }
+                int gamemode = 0;
+                try
+                {
+                    gamemode = levelDynamic.get("GameType").asInt(0);
+                }
+                catch (Exception ignored)
+                {
+                }
+                WorldGenSettings worldGenSettings;
+                try
+                {
+                    Path worldGenDat = path.resolve("data").resolve("minecraft").resolve("world_gen_settings.dat");
+                    CompoundTag nbtCompound = NbtIo.readCompressed(worldGenDat, NbtAccounter.unlimitedHeap());
+                    nbtCompound = DataFixTypes.WORLD_GEN_SETTINGS.updateToCurrentVersion(DataFixers.getDataFixer(), nbtCompound, NbtUtils.getDataVersion(nbtCompound, -1));
+                    Dynamic<?> dynamic = new Dynamic<>(NbtOps.INSTANCE, nbtCompound);
+                    Dynamic<?> dynamic2 = RegistryOps.injectRegistryContext(dynamic, wrapper);
+                    worldGenSettings = WorldGenSettings.CODEC.parse(dynamic2.get("data").orElseEmptyMap()).getOrThrow();
+                }
+                catch (Exception e)
+                {
+                    e.printStackTrace();
+                    throw ERR_WORLD_GEN.create();
+                }
+                source.sendSuccess(() -> Component.literal("Fetched WorldGenSettings."), false);
+                long seed = worldGenSettings.options().seed();
+                stateSaver.seed.put(id, seed);
+                stateSaver.gamemode.put(id.getNamespace(), gamemode);
+                if (!isSinglet)
+                {
+                    stateSaver.seed.put(idNether, seed);
+                    stateSaver.seed.put(idEnd, seed);
+                }
+                source.sendSuccess(() -> Component.literal("Seed configured."), false);
+                try
+                {
+                    LevelData.RespawnData spawn = LevelData.RespawnData.CODEC.parse(levelDynamic.get("spawn").orElseEmptyMap()).getOrThrow();
+                    String spawnWorldPath = spawn.dimension().identifier().getPath();
+                    Identifier spawnWorld;
+                    if (spawnWorldPath.endsWith(END)) spawnWorld = idEnd;
+                    else if (spawnWorldPath.endsWith(NETHER)) spawnWorld = idNether;
+                    else spawnWorld = id;
+                    stateSaver.worldSpawn.put(id, LevelData.RespawnData.of(ResourceKey.create(Registries.DIMENSION, spawnWorld), spawn.pos(), spawn.yaw(), spawn.pitch()));
+                    source.sendSuccess(() -> Component.literal("Configured spawn point."), false);
+                }
+                catch (Exception e)
+                {
+                    e.printStackTrace();
+                    source.sendSuccess(() -> Component.literal("Failed to fetch spawn point... but not a big deal."), false);
+                }
+                Path playerData = path.resolve("players").resolve("data");
+                if (!playerData.toFile().exists()) throw ERR_PLAYER.create();
+                int cnt = 0;
+                int failedCnt = 0;
+                for (File i : playerData.toFile().listFiles())
+                {
+                    try
+                    {
+                        if (!i.getPath().endsWith(".dat")) continue;
 
-                CompoundTag nbtCompound = NbtIo.readCompressed(i.toPath(), NbtAccounter.unlimitedHeap());
-                nbtCompound = DataFixTypes.PLAYER.updateToCurrentVersion(DataFixers.getDataFixer(), nbtCompound, NbtUtils.getDataVersion(nbtCompound, -1));
-                ServerPlayer serverPlayerEntity = loadFakePlayer(nbtCompound, server);
-                String dimension = nbtCompound.getStringOr("Dimension", "minecraft:overworld");
-                Identifier identifier = Identifier.parse(dimension);
-                if (!identifier.getNamespace().equals("minecraft")) continue;
-                dimension = identifier.getPath();
-                Identifier fakeDimension = null;
-                switch (dimension)
-                {
-                    case END ->
-                    {
-                        if (!isSinglet) fakeDimension = idEnd;
+                        CompoundTag nbtCompound = NbtIo.readCompressed(i.toPath(), NbtAccounter.unlimitedHeap());
+                        nbtCompound = DataFixTypes.PLAYER.updateToCurrentVersion(DataFixers.getDataFixer(), nbtCompound, NbtUtils.getDataVersion(nbtCompound, -1));
+                        ServerPlayer serverPlayerEntity = loadFakePlayer(nbtCompound, server);
+                        String dimension = nbtCompound.getStringOr("Dimension", "minecraft:overworld");
+                        Identifier identifier = Identifier.parse(dimension);
+                        if (!identifier.getNamespace().equals("minecraft")) continue;
+                        dimension = identifier.getPath();
+                        Identifier fakeDimension = null;
+                        switch (dimension)
+                        {
+                            case END ->
+                            {
+                                if (!isSinglet) fakeDimension = idEnd;
+                            }
+                            case NETHER ->
+                            {
+                                if (!isSinglet) fakeDimension = idNether;
+                            }
+                            case OVERWORLD -> fakeDimension = id;
+                        }
+                        if (fakeDimension != null)
+                        {
+                            save(server, serverPlayerEntity, fakeDimension);
+                            cnt++;
+                        }
                     }
-                    case NETHER ->
+                    catch (Exception e)
                     {
-                        if (!isSinglet) fakeDimension = idNether;
+                        failedCnt++;
                     }
-                    case OVERWORLD -> fakeDimension = id;
                 }
-                if (fakeDimension != null)
+                int finalCnt = cnt;
+                int finalFailed = failedCnt;
+                source.sendSuccess(() -> Component.literal(format("Fetched %d player data, %d failed", finalCnt, finalFailed)), false);
+                source.sendSuccess(() -> Component.literal("We're'bout to copy the save files, you can go to have a rest now..."), false);
+                try
                 {
-                    save(server, serverPlayerEntity, fakeDimension);
-                    cnt++;
+                    Path target = server.getWorldPath(LevelResource.ROOT).resolve("dimensions").resolve(id.getNamespace());
+                    deleteFolder(target);
+                    target.toFile().mkdirs();
+                    Path sourceOverworld = path.resolve("dimensions").resolve("minecraft").resolve("overworld");
+                    Path targetOverworld = target.resolve(id.getPath());
+                    if (!isSinglet)
+                    {
+                        Path targetNether = target.resolve(idNether.getPath());
+                        Path targetEnd = target.resolve(idEnd.getPath());
+                        Path sourceNether = path.resolve("dimensions").resolve("minecraft").resolve("the_nether");
+                        Path sourceEnd = path.resolve("dimensions").resolve("minecraft").resolve("the_end");
+                        copyFolder(sourceNether, targetNether);
+                        copyFolder(sourceEnd, targetEnd);
+                    }
+                    copyFolder(sourceOverworld, targetOverworld);
+                    source.sendSuccess(() -> Component.literal("Copied save files."), false);
                 }
+                catch (Exception e)
+                {
+                    e.printStackTrace();
+                    rollbackWorld();
+                    throw ERR_SAVE.create();
+                }
+                for (Map.Entry<ResourceKey<LevelStem>, LevelStem> entry : worldGenSettings.dimensions().dimensions().entrySet())
+                {
+                    ResourceKey<LevelStem> registryKey = null;
+                    String imported = entry.getKey().identifier().getPath();
+                    switch (imported)
+                    {
+                        case OVERWORLD -> registryKey = ResourceKey.create(Registries.LEVEL_STEM, id);
+                        case NETHER ->
+                        {
+                            if (!isSinglet) registryKey = ResourceKey.create(Registries.LEVEL_STEM, idNether);
+                        }
+                        case END ->
+                        {
+                            if (!isSinglet) registryKey = ResourceKey.create(Registries.LEVEL_STEM, idEnd);
+                        }
+                    }
+                    if (registryKey != null) newDimensions.put(registryKey, entry.getValue());
+                }
+                source.sendSuccess(() -> Component.literal("Dimension options stored."), false);
+                source.sendSuccess(() -> Component.literal("Now you can restart to apply all changes."), false);
+                if (!source.getServer().isDedicatedServer())
+                    source.sendSuccess(() -> Component.literal("DO NOT ENTER THIS WORLD AGAIN BEFORE RESTARTING YOUR GAME OR YOUR SAVE WOULD BE DESTROYED!!!"), false);
+            }
+            catch (CommandSyntaxException e)
+            {
+                source.sendFailure(Component.literal(e.getMessage()));
             }
             catch (Exception e)
             {
-                failedCnt++;
+                source.sendFailure(Component.literal(e.toString()));
             }
-        }
-        int finalCnt = cnt;
-        int finalFailed=failedCnt;
-        source.sendSuccess(()-> Component.literal(format("Fetched %d player data, %d failed",finalCnt,finalFailed)),false);
-        source.sendSuccess(()-> Component.literal("We're'bout to copy the save files, you can go to have a rest now..."),false);
-        try
-        {
-            Path target = server.getWorldPath(LevelResource.ROOT).resolve("dimensions").resolve(id.getNamespace());
-            deleteFolder(target);
-            target.toFile().mkdirs();
-            Path sourceOverworld=path.resolve("dimensions").resolve("minecraft").resolve("overworld");
-            Path targetOverworld=target.resolve(id.getPath());
-            if(!isSinglet)
-            {
-                Path targetNether=target.resolve(idNether.getPath());
-                Path targetEnd=target.resolve(idEnd.getPath());
-                Path sourceNether=path.resolve("dimensions").resolve("minecraft").resolve("the_nether");
-                Path sourceEnd=path.resolve("dimensions").resolve("minecraft").resolve("the_end");
-                copyFolder(sourceNether,targetNether);
-                copyFolder(sourceEnd,targetEnd);
-            }
-            copyFolder(sourceOverworld,targetOverworld);
-            source.sendSuccess(()-> Component.literal("Copied save files."),false);
-        }
-        catch(Exception e)
-        {
-            e.printStackTrace();
-            rollbackWorld();
-            throw ERR_SAVE.create();
-        }
-        for(Map.Entry<ResourceKey<LevelStem>, LevelStem> entry:worldGenSettings.dimensions().dimensions().entrySet())
-        {
-            ResourceKey<LevelStem> registryKey=null;
-            String imported=entry.getKey().identifier().getPath();
-            switch (imported) {
-                case OVERWORLD -> registryKey = ResourceKey.create(Registries.LEVEL_STEM, id);
-                case NETHER -> {if(!isSinglet)registryKey = ResourceKey.create(Registries.LEVEL_STEM, idNether);}
-                case END -> {if(!isSinglet)registryKey = ResourceKey.create(Registries.LEVEL_STEM, idEnd);}
-            }
-            if(registryKey!=null)newDimensions.put(registryKey,entry.getValue());
-        }
-        source.sendSuccess(()-> Component.literal("Dimension options stored."),false);
-        source.sendSuccess(()-> Component.literal("Now you can restart to apply all changes."),false);
-        if(!source.getServer().isDedicatedServer())source.sendSuccess(()-> Component.literal("DO NOT ENTER THIS WORLD AGAIN BEFORE RESTARTING YOUR GAME OR YOUR SAVE WOULD BE DESTROYED!!!"),false);
+        }).start();
         return Command.SINGLE_SUCCESS;
     }
 }
