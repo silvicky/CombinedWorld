@@ -38,17 +38,6 @@ public class SimpleChunk
         }
     }
 
-    public BlockState getBlockState(BlockPos pos)
-    {
-        if(chunkPos.contains(pos)&&pos.getY()>=this.baseY&&pos.getY()<this.baseY+height)
-        {
-            return blockStates.get(pos.getY() - baseY)
-                    [pos.getX() - chunkPos.getMinBlockX()]
-                    [pos.getZ() - chunkPos.getMinBlockZ()];
-        }
-        else return null;
-    }
-
     public void apply(ChunkAccess chunk)
     {
         for(int i=0;i<height;i++)for(int x = 0; x <16; x++)for(int z = 0; z <16; z++)
