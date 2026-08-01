@@ -9,5 +9,6 @@ public class BackroomsWorldGens
         WorldGens.registerWorldGen(new HubCustomRule());
         WorldGens.registerWorldGen(new Level0CustomRule());
         WorldGens.registerWorldGen(new RoadCustomRule());
+        WorldGens.registerWorldGen(new Road2CustomRule());
     }
 }

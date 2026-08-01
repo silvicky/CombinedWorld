@@ -2,11 +2,14 @@ package io.silvicky.item_br.worldgen;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import static io.silvicky.item_br.worldgen.Graphic.drawLine;
 
 public class ChunkGenCache
 {
@@ -15,6 +18,11 @@ public class ChunkGenCache
     private final int height;
 
     private final Map<ChunkPos, SimpleChunk> chunks=new HashMap<>();
+
+    private static ChunkPos shift(ChunkPos pos,int x,int z)
+    {
+        return new ChunkPos(pos.x()+x,pos.z()+z);
+    }
 
     public ChunkGenCache(int baseY, int height)
     {
@@ -26,7 +34,7 @@ public class ChunkGenCache
     {
         if(pos.getY()>=this.baseY&&pos.getY()<this.baseY+height)
         {
-            //TODO
+            //TODO dismiss gen...
             ChunkPos chunkPos=ChunkPos.containing(pos);
             SimpleChunk simpleChunk=chunks.computeIfAbsent(chunkPos,_->new SimpleChunk(baseY,height,chunkPos));
             simpleChunk.setBlockState(pos, state);
@@ -36,22 +44,26 @@ public class ChunkGenCache
     private BlockPos getChosenPos(ChunkPos chunkPos)
     {
         //TODO use real random
-        return chunkPos.getBlockAt((chunkPos.x()*7)&15,0,(chunkPos.z()*9)&15);
+        return chunkPos.getBlockAt((chunkPos.x()*7+chunkPos.z()*5)&15,0,(chunkPos.x()*5+chunkPos.z()*9)&15);
     }
 
     private void requestChunk(ChunkPos chunkPos)
     {
-        //TODO
+        //TODO draw real things
+        int[][] neighbors={{1,0},{-1,0},{0,1},{0,-1}};
+        BlockPos core=getChosenPos(chunkPos);
+        for (int[] neighbor : neighbors)
+        {
+            BlockPos cur = getChosenPos(shift(chunkPos, neighbor[0], neighbor[1]));
+            drawLine(core.getX(), core.getZ(), cur.getX(), cur.getZ(), (x, z) -> setBlockState(new BlockPos(x, 0, z), Blocks.CONCRETE.white().defaultBlockState()));
+        }
     }
 
     public void apply(ChunkAccess chunk)
     {
         //TODO Dismiss generated chunks
         ChunkPos chunkPos=chunk.getPos();
-        if(!chunks.containsKey(chunkPos))
-        {
-            requestChunk(chunkPos);
-        }
+        requestChunk(chunkPos);
         SimpleChunk simpleChunk=chunks.get(chunkPos);
         if(simpleChunk!=null)
         {

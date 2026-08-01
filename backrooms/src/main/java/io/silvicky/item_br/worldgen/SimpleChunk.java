@@ -24,7 +24,7 @@ public class SimpleChunk
         this.height = height;
         this.chunkPos = chunkPos;
         this.blockStates=new ArrayList<>(height);
-        for(int i=0;i<height;i++)this.blockStates.set(i,new BlockState[16][16]);
+        for(int i=0;i<height;i++)this.blockStates.add(new BlockState[16][16]);
     }
 
     public void setBlockState(BlockPos pos, BlockState state)
@@ -42,7 +42,8 @@ public class SimpleChunk
     {
         for(int i=0;i<height;i++)for(int x = 0; x <16; x++)for(int z = 0; z <16; z++)
         {
-            chunk.setBlockState(chunkPos.getBlockAt(x,i+baseY,z),blockStates.get(i)[x][z]);
+            BlockState state=blockStates.get(i)[x][z];
+            if(state!=null)chunk.setBlockState(chunkPos.getBlockAt(x,i+baseY,z),state);
         }
     }
 }
