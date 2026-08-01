@@ -156,7 +156,7 @@ public class DecayWorldGen extends ChunkGenerator
     @Override
     public @NonNull CompletableFuture<ChunkAccess> fillFromNoise(@NonNull Blender blender, @NonNull RandomState randomState, @NonNull StructureManager structureManager, @NonNull ChunkAccess centerChunk)
     {
-        if(rule.decay(centerChunk))return CompletableFuture.completedFuture(centerChunk);
+        if(rule.decay(centerChunk, randomState))return CompletableFuture.completedFuture(centerChunk);
         return baseGen.fillFromNoise(blender,randomState,structureManager,centerChunk);
     }
 
