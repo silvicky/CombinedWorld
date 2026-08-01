@@ -12,8 +12,7 @@ public class Road2CustomRule implements CustomRule
     @Override
     public void gen(@NonNull ChunkAccess chunk, @NonNull RandomState randomState)
     {
-        //TODO
-        chunkGenCache.apply(chunk);
+        chunkGenCache.apply(chunk,randomState);
     }
 
     @Override

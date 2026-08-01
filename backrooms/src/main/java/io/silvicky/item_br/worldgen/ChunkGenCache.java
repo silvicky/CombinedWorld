@@ -1,10 +1,13 @@
 package io.silvicky.item_br.worldgen;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.Identifier;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.levelgen.RandomState;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -13,6 +16,8 @@ import static io.silvicky.item_br.worldgen.Graphic.drawLine;
 
 public class ChunkGenCache
 {
+    private static final Identifier key=Identifier.parse("silvicky:road2");
+
     private final int baseY;
 
     private final int height;
@@ -41,29 +46,29 @@ public class ChunkGenCache
         }
     }
 
-    private BlockPos getChosenPos(ChunkPos chunkPos)
+    private BlockPos getChosenPos(ChunkPos chunkPos, RandomState randomState)
     {
-        //TODO use real random
-        return chunkPos.getBlockAt((chunkPos.x()*7+chunkPos.z()*5)&15,0,(chunkPos.x()*5+chunkPos.z()*9)&15);
+        RandomSource random=randomState.getOrCreateRandomFactory(key).at(chunkPos.x(),0,chunkPos.z());
+        return chunkPos.getBlockAt(random.nextInt(16),0,random.nextInt(16));
     }
 
-    private void requestChunk(ChunkPos chunkPos)
+    private void requestChunk(ChunkPos chunkPos, RandomState randomState)
     {
         //TODO draw real things
         int[][] neighbors={{1,0},{-1,0},{0,1},{0,-1}};
-        BlockPos core=getChosenPos(chunkPos);
+        BlockPos core=getChosenPos(chunkPos, randomState);
         for (int[] neighbor : neighbors)
         {
-            BlockPos cur = getChosenPos(shift(chunkPos, neighbor[0], neighbor[1]));
+            BlockPos cur = getChosenPos(shift(chunkPos, neighbor[0], neighbor[1]), randomState);
             drawLine(core.getX(), core.getZ(), cur.getX(), cur.getZ(), (x, z) -> setBlockState(new BlockPos(x, 0, z), Blocks.CONCRETE.white().defaultBlockState()));
         }
     }
 
-    public void apply(ChunkAccess chunk)
+    public void apply(ChunkAccess chunk, RandomState randomState)
     {
         //TODO Dismiss generated chunks
         ChunkPos chunkPos=chunk.getPos();
-        requestChunk(chunkPos);
+        requestChunk(chunkPos, randomState);
         SimpleChunk simpleChunk=chunks.get(chunkPos);
         if(simpleChunk!=null)
         {
