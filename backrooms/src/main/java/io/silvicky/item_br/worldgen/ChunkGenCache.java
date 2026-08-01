@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static io.silvicky.item_br.worldgen.Graphic.drawLine;
+import static io.silvicky.item_br.worldgen.RoadCustomRule.getNodeCoordination;
 
 public class ChunkGenCache
 {
@@ -49,18 +50,19 @@ public class ChunkGenCache
     private BlockPos getChosenPos(ChunkPos chunkPos, RandomState randomState)
     {
         RandomSource random=randomState.getOrCreateRandomFactory(key).at(chunkPos.x(),0,chunkPos.z());
-        return chunkPos.getBlockAt(random.nextInt(16),0,random.nextInt(16));
+        return chunkPos.getBlockAt(random.nextInt(3,13),0,random.nextInt(3,13));
     }
 
     private void requestChunk(ChunkPos chunkPos, RandomState randomState)
     {
         //TODO draw real things
-        int[][] neighbors={{1,0},{-1,0},{0,1},{0,-1}};
+        int[][] neighbors={{1,0},{0,1}};
         BlockPos core=getChosenPos(chunkPos, randomState);
-        for (int[] neighbor : neighbors)
+        boolean[] coordination=getNodeCoordination(randomState,chunkPos.x(),chunkPos.z());
+        for (int i=0;i<2;i++)
         {
-            BlockPos cur = getChosenPos(shift(chunkPos, neighbor[0], neighbor[1]), randomState);
-            drawLine(core.getX(), core.getZ(), cur.getX(), cur.getZ(), (x, z) -> setBlockState(new BlockPos(x, 0, z), Blocks.CONCRETE.white().defaultBlockState()));
+            BlockPos cur = getChosenPos(shift(chunkPos, neighbors[i][0], neighbors[i][1]), randomState);
+            if(coordination[i])drawLine(core.getX(), core.getZ(), cur.getX(), cur.getZ(), (x, z) -> setBlockState(new BlockPos(x, 0, z), Blocks.CONCRETE.white().defaultBlockState()));
         }
     }
 
@@ -68,7 +70,9 @@ public class ChunkGenCache
     {
         //TODO Dismiss generated chunks
         ChunkPos chunkPos=chunk.getPos();
-        requestChunk(chunkPos, randomState);
+        for(int x=-1;x<=0;x++)
+            for(int z=-1;z<=0;z++)
+                requestChunk(shift(chunkPos,x,z), randomState);
         SimpleChunk simpleChunk=chunks.get(chunkPos);
         if(simpleChunk!=null)
         {

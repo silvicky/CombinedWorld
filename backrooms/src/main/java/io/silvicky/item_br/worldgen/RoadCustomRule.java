@@ -14,7 +14,7 @@ public class RoadCustomRule implements CustomRule
     private static final int spaceShift=2;
     private static final int space=1<<spaceShift;
     private static final double threshold=0;
-    private boolean getNodeCoordination(RandomState random, int x, int z, boolean direction)
+    public static boolean getNodeCoordination(RandomState random, int x, int z, boolean direction)
     {
         double val;
         if(direction)val=random.getOrCreateNoise(Noises.CONTINENTALNESS).getValue(x*rLarge,0,z*rMedium);
@@ -22,7 +22,7 @@ public class RoadCustomRule implements CustomRule
         return val>=threshold;
     }
 
-    private boolean[] getNodeCoordination(RandomState random, int x, int z)
+    public static boolean[] getNodeCoordination(RandomState random, int x, int z)
     {
         boolean[] dir=new boolean[4];
         dir[0]=getNodeCoordination(random,x,z,false);
