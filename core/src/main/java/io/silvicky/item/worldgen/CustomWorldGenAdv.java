@@ -1,6 +1,5 @@
 package io.silvicky.item.worldgen;
 
-import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.world.level.biome.BiomeSource;
@@ -9,19 +8,19 @@ import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.RandomState;
 import org.jspecify.annotations.NonNull;
 
-public class CustomWorldGen extends AbstractCustomWorldGen
+public class CustomWorldGenAdv extends AbstractCustomWorldGen
 {
-    public static final MapCodec<CustomWorldGen> CODEC = RecordCodecBuilder.mapCodec(
+    public static final MapCodec<CustomWorldGenAdv> CODEC = RecordCodecBuilder.mapCodec(
             instance -> instance.group(
                     BiomeSource.CODEC.fieldOf("biome_source").forGetter(generator -> generator.biomeSource),
-                    Codec.STRING.xmap(WorldGens.worldGenMap::get, CustomRule::name).fieldOf("settings").forGetter(generator -> generator.worldGen)
-            ).apply(instance, instance.stable(CustomWorldGen::new)));
+                    WorldGens.CUSTOM_RULE_ADV_CODEC.fieldOf("settings").forGetter(generator -> generator.worldGen)
+            ).apply(instance, instance.stable(CustomWorldGenAdv::new)));
 
     private final BiomeSource biomeSource;
 
-    private final CustomRule worldGen;
+    private final CustomRuleAdv worldGen;
 
-    public CustomWorldGen(BiomeSource biomeSource, CustomRule worldGen)
+    public CustomWorldGenAdv(BiomeSource biomeSource, CustomRuleAdv worldGen)
     {
         super(biomeSource);
         this.biomeSource = biomeSource;
@@ -29,14 +28,14 @@ public class CustomWorldGen extends AbstractCustomWorldGen
     }
 
     @Override
-    protected @NonNull MapCodec<? extends ChunkGenerator> codec()
+    protected void gen(@NonNull ChunkAccess chunk, @NonNull RandomState randomState)
     {
-        return CODEC;
+        worldGen.gen(chunk,randomState);
     }
 
     @Override
-    protected void gen(@NonNull ChunkAccess chunk, @NonNull RandomState randomState)
+    protected @NonNull MapCodec<? extends ChunkGenerator> codec()
     {
-        worldGen.gen(chunk, randomState);
+        return CODEC;
     }
 }

@@ -1,30 +1,35 @@
 package io.silvicky.item_br.worldgen;
 
-import io.silvicky.item.worldgen.CustomRule;
+import com.mojang.serialization.MapCodec;
+import io.silvicky.item.worldgen.CustomRuleAdv;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.levelgen.RandomState;
 import org.jspecify.annotations.NonNull;
 
-import java.util.HashMap;
-import java.util.Map;
-
-public class Road2CustomRule implements CustomRule
+public class Road2CustomRule implements CustomRuleAdv
 {
-    private final Map<Identifier, ChunkGenCache> caches = new HashMap<>();
+    public static final MapCodec<Road2CustomRule> CODEC= MapCodec.unit(Road2CustomRule::new);
+
+    public static final Identifier ID=Identifier.parse("silvicky:road2");
+
+    private ChunkGenCache cache=null;
 
     @Override
     public void gen(@NonNull ChunkAccess chunk, @NonNull RandomState randomState)
     {
-        ServerLevel level= (ServerLevel)(chunk.levelHeightAccessor);
-        ChunkGenCache cache=caches.computeIfAbsent(level.dimension().identifier(),_->new ChunkGenCache(0,256,level,randomState));
+        if(cache==null)
+        {
+            ServerLevel level = (ServerLevel) (chunk.levelHeightAccessor);
+            cache=new ChunkGenCache(0,256,level,randomState);
+        }
         cache.apply(chunk);
     }
 
     @Override
-    public String name()
+    public MapCodec<? extends CustomRuleAdv> codec()
     {
-        return "road2";
+        return CODEC;
     }
 }
