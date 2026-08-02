@@ -14,10 +14,12 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static io.silvicky.item_br.worldgen.Graphic.drawLine;
+import static io.silvicky.item_br.worldgen.Graphic.drawRect;
 import static io.silvicky.item_br.worldgen.RoadCustomRule.getNodeCoordination;
 
 public class ChunkGenCache
 {
+    //TODO Separate this into two classes
     private static final Identifier key=Identifier.parse("silvicky:road2");
 
     private final int baseY;
@@ -54,32 +56,46 @@ public class ChunkGenCache
         }
     }
 
-    private BlockPos getChosenPos(ChunkPos chunkPos)
+    private BlockPos getChosenPos(RegionPos regionPos)
     {
-        RandomSource random=randomState.getOrCreateRandomFactory(key).at(chunkPos.x(),0,chunkPos.z());
-        return chunkPos.getBlockAt(random.nextInt(3,13),0,random.nextInt(3,13));
+        RandomSource random=randomState.getOrCreateRandomFactory(key).at(regionPos.x,0,regionPos.z);
+        return regionPos.at(random.nextInt(16,48),0,random.nextInt(16,48));
     }
 
-    private void requestChunk(ChunkPos chunkPos)
+    private void genRegion(RegionPos regionPos)
     {
         //TODO draw real things
         //TODO Dismiss generated chunks
         int[][] neighbors={{1,0},{0,1}};
-        BlockPos core=getChosenPos(chunkPos);
-        boolean[] coordination=getNodeCoordination(randomState,chunkPos.x(),chunkPos.z());
+        BlockPos core=getChosenPos(regionPos);
+        boolean[] coordination=getNodeCoordination(randomState,regionPos.x,regionPos.z);
         for (int i=0;i<2;i++)
         {
-            BlockPos cur = getChosenPos(shift(chunkPos, neighbors[i][0], neighbors[i][1]));
-            if(coordination[i])drawLine(core.getX(), core.getZ(), cur.getX(), cur.getZ(), (x, z) -> setBlockState(new BlockPos(x, 0, z), Blocks.CONCRETE.white().defaultBlockState()));
+            BlockPos cur = getChosenPos(regionPos.add(neighbors[i][0], neighbors[i][1]));
+            if(coordination[i])
+            {
+                Point2 p00=new Point2(core.getX(), core.getZ());
+                Point2 p01=new Point2(cur.getX(), cur.getZ());
+                Point2 p10=p00.add(5,0);
+                Point2 p11=p01.add(5,0);
+                drawRect(p00, p01, p10, p11, (x, z) -> setBlockState(new BlockPos(x, 0, z), Blocks.CONCRETE.orange().defaultBlockState()));
+                drawLine(p00, p01, (x, z) -> setBlockState(new BlockPos(x, 0, z), Blocks.CONCRETE.white().defaultBlockState()));
+            }
         }
+    }
+
+    private void genChunk(ChunkPos chunkPos)
+    {
+        RegionPos regionPos=RegionPos.of(chunkPos);
+        genRegion(regionPos);
+        genRegion(regionPos.add(-1,0));
+        genRegion(regionPos.add(0,-1));
     }
 
     public void apply(ChunkAccess chunk)
     {
         ChunkPos chunkPos=chunk.getPos();
-        for(int x=-1;x<=0;x++)
-            for(int z=-1;z<=0;z++)
-                requestChunk(shift(chunkPos,x,z));
+        genChunk(chunkPos);
         SimpleChunk simpleChunk=chunks.remove(chunkPos);
         if(simpleChunk!=null)
         {
