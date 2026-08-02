@@ -47,7 +47,7 @@ public class ChunkGenCache
     {
         if(pos.getY()>=this.baseY&&pos.getY()<this.baseY+height)
         {
-            //TODO dismiss gen...
+            if(level.isLoaded(pos))return;
             ChunkPos chunkPos=ChunkPos.containing(pos);
             SimpleChunk simpleChunk=chunks.computeIfAbsent(chunkPos,_->new SimpleChunk(baseY,height,chunkPos));
             simpleChunk.setBlockState(pos, state);
@@ -63,6 +63,7 @@ public class ChunkGenCache
     private void requestChunk(ChunkPos chunkPos)
     {
         //TODO draw real things
+        //TODO Dismiss generated chunks
         int[][] neighbors={{1,0},{0,1}};
         BlockPos core=getChosenPos(chunkPos);
         boolean[] coordination=getNodeCoordination(randomState,chunkPos.x(),chunkPos.z());
@@ -75,12 +76,11 @@ public class ChunkGenCache
 
     public void apply(ChunkAccess chunk)
     {
-        //TODO Dismiss generated chunks
         ChunkPos chunkPos=chunk.getPos();
         for(int x=-1;x<=0;x++)
             for(int z=-1;z<=0;z++)
                 requestChunk(shift(chunkPos,x,z));
-        SimpleChunk simpleChunk=chunks.get(chunkPos);
+        SimpleChunk simpleChunk=chunks.remove(chunkPos);
         if(simpleChunk!=null)
         {
             simpleChunk.apply(chunk);
