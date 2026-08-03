@@ -62,6 +62,16 @@ public class Graphic
         {
             fill(i+baseX, points.get(i), consumer);
         }
-        //TODO draw side rect
+    }
+
+    public static void drawSideRect(Point2 p0, Point2 p1, double width, BiConsumer<Integer, Integer> consumer, BiConsumer<Integer, Integer> consumerEdge)
+    {
+        Point2 vecLine=p1.sub(p0);
+        Point2 vecTrans = vecLine.turnLeft().scaleTo(width);
+        Point2 p10=p0.add(vecTrans);
+        Point2 p11=p1.add(vecTrans);
+        drawRect(p0,p1,p10,p11,consumer);
+        drawLine(p10,p11,consumerEdge);
+        drawLine(p0,p1,consumerEdge);
     }
 }

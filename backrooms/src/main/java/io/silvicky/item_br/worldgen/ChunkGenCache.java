@@ -13,8 +13,7 @@ import net.minecraft.world.level.levelgen.RandomState;
 import java.util.HashMap;
 import java.util.Map;
 
-import static io.silvicky.item_br.worldgen.Graphic.drawLine;
-import static io.silvicky.item_br.worldgen.Graphic.drawRect;
+import static io.silvicky.item_br.worldgen.Graphic.*;
 import static io.silvicky.item_br.worldgen.RoadCustomRule.getNodeCoordination;
 
 public class ChunkGenCache
@@ -49,7 +48,7 @@ public class ChunkGenCache
     {
         if(pos.getY()>=this.baseY&&pos.getY()<this.baseY+height)
         {
-            if(level.isLoaded(pos))return;
+            if(level.isLoaded(pos))return;//fixme this results in bug if chunk loaded by player
             ChunkPos chunkPos=ChunkPos.containing(pos);
             SimpleChunk simpleChunk=chunks.computeIfAbsent(chunkPos,_->new SimpleChunk(baseY,height,chunkPos));
             simpleChunk.setBlockState(pos, state);
@@ -76,10 +75,9 @@ public class ChunkGenCache
             {
                 Point2 p00=new Point2(core.getX(), core.getZ());
                 Point2 p01=new Point2(cur.getX(), cur.getZ());
-                Point2 p10=p00.add(5,0);
-                Point2 p11=p01.add(5,0);
-                drawRect(p00, p01, p10, p11, (x, z) -> setBlockState(new BlockPos(x, 0, z), Blocks.CONCRETE.orange().defaultBlockState()));
-                drawLine(p00, p01, (x, z) -> setBlockState(new BlockPos(x, 0, z), Blocks.CONCRETE.white().defaultBlockState()));
+                drawSideRect(p00,p01,5,
+                        (x,z)->setBlockState(new BlockPos(x,0,z),Blocks.CONCRETE.orange().defaultBlockState()),
+                        (x,z)->setBlockState(new BlockPos(x,0,z),Blocks.CONCRETE.white().defaultBlockState()));
             }
         }
     }

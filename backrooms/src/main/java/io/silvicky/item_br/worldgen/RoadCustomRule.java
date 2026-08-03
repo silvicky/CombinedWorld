@@ -16,10 +16,11 @@ public class RoadCustomRule implements CustomRule
     private static final double threshold=0;
     public static boolean getNodeCoordination(RandomState random, int x, int z, boolean direction)
     {
-        double val;
+        return true;
+        /*double val;
         if(direction)val=random.getOrCreateNoise(Noises.CONTINENTALNESS).getValue(x*rLarge,0,z*rMedium);
         else val=random.getOrCreateNoise(Noises.CONTINENTALNESS).getValue(x*rMedium,rLarge,z*rLarge);
-        return val>=threshold;
+        return val>=threshold;*/
     }
 
     public static boolean[] getNodeCoordination(RandomState random, int x, int z)
