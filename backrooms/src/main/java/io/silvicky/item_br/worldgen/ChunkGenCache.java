@@ -75,9 +75,10 @@ public class ChunkGenCache
             {
                 Point2 p00=new Point2(core.getX(), core.getZ());
                 Point2 p01=new Point2(cur.getX(), cur.getZ());
+                int finalI = i;
                 drawSideRect(p00,p01,5,
-                        (x,z)->setBlockState(new BlockPos(x,0,z),Blocks.CONCRETE.orange().defaultBlockState()),
-                        (x,z)->setBlockState(new BlockPos(x,0,z),Blocks.CONCRETE.white().defaultBlockState()));
+                        (x,z)->setBlockState(new BlockPos(x, finalI *6,z),Blocks.CONCRETE.orange().defaultBlockState()),
+                        (x,z)->setBlockState(new BlockPos(x, finalI *6,z),Blocks.CONCRETE.white().defaultBlockState()));
             }
         }
     }
