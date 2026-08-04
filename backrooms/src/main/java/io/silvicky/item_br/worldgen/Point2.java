@@ -1,5 +1,7 @@
 package io.silvicky.item_br.worldgen;
 
+import java.util.Objects;
+
 import static java.lang.Math.sqrt;
 
 public class Point2
@@ -52,4 +54,20 @@ public class Point2
     {
         return new Point2(-z, x);
     }
+
+    @Override
+    public boolean equals(Object o)
+    {
+        if (o == null || getClass() != o.getClass()) return false;
+        Point2 point2 = (Point2) o;
+        return x == point2.x && z == point2.z;
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(x, z);
+    }
+
+    //TODO equals
 }

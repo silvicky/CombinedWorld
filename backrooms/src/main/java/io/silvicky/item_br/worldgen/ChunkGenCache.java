@@ -11,7 +11,9 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.levelgen.RandomState;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import static io.silvicky.item_br.worldgen.Graphic.*;
 import static io.silvicky.item_br.worldgen.RoadCustomRule.getNodeCoordination;
@@ -31,6 +33,8 @@ public class ChunkGenCache
 
     private final Map<ChunkPos, SimpleChunk> chunks=new HashMap<>();
 
+    private final Set<RegionPos> generatedRegions=new HashSet<>();
+
     private static ChunkPos shift(ChunkPos pos,int x,int z)
     {
         return new ChunkPos(pos.x()+x,pos.z()+z);
@@ -48,7 +52,6 @@ public class ChunkGenCache
     {
         if(pos.getY()>=this.baseY&&pos.getY()<this.baseY+height)
         {
-            if(level.isLoaded(pos))return;//fixme this results in bug if chunk loaded by player
             ChunkPos chunkPos=ChunkPos.containing(pos);
             SimpleChunk simpleChunk=chunks.computeIfAbsent(chunkPos,_->new SimpleChunk(baseY,height,chunkPos));
             simpleChunk.setBlockState(pos, state);
@@ -63,8 +66,9 @@ public class ChunkGenCache
 
     private void genRegion(RegionPos regionPos)
     {
-        //TODO draw real things
-        //TODO Dismiss generated chunks
+        //TODO draw curves, y slope...
+        if(generatedRegions.contains(regionPos))return;
+        generatedRegions.add(regionPos);
         int[][] neighbors={{1,0},{0,1}};
         BlockPos core=getChosenPos(regionPos);
         boolean[] coordination=getNodeCoordination(randomState,regionPos.x,regionPos.z);
@@ -95,7 +99,8 @@ public class ChunkGenCache
     {
         ChunkPos chunkPos=chunk.getPos();
         genChunk(chunkPos);
-        SimpleChunk simpleChunk=chunks.remove(chunkPos);
+        //SimpleChunk simpleChunk=chunks.remove(chunkPos);
+        SimpleChunk simpleChunk=chunks.get(chunkPos);//TODO somehow remove them elsewhere?
         if(simpleChunk!=null)
         {
             simpleChunk.apply(chunk);
