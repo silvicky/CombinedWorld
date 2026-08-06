@@ -74,4 +74,26 @@ public class Graphic
         drawLine(p10,p11,consumerEdge);
         drawLine(p0,p1,consumerEdge);
     }
+
+    public static void drawArc(Point2 p0, Point2 p1, Point2 center, BiConsumer<Integer, Integer> consumer)
+    {
+        //TODO howto?
+        int dx = abs(p1.x - p0.x);
+        int dz = abs(p1.z - p0.z);
+        int sx = p0.x < p1.x ? 1 : -1;
+        int sz = p0.z < p1.z ? 1 : -1;
+        int r=min(center.sub(p0).len2(),center.sub(p1).len2());
+        int err = dx - dz;
+
+        int x=p0.x;
+        int z=p0.z;
+
+        while (true) {
+            consumer.accept(x, z);
+            if (x == p1.x && z == p1.z) break;
+            int e2 = 2 * err;
+            if (e2 > -dz) { err -= dz; x += sx; }
+            if (e2 < dx) { err += dx; z += sz; }
+        }
+    }
 }

@@ -40,9 +40,14 @@ public class Point2
         return new Point2(x*scale,z*scale);
     }
 
+    public int len2()
+    {
+        return x*x + z*z;
+    }
+
     public double len()
     {
-        return sqrt(x*x + z*z);
+        return sqrt(len2());
     }
 
     public Point2 scaleTo(double target)
