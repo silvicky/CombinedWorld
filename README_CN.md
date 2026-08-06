@@ -18,7 +18,7 @@
 
 维度 - 游戏里的一个基本世界
 
-带有原版维度那样后缀的会被视作三个一组的原版世界，否则会被视作独立维度。
+带有原版维度那样后缀的会被视作三个一组的原版世界，否则会被视作独立维度。前者务必确保三个维度同时存在否则传送门会出问题
 
 配置文件：/config/ItemStorage.json 可以选择关闭物品栏存储
 
@@ -28,7 +28,7 @@
 
 不带参数输入命令可以查看具体参数
 
-### Basic warp
+### 世界切换
 
 ```/warp``` 把自己传送到一个世界
 
@@ -40,26 +40,32 @@
 
 ```/evacuate``` 从一个世界撤离所有玩家到另一个世界，不在线的玩家也可以
 
-TODO
+### 玩家管理
 
-/listdimensionplayers
+```/listdimensionplayers```
 
-/listworldplayers
+```/listworldplayers```
 
-/listgroupplayers
+```/listgroupplayers```
 
-/importworld
+列出...的玩家
 
-/packme
+### 世界管理
 
-/deleteworld
+```/importworld``` 导入一个原版世界或其主世界（见上）
 
-/createworld
+```/deleteworld``` 删除一个世界
 
-/silence
+```/createworld``` 从给定世界生成设置创建世界，这可以允许相同的命名空间，因此更加自由
 
-/visibility
+### 世界设置（后室之类有意思的东西，感谢某人支持？）
 
-To customize seed of a specific dimension, simply add a Long field to data/seed/ in it, set the key to the identifier of the dimension, and value to be the seed. If seed is not set, seed of the whole server would be used.
+即将到来
 
-To customize default gamemode of a specific group(namespace), simply add an Integer field to data/gamemode/ in it, set the key to the namespace of the group, and value to be the numeric ID of the gamemode(0=survival, 1=creative, 2=adventure, 3=spectator). If gamemode is not set, gamemode of the whole server would be used.
+```/silence``` 设置玩家在某个维度不能听到的声音
+
+```/visibility``` 设置玩家在一个维度可见的实体类型，对于其他玩家，有更复杂的选项，例如，让玩家每次死亡后“可见度”变化，只有具有相同可见度的可以看到对方。
+
+### 其他
+
+```/packme``` 打包身上物品到一个有NBT的箱子物品里，末影箱也可以打包
