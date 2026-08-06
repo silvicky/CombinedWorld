@@ -44,26 +44,32 @@ As inventory switching is now integrated into game, this is largely the same as 
 
 ```/evacuate``` Evacuate all players in a world into another one, even offline ones!
 
-TODO
+### Player management
 
-/listdimensionplayers
+```/listdimensionplayers```
 
-/listworldplayers
+```/listworldplayers```
 
-/listgroupplayers
+```/listgroupplayers```
 
-/importworld
+List players in specific...
 
-/packme
+### World management
 
-/deleteworld
+```/importworld``` Import a full vanilla world or its overworld.
 
-/createworld
+```/deleteworld``` Delete a world.
 
-/silence
+```/createworld``` Create a world from given world generation settings, which would offer more freedom as colliding namespace is allowed here.
 
-/visibility
+### World settings (for backrooms or something, inspired by someone?)
 
-To customize seed of a specific dimension, simply add a Long field to data/seed/ in it, set the key to the identifier of the dimension, and value to be the seed. If seed is not set, seed of the whole server would be used.
+Coming soon...
 
-To customize default gamemode of a specific group(namespace), simply add an Integer field to data/gamemode/ in it, set the key to the namespace of the group, and value to be the numeric ID of the gamemode(0=survival, 1=creative, 2=adventure, 3=spectator). If gamemode is not set, gamemode of the whole server would be used.
+```/silence``` Set types of sound that player cannot hear sound in a dimension.
+
+```/visibility``` Set types of entities that player can see in a dimension. For other players, more complex options are offered, for example, you may make players "visibility" change after each death, and only players with same visibility can see each other.
+
+### Other
+
+```/packme``` Pack everything on you into a chest with NBT, maybe also your ender chest items.
