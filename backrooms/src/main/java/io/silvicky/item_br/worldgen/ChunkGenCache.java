@@ -83,6 +83,8 @@ public class ChunkGenCache
                 drawSideRect(p00,p01,5,
                         (x,z)->setBlockState(new BlockPos(x, finalI *6,z),Blocks.CONCRETE.orange().defaultBlockState()),
                         (x,z)->setBlockState(new BlockPos(x, finalI *6,z),Blocks.CONCRETE.white().defaultBlockState()));
+                drawArc(p00,p01,p00.add(p01).scale(0.5),
+                        (x,z)->setBlockState(new BlockPos(x, 12+finalI*6,z),Blocks.CONCRETE.red().defaultBlockState()));
             }
         }
     }
