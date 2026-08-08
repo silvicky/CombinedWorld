@@ -1,7 +1,9 @@
 package io.silvicky.item_br.worldgen;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiConsumer;
 
 import static java.lang.Math.*;
@@ -118,5 +120,69 @@ public class Graphic
                 z=z1;
             }
         }
+    }
+
+    private static List<List<Point2>> fragment(List<Point2> line, int cz)
+    {
+        List<List<Point2>> ret=new ArrayList<>();
+        List<Point2> cur=new ArrayList<>();
+        ret.add(cur);
+        for(Point2 p:line)
+        {
+            cur.add(p);
+            if(p.z==cz)
+            {
+                cur=new ArrayList<>();
+                ret.add(cur);
+                cur.add(p);
+            }
+        }
+        if(ret.getLast().size()==1)ret.removeLast();
+        return ret;
+    }
+
+    public static void drawRing(Point2 p00, Point2 p01, Point2 p10, Point2 p11, Point2 center, BiConsumer<Integer, Integer> consumer)
+    {
+        List<Point2> arc0=new ArrayList<>();
+        List<Point2> arc1=new ArrayList<>();
+        drawArc(p00,p01,center,(x,z)->arc0.add(new Point2(x,z)));
+        drawArc(p10,p11,center,(x,z)->arc1.add(new Point2(x,z)));
+        List<List<Point2>> arc0f=fragment(arc0,center.z);
+        List<List<Point2>> arc1f=fragment(arc1,center.z);
+        if(arc0f.size()!=arc1f.size())
+        {
+            throw new RuntimeException("Arc sizes mismatch!");
+        }
+        for(int i=0;i<arc0f.size();i++)
+        {
+            Map<Integer,List<Integer>> points=new HashMap<>();
+            for(Point2 p:arc0f.get(i))
+            {
+                points.computeIfAbsent(p.x,_->new ArrayList<>()).add(p.z);
+            }
+            for(Point2 p:arc1f.get(i))
+            {
+                points.computeIfAbsent(p.x,_->new ArrayList<>()).add(p.z);
+            }
+            drawLine(arc0f.get(i).getFirst(),arc1f.get(i).getFirst(),
+                    (x,z)->points.computeIfAbsent(x,_->new ArrayList<>()).add(z));
+            drawLine(arc0f.get(i).getLast(),arc1f.get(i).getLast(),
+                    (x,z)->points.computeIfAbsent(x,_->new ArrayList<>()).add(z));
+            for(Map.Entry<Integer,List<Integer>> e:points.entrySet())
+            {
+                fill(e.getKey(),e.getValue(),consumer);
+            }
+        }
+    }
+
+    public static void drawSideRing(Point2 p0, Point2 p1, Point2 center, double width, BiConsumer<Integer, Integer> consumer, BiConsumer<Integer, Integer> consumerEdge)
+    {
+        Point2 vecTrans0 = p0.sub(center).scaleTo(width);
+        Point2 vecTrans1 = p1.sub(center).scaleTo(width);
+        Point2 p10=p0.add(vecTrans0);
+        Point2 p11=p1.add(vecTrans1);
+        drawRing(p0,p1,p10,p11,center,consumer);
+        drawArc(p10,p11,center,consumerEdge);
+        drawArc(p0,p1,center,consumerEdge);
     }
 }
