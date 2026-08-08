@@ -87,7 +87,7 @@ public class Graphic
                 };
         int x=p0.x;
         int z=p0.z;
-        for (int i=0;i<1000;i++) {
+        while (true) {
             consumer.accept(x, z);
             if (x == p1.x && z == p1.z) break;
             Point2 dir=new Point2(x,z).sub(center);
