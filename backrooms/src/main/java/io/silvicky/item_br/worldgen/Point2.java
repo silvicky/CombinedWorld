@@ -36,19 +36,19 @@ public class Point2
         return new Point2((int)round(x*scale),(int)round(z*scale));
     }
 
-    public int len2()
+    public long len2()
     {
-        return x*x + z*z;
+        return (long) x *x + (long) z *z;
     }
 
-    public int dot(Point2 point)
+    public long dot(Point2 point)
     {
-        return x*point.x + z*point.z;
+        return (long) x *point.x + (long) z *point.z;
     }
 
-    public int cross(Point2 point)
+    public long cross(Point2 point)
     {
-        return z*point.x - x*point.z;
+        return (long) z *point.x - (long) x *point.z;
     }
 
     public double len()

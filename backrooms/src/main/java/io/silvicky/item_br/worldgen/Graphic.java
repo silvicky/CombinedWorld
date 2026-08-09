@@ -79,7 +79,7 @@ public class Graphic
 
     public static void drawArc(Point2 p0, Point2 p1, Point2 center, BiConsumer<Integer, Integer> consumer)
     {
-        int r=center.sub(p1).len2();
+        long r=center.sub(p1).len2();
         Point2[] move=
                 {
                         new Point2(0,1),
@@ -110,10 +110,10 @@ public class Graphic
             }
             x+=advance.x;
             z+=advance.z;
-            int err=abs(new Point2(x,z).sub(center).len2()-r);
+            long err=abs(new Point2(x,z).sub(center).len2()-r);
             int x1=x+shift.x;
             int z1=z+shift.z;
-            int err1=abs(new Point2(x1,z1).sub(center).len2()-r);
+            long err1=abs(new Point2(x1,z1).sub(center).len2()-r);
             if(err1<err)
             {
                 x=x1;
