@@ -46,7 +46,7 @@ public class ChunkGenCache
 
     private static final int portLength=16;
 
-    private static final int bufferWidth=48;
+    private static final int bufferWidth=32;
 
     private Point2[] getNeighbors(RegionPos pos)
     {

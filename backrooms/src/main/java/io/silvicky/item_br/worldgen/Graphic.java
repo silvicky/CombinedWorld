@@ -189,6 +189,11 @@ public class Graphic
     public static List<Double> solveQuadratic(double a, double b, double c)
     {
         List<Double> ret=new ArrayList<>();
+        if(abs(a)<1e-6)
+        {
+            ret.add(-c/b);
+            return ret;
+        }
         double det=b*b-4*a*c;
         if(det<0)return ret;
         if(det==0)

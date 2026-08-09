@@ -2,6 +2,7 @@ package io.silvicky.item_br.worldgen;
 
 import java.util.Objects;
 
+import static java.lang.Math.round;
 import static java.lang.Math.sqrt;
 
 public class Point2
@@ -32,12 +33,7 @@ public class Point2
 
     public Point2 scale(double scale)
     {
-        return new Point2((int)(x*scale),(int)(z*scale));
-    }
-
-    public Point2 scale(int scale)
-    {
-        return new Point2(x*scale,z*scale);
+        return new Point2((int)round(x*scale),(int)round(z*scale));
     }
 
     public int len2()
@@ -83,6 +79,4 @@ public class Point2
     {
         return Objects.hash(x, z);
     }
-
-    //TODO equals
 }
