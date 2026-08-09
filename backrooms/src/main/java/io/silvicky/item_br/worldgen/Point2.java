@@ -16,6 +16,12 @@ public class Point2
         this.z = z;
     }
 
+    public Point2(Point2d point)
+    {
+        this.x=(int)round(point.x());
+        this.z=(int)round(point.z());
+    }
+
     public Point2 add(int x, int z)
     {
         return new Point2(this.x + x, this.z + z);
@@ -64,6 +70,11 @@ public class Point2
     public Point2 turnLeft()
     {
         return new Point2(z, -x);
+    }
+
+    public double atan2()
+    {
+        return Math.atan2(z,x);
     }
 
     @Override

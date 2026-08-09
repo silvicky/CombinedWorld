@@ -98,7 +98,7 @@ public class ChunkGenCache
 
     private void genRegion(RegionPos regionPos)
     {
-        //TODO draw curves, y slope...
+        //TODO draw defects, interchange, y slope...
         if(generatedRegions.contains(regionPos))return;
         generatedRegions.add(regionPos);
         boolean[] coordination=getNodeCoordination(randomState,regionPos.x,regionPos.z);

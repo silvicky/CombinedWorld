@@ -207,7 +207,7 @@ public class Graphic
     }
 
     /**
-     * two centers
+     * @return two centers
      */
     public static Point2[] connect(Point2 p0, Point2 d0, Point2 p1, Point2 d1)
     {
@@ -253,8 +253,43 @@ public class Graphic
         if(r<=0||r>=1e6||d0v.scaleTo(r).len2()==0||d1v.scaleTo(r).len2()==0)
         {
             throw new RuntimeException("Invalid solution!");
-            //TODO ???
         }
         return new Point2[]{p0.add(d0v.scaleTo(r)),p1.add(d1v.scaleTo(r))};
+    }
+
+    public static int getSlopeLine(Point2 cur, Point2 p0, Point2 p1, int base, double height)
+    {
+        Point2 d=p1.sub(p0);
+        Point2 dc=cur.sub(p0);
+        return base+(int)round((height*d.dot(dc))/d.len2());
+    }
+
+    public static int getSlopeArc(Point2 cur, Point2 p0, Point2 p1, Point2 center, int base, double height)
+    {
+        double t0=p0.sub(center).atan2();
+        double t1=p1.sub(center).atan2();
+        if(t1<t0)t1+=2*Math.PI;
+        double tc=cur.sub(center).atan2();
+        if(tc<t0)tc+=2*Math.PI;
+        return base+(int)round((height*(tc-t0))/(t1-t0));
+    }
+
+    /**
+     * @return center, points on d0 and d1
+     */
+    public static Point2[] getInscribedCircle(Point2 p, Point2 d0, Point2 d1, double r)
+    {
+        Point2[] ret=new Point2[3];
+        Point2d d0d=new Point2d(d0);
+        Point2d d1d=new Point2d(d1);
+        Point2d avg=d0d.normalize().add(d1d.normalize());
+        double sin=abs(avg.sin(d0d));
+        double tan=abs(avg.tan(d1d));
+        double dis=r/sin;
+        double dis2=r/tan;
+        ret[0]=p.add(new Point2(avg.scaleTo(dis)));
+        ret[1]=p.add(new Point2(d0d.scaleTo(dis2)));
+        ret[2]=p.add(new Point2(d1d.scaleTo(dis2)));
+        return ret;
     }
 }
