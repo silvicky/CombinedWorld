@@ -45,6 +45,16 @@ public class Point2
         return x*x + z*z;
     }
 
+    public int dot(Point2 point)
+    {
+        return x*point.x + z*point.z;
+    }
+
+    public int cross(Point2 point)
+    {
+        return z*point.x - x*point.z;
+    }
+
     public double len()
     {
         return sqrt(len2());
@@ -57,7 +67,7 @@ public class Point2
 
     public Point2 turnLeft()
     {
-        return new Point2(-z, x);
+        return new Point2(z, -x);
     }
 
     @Override

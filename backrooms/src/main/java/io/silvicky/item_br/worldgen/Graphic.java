@@ -185,4 +185,71 @@ public class Graphic
         drawArc(p10,p11,center,consumerEdge);
         drawArc(p0,p1,center,consumerEdge);
     }
+
+    public static List<Double> solveQuadratic(double a, double b, double c)
+    {
+        List<Double> ret=new ArrayList<>();
+        double det=b*b-4*a*c;
+        if(det<0)return ret;
+        if(det==0)
+        {
+            ret.add(-b/(2*a));
+            return ret;
+        }
+        ret.add((-b-sqrt(det))/(2*a));
+        ret.add((-b+sqrt(det))/(2*a));
+        return ret;
+    }
+
+    /**
+     * two centers
+     */
+    public static Point2[] connect(Point2 p0, Point2 d0, Point2 p1, Point2 d1)
+    {
+        Point2 d0v=d0.turnLeft();
+        if(d0v.dot(p1.sub(p0))<0)d0v=d0v.scale(-1);
+        Point2 d1v=d1.turnLeft();
+        if(d1v.dot(p0.sub(p1))<0)d1v=d1v.scale(-1);
+        if(d0v.dot(d1v)>0)
+        {
+            throw new RuntimeException("A straight line might be better here...");
+        }
+        double l0=d0v.len();
+        double l1=d1v.len();
+        //c0{p0.x + r * d0v.x / l0, ...}
+        //c1-c0{(d1v.x/l1-d0v.x/l0)*r+(p1.x-p0.x), ...}
+        double kcx=d1v.x/l1-d0v.x/l0;
+        double bcx=p1.x-p0.x;
+        double kcz=d1v.z/l1-d0v.z/l0;
+        double bcz=p1.z-p0.z;
+        //len2(c1-c0)=4r^2
+        //that is, (kcx*r+bcx)^2+...=4r^2, or (kcx*kcx+kcz*kcz-4)r^2+(2*kcx*bcx+2*kcz*bcz)r+(bcx*bcx+bcz*bcz)=0
+        List<Double> rs=solveQuadratic(kcx*kcx+kcz*kcz-4,2*kcx*bcx+2*kcz*bcz,bcx*bcx+bcz*bcz);
+        if(rs.isEmpty())
+        {
+            throw new RuntimeException("No solution found!");
+        }
+        double r;
+        if(rs.size()==1)r=rs.getFirst();
+        else
+        {
+            double r0 =rs.getFirst();
+            double r1 =rs.getLast();
+            if(r0 > r1)
+            {
+                double t= r0;
+                r0 = r1;
+                r1 =t;
+            }
+            if(r0 <=0)r= r1;
+            else if(r1 >=1e6)r= r0;
+            else r= r1;
+        }
+        if(r<=0||r>=1e6||d0v.scaleTo(r).len2()==0||d1v.scaleTo(r).len2()==0)
+        {
+            throw new RuntimeException("Invalid solution!");
+            //TODO ???
+        }
+        return new Point2[]{p0.add(d0v.scaleTo(r)),p1.add(d1v.scaleTo(r))};
+    }
 }

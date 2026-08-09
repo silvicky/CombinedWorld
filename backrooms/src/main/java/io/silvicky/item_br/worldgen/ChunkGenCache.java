@@ -10,12 +10,14 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.levelgen.RandomState;
 
+import java.awt.*;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
 import static io.silvicky.item_br.worldgen.Graphic.*;
+import static io.silvicky.item_br.worldgen.RegionPos.regionSize;
 import static io.silvicky.item_br.worldgen.RoadCustomRule.getNodeCoordination;
 
 public class ChunkGenCache
@@ -40,6 +42,36 @@ public class ChunkGenCache
         return new ChunkPos(pos.x()+x,pos.z()+z);
     }
 
+    private static final int[][] n ={{1,0},{0,1},{-1,0},{0,-1}};
+
+    private static final int portLength=16;
+
+    private static final int bufferWidth=48;
+
+    private Point2[] getNeighbors(RegionPos pos)
+    {
+        Point2[] ret=new Point2[4];
+        for(int i=0;i<4;i++)
+        {
+            ret[i]=getChosenPos(pos.add(n[i][0], n[i][1]));
+        }
+        return ret;
+    }
+
+    private Point2[] getNodePorts(RegionPos pos)
+    {
+        Point2[] ret=new Point2[4];
+        Point2[] neighbors=getNeighbors(pos);
+        Point2 center=getChosenPos(pos);
+        Point2 line02=neighbors[2].sub(neighbors[0]);
+        Point2 line13=neighbors[3].sub(neighbors[1]);
+        ret[0]=center.sub(line02.scaleTo(portLength));
+        ret[1]=center.sub(line13.scaleTo(portLength));
+        ret[2]=center.add(line02.scaleTo(portLength));
+        ret[3]=center.add(line13.scaleTo(portLength));
+        return ret;
+    }
+
     public ChunkGenCache(int baseY, int height, ServerLevel level, RandomState randomState)
     {
         this.baseY = baseY;
@@ -58,10 +90,10 @@ public class ChunkGenCache
         }
     }
 
-    private BlockPos getChosenPos(RegionPos regionPos)
+    private Point2 getChosenPos(RegionPos regionPos)
     {
         RandomSource random=randomState.getOrCreateRandomFactory(key).at(regionPos.x,0,regionPos.z);
-        return regionPos.at(random.nextInt(16,48),0,random.nextInt(16,48));
+        return regionPos.at(random.nextInt(bufferWidth,regionSize-bufferWidth),random.nextInt(bufferWidth,regionSize-bufferWidth));
     }
 
     private void genRegion(RegionPos regionPos)
@@ -69,23 +101,53 @@ public class ChunkGenCache
         //TODO draw curves, y slope...
         if(generatedRegions.contains(regionPos))return;
         generatedRegions.add(regionPos);
-        int[][] neighbors={{1,0},{0,1}};
-        BlockPos core=getChosenPos(regionPos);
         boolean[] coordination=getNodeCoordination(randomState,regionPos.x,regionPos.z);
+        Point2[] ports=getNodePorts(regionPos);
         for (int i=0;i<2;i++)
         {
-            BlockPos cur = getChosenPos(regionPos.add(neighbors[i][0], neighbors[i][1]));
-            if(coordination[i])
+            int finalI = i;
+            drawSideRect(ports[i+2],ports[i],5,
+                    (x,z)->setBlockState(new BlockPos(x, finalI*6,z),Blocks.CONCRETE.orange().defaultBlockState()),
+                    (x,z)->setBlockState(new BlockPos(x, finalI*6,z),Blocks.CONCRETE.white().defaultBlockState()));
+            Point2[] portsN = getNodePorts(regionPos.add(n[i][0],n[i][1]));
+            try
             {
-                Point2 p00=new Point2(core.getX(), core.getZ());
-                Point2 p01=new Point2(cur.getX(), cur.getZ());
-                int finalI = i;
+                Point2[] cs = connect(ports[i], ports[i].sub(ports[i + 2]), portsN[i + 2], portsN[i + 2].sub(portsN[i]));
+                Point2 joint = cs[0].add(cs[1]).scale(0.5);
+                if (joint.sub(cs[0]).cross(ports[i].sub(cs[0])) > 0)
+                {
+                    drawSideRing(ports[i], joint, cs[0], 5,
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.orange().defaultBlockState()),
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.white().defaultBlockState()));
+                    drawSideRing(portsN[i + 2], joint, cs[1], -5,
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.orange().defaultBlockState()),
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.white().defaultBlockState()));
+                }
+                else
+                {
+                    drawSideRing(joint, ports[i], cs[0], -5,
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.orange().defaultBlockState()),
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.white().defaultBlockState()));
+                    drawSideRing(joint, portsN[i + 2], cs[1], 5,
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.orange().defaultBlockState()),
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.white().defaultBlockState()));
+                }
+            /*if(coordination[i])
+            {
                 drawSideRect(p00,p01,5,
                         (x,z)->setBlockState(new BlockPos(x, finalI *6,z),Blocks.CONCRETE.orange().defaultBlockState()),
                         (x,z)->setBlockState(new BlockPos(x, finalI *6,z),Blocks.CONCRETE.white().defaultBlockState()));
                 drawSideRing(p00,p01,p00.add(p01).scale(0.5),5,
                         (x,z)->setBlockState(new BlockPos(x, 12+finalI*6,z),Blocks.CONCRETE.red().defaultBlockState()),
                         (x,z)->setBlockState(new BlockPos(x, 12+finalI*6,z),Blocks.CONCRETE.white().defaultBlockState()));
+            }*/
+            }
+            catch(Exception e)
+            {
+                drawSideRect(ports[i],portsN[i+2],5,
+                        (x,z)->setBlockState(new BlockPos(x, finalI*6,z),Blocks.CONCRETE.orange().defaultBlockState()),
+                        (x,z)->setBlockState(new BlockPos(x, finalI*6,z),Blocks.CONCRETE.white().defaultBlockState()));
+
             }
         }
     }
