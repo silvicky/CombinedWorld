@@ -264,14 +264,18 @@ public class Graphic
         return base+(int)round((height*d.dot(dc))/d.len2());
     }
 
-    public static int getSlopeArc(Point2 cur, Point2 p0, Point2 p1, Point2 center, int base, double height)
+    public static int getSlopeArc(Point2 cur, Point2 p0, Point2 p1, Point2 center, int base, double height, double bufferInsideArc)
     {
+        final double bufferOutsideArc =0.1;
         double t0=p0.sub(center).atan2();
         double t1=p1.sub(center).atan2();
-        if(t1<t0)t1+=2*Math.PI;
+        if(t1<t0- bufferOutsideArc)t1+=2*PI;
         double tc=cur.sub(center).atan2();
-        if(tc<t0)tc+=2*Math.PI;
-        return base+(int)round((height*(tc-t0))/(t1-t0));
+        if(tc<t0- bufferOutsideArc)tc+=2*PI;
+        if(tc>t1+ bufferOutsideArc)tc-=2*PI;
+        double ratio=(tc-t0-bufferInsideArc)/(t1-t0-2*bufferInsideArc);
+        ratio=clamp(ratio,0,1);
+        return base+(int)round(ratio*height);
     }
 
     /**

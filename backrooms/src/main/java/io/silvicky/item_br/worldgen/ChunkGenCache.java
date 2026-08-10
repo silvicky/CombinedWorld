@@ -37,16 +37,11 @@ public class ChunkGenCache
 
     private final Set<RegionPos> generatedRegions=new HashSet<>();
 
-    private static ChunkPos shift(ChunkPos pos,int x,int z)
-    {
-        return new ChunkPos(pos.x()+x,pos.z()+z);
-    }
-
     private static final int[][] n ={{1,0},{0,1},{-1,0},{0,-1}};
 
-    private static final int portLength=16;
+    private static final int portLength=128;
 
-    private static final int bufferWidth=32;
+    private static final int bufferWidth=144;
 
     private Point2[] getNeighbors(RegionPos pos)
     {
@@ -103,10 +98,23 @@ public class ChunkGenCache
         generatedRegions.add(regionPos);
         boolean[] coordination=getNodeCoordination(randomState,regionPos.x,regionPos.z);
         Point2[] ports=getNodePorts(regionPos);
+        Point2 center=getChosenPos(regionPos);
+        for(int i=0;i<4;i++)
+        {
+            //TODO an interchange straight
+            int finalI = i%2;
+            Point2[] cs=getInscribedCircle(center,ports[i].sub(center),ports[(i+1)%4].sub(center),30);
+            drawSideRing(cs[1], cs[2], cs[0], -5,
+                    (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x,z),cs[1],cs[2],cs[0],6*finalI,6-12*finalI,0.5), z), Blocks.CONCRETE.orange().defaultBlockState()),
+                    (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x,z),cs[1],cs[2],cs[0],6*finalI,6-12*finalI,0.5), z), Blocks.CONCRETE.white().defaultBlockState()));
+        }
         for (int i=0;i<2;i++)
         {
             int finalI = i;
             drawSideRect(ports[i+2],ports[i],5,
+                    (x,z)->setBlockState(new BlockPos(x, finalI*6,z),Blocks.CONCRETE.orange().defaultBlockState()),
+                    (x,z)->setBlockState(new BlockPos(x, finalI*6,z),Blocks.CONCRETE.white().defaultBlockState()));
+            drawSideRect(ports[i+2],ports[i],-5,
                     (x,z)->setBlockState(new BlockPos(x, finalI*6,z),Blocks.CONCRETE.orange().defaultBlockState()),
                     (x,z)->setBlockState(new BlockPos(x, finalI*6,z),Blocks.CONCRETE.white().defaultBlockState()));
             Point2[] portsN = getNodePorts(regionPos.add(n[i][0],n[i][1]));
@@ -119,16 +127,28 @@ public class ChunkGenCache
                     drawSideRing(ports[i], joint, cs[0], 5,
                             (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.orange().defaultBlockState()),
                             (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.white().defaultBlockState()));
+                    drawSideRing(ports[i], joint, cs[0], -5,
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.orange().defaultBlockState()),
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.white().defaultBlockState()));
+                    drawSideRing(portsN[i + 2], joint, cs[1], 5,
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.orange().defaultBlockState()),
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.white().defaultBlockState()));
                     drawSideRing(portsN[i + 2], joint, cs[1], -5,
                             (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.orange().defaultBlockState()),
                             (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.white().defaultBlockState()));
                 }
                 else
                 {
+                    drawSideRing(joint, ports[i], cs[0], 5,
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.orange().defaultBlockState()),
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.white().defaultBlockState()));
                     drawSideRing(joint, ports[i], cs[0], -5,
                             (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.orange().defaultBlockState()),
                             (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.white().defaultBlockState()));
                     drawSideRing(joint, portsN[i + 2], cs[1], 5,
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.orange().defaultBlockState()),
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.white().defaultBlockState()));
+                    drawSideRing(joint, portsN[i + 2], cs[1], -5,
                             (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.orange().defaultBlockState()),
                             (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.white().defaultBlockState()));
                 }
@@ -147,7 +167,9 @@ public class ChunkGenCache
                 drawSideRect(ports[i],portsN[i+2],5,
                         (x,z)->setBlockState(new BlockPos(x, finalI*6,z),Blocks.CONCRETE.orange().defaultBlockState()),
                         (x,z)->setBlockState(new BlockPos(x, finalI*6,z),Blocks.CONCRETE.white().defaultBlockState()));
-
+                drawSideRect(ports[i],portsN[i+2],-5,
+                        (x,z)->setBlockState(new BlockPos(x, finalI*6,z),Blocks.CONCRETE.orange().defaultBlockState()),
+                        (x,z)->setBlockState(new BlockPos(x, finalI*6,z),Blocks.CONCRETE.white().defaultBlockState()));
             }
         }
     }

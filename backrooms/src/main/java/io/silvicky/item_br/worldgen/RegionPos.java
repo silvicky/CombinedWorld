@@ -5,7 +5,7 @@ import net.minecraft.world.level.ChunkPos;
 
 public class RegionPos extends Point2
 {
-    public static final int regionBits = 3;
+    public static final int regionBits = 5;
 
     public static final int chunkBits = 4;
 
@@ -21,16 +21,6 @@ public class RegionPos extends Point2
     public static RegionPos of(ChunkPos chunkPos)
     {
         return new RegionPos(chunkPos.x() >> regionBits, chunkPos.z() >> regionBits);
-    }
-
-    public static RegionPos of(BlockPos pos)
-    {
-        return new RegionPos(pos.getX() >> (regionBits + chunkBits), pos.getZ() >> (regionBits + chunkBits));
-    }
-
-    public BlockPos at(int x, int y, int z)
-    {
-        return new BlockPos(((this.x * chunkSize) << regionBits) + x, y, ((this.z * chunkSize) << regionBits) + z);
     }
 
     public Point2 at(int x, int z)
