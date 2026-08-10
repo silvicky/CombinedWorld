@@ -257,11 +257,14 @@ public class Graphic
         return new Point2[]{p0.add(d0v.scaleTo(r)),p1.add(d1v.scaleTo(r))};
     }
 
-    public static int getSlopeLine(Point2 cur, Point2 p0, Point2 p1, int base, double height)
+    public static int getSlopeLine(Point2 cur, Point2 p0, Point2 p1, int base, double height, double bufferInsideLine)
     {
         Point2 d=p1.sub(p0);
         Point2 dc=cur.sub(p0);
-        return base+(int)round((height*d.dot(dc))/d.len2());
+        double ratio=(double)d.dot(dc)/d.len2();
+        ratio=(ratio-bufferInsideLine)/(1-2*bufferInsideLine);
+        ratio=clamp(ratio,0,1);
+        return base+(int)round(height*ratio);
     }
 
     public static int getSlopeArc(Point2 cur, Point2 p0, Point2 p1, Point2 center, int base, double height, double bufferInsideArc)
@@ -294,6 +297,42 @@ public class Graphic
         ret[0]=p.add(new Point2(avg.scaleTo(dis)));
         ret[1]=p.add(new Point2(d0d.scaleTo(dis2)));
         ret[2]=p.add(new Point2(d1d.scaleTo(dis2)));
+        return ret;
+    }
+
+    /**
+     * note the names!
+     */
+    public static Point2d getIntersection(Point2 p0, Point2 d0v, Point2 p1, Point2 d1v)
+    {
+        //d.x * x + d.z * z = ...
+        double a0=d0v.x;
+        double a1=d1v.x;
+        double b0=d0v.z;
+        double b1=d1v.z;
+        double c0=-d0v.dot(p0);
+        double c1=-d1v.dot(p1);
+        double det=a0*b1-a1*b0;
+        double x=(b0*c1-b1*c0)/det;
+        double z=(a1*c0-a0*c1)/det;
+        //(b0c1-b1c0)dx/det+(a1c0-a0c1)dz/det
+        //=(a0b0c1-a0b1c0+a1b0c0-a0b0c1)/det
+        //=(a1b0-a0b1)c0/det=-c0
+        return new Point2d(x,z);
+    }
+
+    /**
+     * @return points on d0 and d1
+     */
+    public static Point2[] getLineOutsideInscribedCircle(Point2 p, Point2 d0, Point2 d1, Point2 center, double r)
+    {
+        final double bufferOutsideArc =3;
+        Point2[] ret=new Point2[2];
+        double d=center.sub(p).len()+r+bufferOutsideArc;
+        Point2 rot=center.sub(p);
+        Point2 i=rot.scaleTo(d).add(p);
+        ret[0]=new Point2(getIntersection(p,d0.turnLeft(),i,rot));
+        ret[1]=new Point2(getIntersection(p,d1.turnLeft(),i,rot));
         return ret;
     }
 }

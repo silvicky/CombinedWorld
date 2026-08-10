@@ -41,7 +41,7 @@ public class ChunkGenCache
 
     private static final int portLength=128;
 
-    private static final int bufferWidth=144;
+    private static final int bufferWidth=160;
 
     private Point2[] getNeighbors(RegionPos pos)
     {
@@ -101,12 +101,15 @@ public class ChunkGenCache
         Point2 center=getChosenPos(regionPos);
         for(int i=0;i<4;i++)
         {
-            //TODO an interchange straight
             int finalI = i%2;
             Point2[] cs=getInscribedCircle(center,ports[i].sub(center),ports[(i+1)%4].sub(center),30);
             drawSideRing(cs[1], cs[2], cs[0], -5,
                     (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x,z),cs[1],cs[2],cs[0],6*finalI,6-12*finalI,0.5), z), Blocks.CONCRETE.orange().defaultBlockState()),
                     (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x,z),cs[1],cs[2],cs[0],6*finalI,6-12*finalI,0.5), z), Blocks.CONCRETE.white().defaultBlockState()));
+            Point2[] cs2=getLineOutsideInscribedCircle(center,ports[i].sub(center),ports[(i+1)%4].sub(center),cs[0],30);
+            drawSideRect(cs2[0], cs2[1], 5,
+                    (x, z) -> setBlockState(new BlockPos(x, getSlopeLine(new Point2(x,z),cs2[0],cs2[1],6*finalI,6-12*finalI,0.1), z), Blocks.CONCRETE.orange().defaultBlockState()),
+                    (x, z) -> setBlockState(new BlockPos(x, getSlopeLine(new Point2(x,z),cs2[0],cs2[1],6*finalI,6-12*finalI,0.1), z), Blocks.CONCRETE.white().defaultBlockState()));
         }
         for (int i=0;i<2;i++)
         {
