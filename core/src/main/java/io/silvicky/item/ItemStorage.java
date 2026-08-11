@@ -5,6 +5,7 @@ import io.silvicky.item.command.backrooms.*;
 import io.silvicky.item.command.list.ListDimensionPlayers;
 import io.silvicky.item.command.list.ListGroupPlayers;
 import io.silvicky.item.command.list.ListWorldPlayers;
+import io.silvicky.item.command.utility.LocatePlayer;
 import io.silvicky.item.command.utility.PackMe;
 import io.silvicky.item.command.warp.BanWarp;
 import io.silvicky.item.command.warp.Evacuate;
@@ -48,5 +49,6 @@ public class ItemStorage implements ModInitializer {
 		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> Distance.register(dispatcher));
 		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> Noclip.register(dispatcher));
 		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> NoclipVoid.register(dispatcher));
+		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> LocatePlayer.register(dispatcher));
     }
 }
