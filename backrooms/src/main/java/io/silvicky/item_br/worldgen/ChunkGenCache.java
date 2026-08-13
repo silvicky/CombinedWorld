@@ -10,7 +10,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.levelgen.RandomState;
 
-import java.awt.*;
 import java.util.*;
 import java.util.List;
 
@@ -44,6 +43,8 @@ public class ChunkGenCache
     public static BlockState ROAD = Blocks.CONCRETE.orange().defaultBlockState();
 
     public static BlockState EDGE = Blocks.CONCRETE.white().defaultBlockState();
+
+    public static BlockState WALL = Blocks.CONCRETE.red().defaultBlockState();
 
     private Point2[] getNeighbors(RegionPos pos)
     {
@@ -95,7 +96,6 @@ public class ChunkGenCache
 
     private void genRegion(RegionPos regionPos)
     {
-        //TODO draw defects...
         if(generatedRegions.contains(regionPos))return;
         generatedRegions.add(regionPos);
         boolean[] coordination=getNodeCoordination(randomState,regionPos.x,regionPos.z);
@@ -103,9 +103,9 @@ public class ChunkGenCache
         for(int i=0;i<4;i++)if(coordination[i])directions.add(i);
         Point2[] ports=getNodePorts(regionPos);
         Point2 center=getChosenPos(regionPos);
-        if(directions.size()==4 || directions.size() ==3)//TODO 3
+        if(directions.size()==4)
         {
-            //interchange
+            //4-way interchange
             for (int i = 0; i < 4; i++)
             {
                 int finalI = i % 2;
@@ -119,10 +119,16 @@ public class ChunkGenCache
                         (x, z) -> setBlockState(new BlockPos(x, getSlopeLine(new Point2(x, z), cs2[0], cs2[1], 6 * finalI, 6 - 12 * finalI, 0.1), z), EDGE));
             }
         }
+        else if(directions.size()==3)
+        {
+            //TODO
+        }
         else if(directions.size()==2)
         {
+            //connect directly
             if(directions.getLast()-directions.getFirst()==2)
             {
+                //straight
                 int finalI=directions.getFirst();
                 drawSideRect(ports[finalI + 2], ports[finalI], 5,
                         (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
@@ -133,6 +139,7 @@ public class ChunkGenCache
             }
             else
             {
+                //curve with slope
                 int p0,p1;
                 //it is always p0->p1, CW
                 if(directions.getLast()-directions.getFirst()==1)
@@ -158,7 +165,13 @@ public class ChunkGenCache
         }
         else if(directions.size()==1)
         {
-            //TODO a dead end
+            //dead end
+            int p=directions.getFirst();
+            int y =(p%2)*6+1;
+            Point2 vec=ports[p^2].sub(ports[p]);
+            Point2 a=ports[p].add(vec.turnLeft().scaleTo(5));
+            Point2 b=ports[p].add(vec.turnLeft().scaleTo(-5));
+            drawLine(a,b,(x,z)->setBlockState(new BlockPos(x, y,z),WALL));
         }
         //public parts
         for (int i = 0; i < 2; i++)
