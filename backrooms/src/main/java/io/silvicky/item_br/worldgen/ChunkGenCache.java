@@ -43,6 +43,10 @@ public class ChunkGenCache
 
     private static final int bufferWidth=160;
 
+    public static BlockState ROAD = Blocks.CONCRETE.orange().defaultBlockState();
+
+    public static BlockState EDGE = Blocks.CONCRETE.white().defaultBlockState();
+
     private Point2[] getNeighbors(RegionPos pos)
     {
         Point2[] ret=new Point2[4];
@@ -104,22 +108,22 @@ public class ChunkGenCache
             int finalI = i%2;
             Point2[] cs=getInscribedCircle(center,ports[i].sub(center),ports[(i+1)%4].sub(center),30);
             drawSideRing(cs[1], cs[2], cs[0], -5,
-                    (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x,z),cs[1],cs[2],cs[0],6*finalI,6-12*finalI,0.5), z), Blocks.CONCRETE.orange().defaultBlockState()),
-                    (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x,z),cs[1],cs[2],cs[0],6*finalI,6-12*finalI,0.5), z), Blocks.CONCRETE.white().defaultBlockState()));
+                    (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x,z),cs[1],cs[2],cs[0],6*finalI,6-12*finalI,0.5), z), ROAD),
+                    (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x,z),cs[1],cs[2],cs[0],6*finalI,6-12*finalI,0.5), z), EDGE));
             Point2[] cs2=getLineOutsideInscribedCircle(center,ports[i].sub(center),ports[(i+1)%4].sub(center),cs[0],30);
             drawSideRect(cs2[0], cs2[1], 5,
-                    (x, z) -> setBlockState(new BlockPos(x, getSlopeLine(new Point2(x,z),cs2[0],cs2[1],6*finalI,6-12*finalI,0.1), z), Blocks.CONCRETE.orange().defaultBlockState()),
-                    (x, z) -> setBlockState(new BlockPos(x, getSlopeLine(new Point2(x,z),cs2[0],cs2[1],6*finalI,6-12*finalI,0.1), z), Blocks.CONCRETE.white().defaultBlockState()));
+                    (x, z) -> setBlockState(new BlockPos(x, getSlopeLine(new Point2(x,z),cs2[0],cs2[1],6*finalI,6-12*finalI,0.1), z), ROAD),
+                    (x, z) -> setBlockState(new BlockPos(x, getSlopeLine(new Point2(x,z),cs2[0],cs2[1],6*finalI,6-12*finalI,0.1), z), EDGE));
         }
         for (int i=0;i<2;i++)
         {
             int finalI = i;
             drawSideRect(ports[i+2],ports[i],5,
-                    (x,z)->setBlockState(new BlockPos(x, finalI*6,z),Blocks.CONCRETE.orange().defaultBlockState()),
-                    (x,z)->setBlockState(new BlockPos(x, finalI*6,z),Blocks.CONCRETE.white().defaultBlockState()));
+                    (x,z)->setBlockState(new BlockPos(x, finalI*6,z),ROAD),
+                    (x,z)->setBlockState(new BlockPos(x, finalI*6,z),EDGE));
             drawSideRect(ports[i+2],ports[i],-5,
-                    (x,z)->setBlockState(new BlockPos(x, finalI*6,z),Blocks.CONCRETE.orange().defaultBlockState()),
-                    (x,z)->setBlockState(new BlockPos(x, finalI*6,z),Blocks.CONCRETE.white().defaultBlockState()));
+                    (x,z)->setBlockState(new BlockPos(x, finalI*6,z),ROAD),
+                    (x,z)->setBlockState(new BlockPos(x, finalI*6,z),EDGE));
             Point2[] portsN = getNodePorts(regionPos.add(n[i][0],n[i][1]));
             try
             {
@@ -128,51 +132,51 @@ public class ChunkGenCache
                 if (joint.sub(cs[0]).cross(ports[i].sub(cs[0])) > 0)
                 {
                     drawSideRing(ports[i], joint, cs[0], 5,
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.orange().defaultBlockState()),
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.white().defaultBlockState()));
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
                     drawSideRing(ports[i], joint, cs[0], -5,
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.orange().defaultBlockState()),
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.white().defaultBlockState()));
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
                     drawSideRing(portsN[i + 2], joint, cs[1], 5,
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.orange().defaultBlockState()),
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.white().defaultBlockState()));
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
                     drawSideRing(portsN[i + 2], joint, cs[1], -5,
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.orange().defaultBlockState()),
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.white().defaultBlockState()));
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
                 }
                 else
                 {
                     drawSideRing(joint, ports[i], cs[0], 5,
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.orange().defaultBlockState()),
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.white().defaultBlockState()));
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
                     drawSideRing(joint, ports[i], cs[0], -5,
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.orange().defaultBlockState()),
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.white().defaultBlockState()));
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
                     drawSideRing(joint, portsN[i + 2], cs[1], 5,
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.orange().defaultBlockState()),
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.white().defaultBlockState()));
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
                     drawSideRing(joint, portsN[i + 2], cs[1], -5,
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.orange().defaultBlockState()),
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), Blocks.CONCRETE.white().defaultBlockState()));
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
+                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
                 }
             /*if(coordination[i])
             {
                 drawSideRect(p00,p01,5,
-                        (x,z)->setBlockState(new BlockPos(x, finalI *6,z),Blocks.CONCRETE.orange().defaultBlockState()),
-                        (x,z)->setBlockState(new BlockPos(x, finalI *6,z),Blocks.CONCRETE.white().defaultBlockState()));
+                        (x,z)->setBlockState(new BlockPos(x, finalI *6,z),ROAD),
+                        (x,z)->setBlockState(new BlockPos(x, finalI *6,z),EDGE));
                 drawSideRing(p00,p01,p00.add(p01).scale(0.5),5,
-                        (x,z)->setBlockState(new BlockPos(x, 12+finalI*6,z),Blocks.CONCRETE.red().defaultBlockState()),
-                        (x,z)->setBlockState(new BlockPos(x, 12+finalI*6,z),Blocks.CONCRETE.white().defaultBlockState()));
+                        (x,z)->setBlockState(new BlockPos(x, 12+finalI*6,z),ROAD),
+                        (x,z)->setBlockState(new BlockPos(x, 12+finalI*6,z),EDGE));
             }*/
             }
             catch(Exception e)
             {
                 drawSideRect(ports[i],portsN[i+2],5,
-                        (x,z)->setBlockState(new BlockPos(x, finalI*6,z),Blocks.CONCRETE.orange().defaultBlockState()),
-                        (x,z)->setBlockState(new BlockPos(x, finalI*6,z),Blocks.CONCRETE.white().defaultBlockState()));
+                        (x,z)->setBlockState(new BlockPos(x, finalI*6,z),ROAD),
+                        (x,z)->setBlockState(new BlockPos(x, finalI*6,z),EDGE));
                 drawSideRect(ports[i],portsN[i+2],-5,
-                        (x,z)->setBlockState(new BlockPos(x, finalI*6,z),Blocks.CONCRETE.orange().defaultBlockState()),
-                        (x,z)->setBlockState(new BlockPos(x, finalI*6,z),Blocks.CONCRETE.white().defaultBlockState()));
+                        (x,z)->setBlockState(new BlockPos(x, finalI*6,z),ROAD),
+                        (x,z)->setBlockState(new BlockPos(x, finalI*6,z),EDGE));
             }
         }
     }

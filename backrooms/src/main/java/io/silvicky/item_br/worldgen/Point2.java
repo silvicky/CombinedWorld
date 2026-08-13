@@ -1,5 +1,7 @@
 package io.silvicky.item_br.worldgen;
 
+import net.minecraft.core.BlockPos;
+
 import java.util.Objects;
 
 import static java.lang.Math.round;
@@ -76,6 +78,8 @@ public class Point2
     {
         return Math.atan2(z,x);
     }
+
+    public BlockPos atY(int y){return new BlockPos(x,y,z);}
 
     @Override
     public boolean equals(Object o)
