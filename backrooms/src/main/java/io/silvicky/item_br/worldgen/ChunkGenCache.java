@@ -11,10 +11,8 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.levelgen.RandomState;
 
 import java.awt.*;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.List;
 
 import static io.silvicky.item_br.worldgen.Graphic.*;
 import static io.silvicky.item_br.worldgen.RegionPos.regionSize;
@@ -97,86 +95,133 @@ public class ChunkGenCache
 
     private void genRegion(RegionPos regionPos)
     {
-        //TODO draw defects, interchange, y slope...
+        //TODO draw defects...
         if(generatedRegions.contains(regionPos))return;
         generatedRegions.add(regionPos);
         boolean[] coordination=getNodeCoordination(randomState,regionPos.x,regionPos.z);
+        List<Integer> directions=new ArrayList<>();
+        for(int i=0;i<4;i++)if(coordination[i])directions.add(i);
         Point2[] ports=getNodePorts(regionPos);
         Point2 center=getChosenPos(regionPos);
-        for(int i=0;i<4;i++)
+        if(directions.size()==4 || directions.size() ==3)//TODO 3
         {
-            int finalI = i%2;
-            Point2[] cs=getInscribedCircle(center,ports[i].sub(center),ports[(i+1)%4].sub(center),30);
-            drawSideRing(cs[1], cs[2], cs[0], -5,
-                    (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x,z),cs[1],cs[2],cs[0],6*finalI,6-12*finalI,0.5), z), ROAD),
-                    (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x,z),cs[1],cs[2],cs[0],6*finalI,6-12*finalI,0.5), z), EDGE));
-            Point2[] cs2=getLineOutsideInscribedCircle(center,ports[i].sub(center),ports[(i+1)%4].sub(center),cs[0],30);
-            drawSideRect(cs2[0], cs2[1], 5,
-                    (x, z) -> setBlockState(new BlockPos(x, getSlopeLine(new Point2(x,z),cs2[0],cs2[1],6*finalI,6-12*finalI,0.1), z), ROAD),
-                    (x, z) -> setBlockState(new BlockPos(x, getSlopeLine(new Point2(x,z),cs2[0],cs2[1],6*finalI,6-12*finalI,0.1), z), EDGE));
-        }
-        for (int i=0;i<2;i++)
-        {
-            int finalI = i;
-            drawSideRect(ports[i+2],ports[i],5,
-                    (x,z)->setBlockState(new BlockPos(x, finalI*6,z),ROAD),
-                    (x,z)->setBlockState(new BlockPos(x, finalI*6,z),EDGE));
-            drawSideRect(ports[i+2],ports[i],-5,
-                    (x,z)->setBlockState(new BlockPos(x, finalI*6,z),ROAD),
-                    (x,z)->setBlockState(new BlockPos(x, finalI*6,z),EDGE));
-            Point2[] portsN = getNodePorts(regionPos.add(n[i][0],n[i][1]));
-            try
+            //interchange
+            for (int i = 0; i < 4; i++)
             {
-                Point2[] cs = connect(ports[i], ports[i].sub(ports[i + 2]), portsN[i + 2], portsN[i + 2].sub(portsN[i]));
-                Point2 joint = cs[0].add(cs[1]).scale(0.5);
-                if (joint.sub(cs[0]).cross(ports[i].sub(cs[0])) > 0)
+                int finalI = i % 2;
+                Point2[] cs = getInscribedCircle(center, ports[i].sub(center), ports[(i + 1) % 4].sub(center), 30);
+                drawSideRing(cs[1], cs[2], cs[0], -5,
+                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), cs[1], cs[2], cs[0], 6 * finalI, 6 - 12 * finalI, 0.5), z), ROAD),
+                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), cs[1], cs[2], cs[0], 6 * finalI, 6 - 12 * finalI, 0.5), z), EDGE));
+                Point2[] cs2 = getLineOutsideInscribedCircle(center, ports[i].sub(center), ports[(i + 1) % 4].sub(center), cs[0], 30);
+                drawSideRect(cs2[0], cs2[1], 5,
+                        (x, z) -> setBlockState(new BlockPos(x, getSlopeLine(new Point2(x, z), cs2[0], cs2[1], 6 * finalI, 6 - 12 * finalI, 0.1), z), ROAD),
+                        (x, z) -> setBlockState(new BlockPos(x, getSlopeLine(new Point2(x, z), cs2[0], cs2[1], 6 * finalI, 6 - 12 * finalI, 0.1), z), EDGE));
+            }
+        }
+        else if(directions.size()==2)
+        {
+            if(directions.getLast()-directions.getFirst()==2)
+            {
+                int finalI=directions.getFirst();
+                drawSideRect(ports[finalI + 2], ports[finalI], 5,
+                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
+                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
+                drawSideRect(ports[finalI + 2], ports[finalI], -5,
+                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
+                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
+            }
+            else
+            {
+                int p0,p1;
+                //it is always p0->p1, CW
+                if(directions.getLast()-directions.getFirst()==1)
                 {
-                    drawSideRing(ports[i], joint, cs[0], 5,
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
-                    drawSideRing(ports[i], joint, cs[0], -5,
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
-                    drawSideRing(portsN[i + 2], joint, cs[1], 5,
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
-                    drawSideRing(portsN[i + 2], joint, cs[1], -5,
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
+                    p0=directions.getLast();
+                    p1=directions.getFirst();
                 }
                 else
                 {
-                    drawSideRing(joint, ports[i], cs[0], 5,
+                    p0=directions.getFirst();
+                    p1=directions.getLast();
+                }
+                Point2 c=new Point2(getIntersection(ports[p0],ports[p0^2].sub(ports[p0]),ports[p1],ports[p1^2].sub(ports[p1])));
+                int h0=(p0%2)*6;
+                int h1=(p1%2)*6;
+                drawSideRing(ports[p0], ports[p1], c, 5,
+                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x,z),ports[p0],ports[p1],c,h0,h1-h0,0.5), z), ROAD),
+                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x,z),ports[p0],ports[p1],c,h0,h1-h0,0.5), z), EDGE));
+                drawSideRing(ports[p0], ports[p1], c, -5,
+                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x,z),ports[p0],ports[p1],c,h0,h1-h0,0.5), z), ROAD),
+                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x,z),ports[p0],ports[p1],c,h0,h1-h0,0.5), z), EDGE));
+            }
+        }
+        else if(directions.size()==1)
+        {
+            //TODO a dead end
+        }
+        //public parts
+        for (int i = 0; i < 2; i++)
+        {
+            int finalI = i;
+            //road at cross
+            if(coordination[i]&&coordination[i+2])
+            {
+                drawSideRect(ports[i + 2], ports[i], 5,
+                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
+                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
+                drawSideRect(ports[i + 2], ports[i], -5,
+                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
+                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
+            }
+            //connecting road
+            if(coordination[i])
+            {
+                Point2[] portsN = getNodePorts(regionPos.add(n[i][0], n[i][1]));
+                try
+                {
+                    Point2[] cs = connect(ports[i], ports[i].sub(ports[i + 2]), portsN[i + 2], portsN[i + 2].sub(portsN[i]));
+                    Point2 joint = cs[0].add(cs[1]).scale(0.5);
+                    if (joint.sub(cs[0]).cross(ports[i].sub(cs[0])) > 0)
+                    {
+                        drawSideRing(ports[i], joint, cs[0], 5,
+                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
+                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
+                        drawSideRing(ports[i], joint, cs[0], -5,
+                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
+                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
+                        drawSideRing(portsN[i + 2], joint, cs[1], 5,
+                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
+                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
+                        drawSideRing(portsN[i + 2], joint, cs[1], -5,
+                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
+                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
+                    }
+                    else
+                    {
+                        drawSideRing(joint, ports[i], cs[0], 5,
+                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
+                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
+                        drawSideRing(joint, ports[i], cs[0], -5,
+                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
+                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
+                        drawSideRing(joint, portsN[i + 2], cs[1], 5,
+                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
+                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
+                        drawSideRing(joint, portsN[i + 2], cs[1], -5,
+                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
+                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
+                    }
+                }
+                catch (Exception e)
+                {
+                    drawSideRect(ports[i], portsN[i + 2], 5,
                             (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
                             (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
-                    drawSideRing(joint, ports[i], cs[0], -5,
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
-                    drawSideRing(joint, portsN[i + 2], cs[1], 5,
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
-                    drawSideRing(joint, portsN[i + 2], cs[1], -5,
+                    drawSideRect(ports[i], portsN[i + 2], -5,
                             (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
                             (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
                 }
-            /*if(coordination[i])
-            {
-                drawSideRect(p00,p01,5,
-                        (x,z)->setBlockState(new BlockPos(x, finalI *6,z),ROAD),
-                        (x,z)->setBlockState(new BlockPos(x, finalI *6,z),EDGE));
-                drawSideRing(p00,p01,p00.add(p01).scale(0.5),5,
-                        (x,z)->setBlockState(new BlockPos(x, 12+finalI*6,z),ROAD),
-                        (x,z)->setBlockState(new BlockPos(x, 12+finalI*6,z),EDGE));
-            }*/
-            }
-            catch(Exception e)
-            {
-                drawSideRect(ports[i],portsN[i+2],5,
-                        (x,z)->setBlockState(new BlockPos(x, finalI*6,z),ROAD),
-                        (x,z)->setBlockState(new BlockPos(x, finalI*6,z),EDGE));
-                drawSideRect(ports[i],portsN[i+2],-5,
-                        (x,z)->setBlockState(new BlockPos(x, finalI*6,z),ROAD),
-                        (x,z)->setBlockState(new BlockPos(x, finalI*6,z),EDGE));
             }
         }
     }
