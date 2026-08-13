@@ -1,9 +1,6 @@
 package io.silvicky.item_br.worldgen;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.BiConsumer;
 
 import static java.lang.Math.*;
@@ -72,9 +69,14 @@ public class Graphic
         Point2 vecTrans = vecLine.turnLeft().scaleTo(width);
         Point2 p10=p0.add(vecTrans);
         Point2 p11=p1.add(vecTrans);
-        drawRect(p0,p1,p10,p11,consumer);
-        drawLine(p10,p11,consumerEdge);
-        drawLine(p0,p1,consumerEdge);
+        Set<Point2> edges=new HashSet<>();
+        drawLine(p10,p11,(x,z)->edges.add(new Point2(x,z)));
+        drawLine(p0,p1,(x,z)->edges.add(new Point2(x,z)));
+        drawRect(p0,p1,p10,p11,(x,z)->
+        {
+            if(edges.contains(new Point2(x,z)))consumerEdge.accept(x,z);
+            else consumer.accept(x,z);
+        });
     }
 
     public static void drawArc(Point2 p0, Point2 p1, Point2 center, BiConsumer<Integer, Integer> consumer)
@@ -181,9 +183,14 @@ public class Graphic
         Point2 vecTrans1 = p1.sub(center).scaleTo(width);
         Point2 p10=p0.add(vecTrans0);
         Point2 p11=p1.add(vecTrans1);
-        drawRing(p0,p1,p10,p11,center,consumer);
-        drawArc(p10,p11,center,consumerEdge);
-        drawArc(p0,p1,center,consumerEdge);
+        Set<Point2> edges=new HashSet<>();
+        drawArc(p10,p11,center,(x,z)->edges.add(new Point2(x,z)));
+        drawArc(p0,p1,center,(x,z)->edges.add(new Point2(x,z)));
+        drawRing(p0,p1,p10,p11,center,(x,z)->
+        {
+            if(edges.contains(new Point2(x,z))) consumerEdge.accept(x,z);
+            else consumer.accept(x,z);
+        });
     }
 
     public static List<Double> solveQuadratic(double a, double b, double c)

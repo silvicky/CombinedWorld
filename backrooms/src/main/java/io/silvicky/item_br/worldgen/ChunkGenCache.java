@@ -80,7 +80,7 @@ public class ChunkGenCache
         if(pos.getY()>=this.baseY&&pos.getY()<this.baseY+height)
         {
             ChunkPos chunkPos=ChunkPos.containing(pos);
-            SimpleChunk simpleChunk=chunks.computeIfAbsent(chunkPos,_->new SimpleChunk(baseY,height,chunkPos));
+            SimpleChunk simpleChunk=chunks.computeIfAbsent(chunkPos,_->new Road2Chunk(baseY,height,chunkPos));
             simpleChunk.setBlockState(pos, state);
         }
     }
