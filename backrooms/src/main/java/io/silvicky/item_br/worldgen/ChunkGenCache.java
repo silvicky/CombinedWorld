@@ -121,7 +121,11 @@ public class ChunkGenCache
         }
         else if(directions.size()==3)
         {
-            //TODO
+            //TODO real 3-way interchanges are not like this
+            //3-way interchange
+            int defect=6;
+            for(int i:directions)defect-=i;
+            int branch=defect^2;
         }
         else if(directions.size()==2)
         {
