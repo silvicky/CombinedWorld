@@ -104,6 +104,8 @@ The "nop" one is vanilla mapping, and should align to vanilla perfectly. If not 
 
 We offered some interfaces and example implementations for custom world generation, and you may register some yourself.
 
+The "backrooms" mod gives more examples, and would be updated as we write more. See "Bonus" section for introductions.
+
 For parameters, see their codecs.
 
 ### Decay
@@ -123,3 +125,19 @@ You may manually implement the CustomRule interface to generate chunk as you wan
 Such rule is static: DO NOT rely on the instance of rule!
 
 To make world consistent, the method should do the same thing no matter when it is called.
+
+### CustomAdv
+
+Same as above, but you may add custom fields to the rule, and it's dynamic now!
+
+With this, huge inter-chunk structures such as expressway network can be generated.
+
+### Bonus
+
+Level0 - an infinite yellow room from the Backrooms, better used with "random" chunk transformer.
+
+Hub - an infinite tunnel also from the Backrooms.
+
+Road - an experimental road grid, not finished.
+
+Road2 - Same as Road, but extended to a full expressway network, and a public chunk generation cache is used to reduce calculations.
