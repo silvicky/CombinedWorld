@@ -99,3 +99,27 @@ The "nop" one is vanilla mapping, and should align to vanilla perfectly. If not 
 ```/packme``` Pack everything on you into a chest with NBT, maybe also your ender chest items.
 
 ```/locateplayer``` Locate a player, very useful for admins.
+
+## World Generation
+
+We offered some interfaces and example implementations for custom world generation, and you may register some yourself.
+
+For parameters, see their codecs.
+
+### Decay
+
+It takes a base generator as argument, but in regions far from center, chunks are randomly deleted.
+
+It also requires a "decay rule" which decides chunks to be deleted or not.
+
+The example decay rule is already enough for general usage, and we are already using it.
+
+### Custom
+
+It takes a biome source, same as vanilla, and a custom rule.
+
+You may manually implement the CustomRule interface to generate chunk as you want.
+
+Such rule is static: DO NOT rely on the instance of rule!
+
+To make world consistent, the method should do the same thing no matter when it is called.
