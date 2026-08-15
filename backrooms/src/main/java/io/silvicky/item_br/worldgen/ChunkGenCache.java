@@ -121,11 +121,68 @@ public class ChunkGenCache
         }
         else if(directions.size()==3)
         {
-            //TODO real 3-way interchanges are not like this
             //3-way interchange
             int defect=6;
             for(int i:directions)defect-=i;
-            int branch=defect^2;
+            //the small ones
+            for(int i = 0; i < 2; i++)
+            {
+                int finalI = (defect + i) % 2;
+                Point2[] cs = getInscribedCircle(center, ports[(defect+i+1)%4].sub(center), ports[(defect+i+2)%4].sub(center), 90);
+                drawSideRing(cs[2], cs[1], cs[0], -5,
+                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), cs[2], cs[1], cs[0], 6 * finalI, 6 - 12 * finalI, 0.5), z), ROAD),
+                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), cs[2], cs[1], cs[0], 6 * finalI, 6 - 12 * finalI, 0.5), z), EDGE));
+            }
+            //big ones, see the func call below
+            boolean direction=ports[(defect+1)%4].sub(center).dot(ports[defect].sub(center))<0;
+            if(direction)
+            {
+                Point2[] cs2 = getInscribedCircle(center, ports[defect].sub(center), ports[(defect + 1) % 4].sub(center), 30);
+                int finalI = defect % 2;
+                //missing straight line
+                drawSideRect(ports[(defect + 2) % 4], cs2[1], 5,
+                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
+                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
+                drawSideRect(ports[(defect + 2) % 4], cs2[1], -5,
+                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
+                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
+                //the inner circle
+                drawSideRing(cs2[1], cs2[2], cs2[0], -5,
+                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), cs2[1], cs2[2], cs2[0], 6 * finalI, 6 - 12 * finalI, 0.5), z), ROAD),
+                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), cs2[1], cs2[2], cs2[0], 6 * finalI, 6 - 12 * finalI, 0.5), z), EDGE));
+                Point2[] cs3 = getInscribedCircleOfCircleAndLine(cs2[0], cs2[2], 60, true);
+                //outer circle
+                drawSideRing(cs2[1], cs3[2], cs2[0], 5,
+                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), cs2[1], cs2[2], cs2[0], 6 * finalI, 6 - 12 * finalI, 0.5), z), ROAD),
+                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), cs2[1], cs2[2], cs2[0], 6 * finalI, 6 - 12 * finalI, 0.5), z), EDGE));
+                //transition into line
+                int jointHeight = getSlopeArc(cs3[2], cs2[1], cs2[2], cs2[0], 6 * finalI, 6 - 12 * finalI, 0.5);
+                drawSideRing(cs3[1], cs3[2], cs3[0], -5,
+                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), cs3[1], cs3[2], cs3[0], 6 - 6 * finalI, jointHeight - 6 + 6 * finalI, 0.5), z), ROAD),
+                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), cs3[1], cs3[2], cs3[0], 6 - 6 * finalI, jointHeight - 6 + 6 * finalI, 0.5), z), EDGE));
+            }
+            else
+            {
+                Point2[] cs2 = getInscribedCircle(center, ports[(defect+3)%4].sub(center), ports[defect].sub(center), 30);
+                int finalI = defect % 2;
+                drawSideRect(ports[(defect + 2) % 4], cs2[2], 5,
+                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
+                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
+                drawSideRect(ports[(defect + 2) % 4], cs2[2], -5,
+                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
+                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
+                drawSideRing(cs2[1], cs2[2], cs2[0], -5,
+                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), cs2[1], cs2[2], cs2[0], 6 - 6 * finalI, 12 * finalI - 6, 0.5), z), ROAD),
+                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), cs2[1], cs2[2], cs2[0], 6 - 6 * finalI, 12 * finalI - 6, 0.5), z), EDGE));
+                Point2[] cs3 = getInscribedCircleOfCircleAndLine(cs2[0], cs2[1], 60, false);
+                drawSideRing(cs3[2], cs2[2], cs2[0], 5,
+                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), cs2[1], cs2[2], cs2[0], 6 - 6 * finalI, 12 * finalI - 6, 0.5), z), ROAD),
+                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), cs2[1], cs2[2], cs2[0], 6 - 6 * finalI, 12 * finalI - 6, 0.5), z), EDGE));
+                int jointHeight = getSlopeArc(cs3[2], cs2[1], cs2[2], cs2[0], 6 - 6 * finalI, 12 * finalI - 6, 0.5);
+                drawSideRing(cs3[2], cs3[1], cs3[0], -5,
+                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), cs3[2], cs3[1], cs3[0], jointHeight, 6 - 6 * finalI - jointHeight, 0.5), z), ROAD),
+                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), cs3[2], cs3[1], cs3[0], jointHeight, 6 - 6 * finalI - jointHeight, 0.5), z), EDGE));
+            }
         }
         else if(directions.size()==2)
         {

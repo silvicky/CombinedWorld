@@ -342,4 +342,25 @@ public class Graphic
         ret[1]=new Point2(getIntersection(p,d1.turnLeft(),i,rot));
         return ret;
     }
+
+    /**
+     * By default (direction=false), arc is drawn on the "left" if the line is below the circle.
+     * @return center, points on the line and circle
+     */
+    public static Point2[] getInscribedCircleOfCircleAndLine(Point2 center, Point2 intersection, double r, boolean direction)
+    {
+        Point2 d=center.sub(intersection);
+        Point2 dv=d.turnLeft();
+        if(direction)dv=dv.scale(-1);
+        double r0=d.len();
+        //sqrt (r+r0)^2-(r-r0)^2
+        //=... (r^2+2rr0+r0^2)-(r^2-2rr0+r0^2)
+        //=sqrt(4rr0)
+        double dis=sqrt(4*r*r0);
+        Point2[] ret=new Point2[3];
+        ret[1]=intersection.add(dv.scaleTo(dis));
+        ret[0]=ret[1].add(d.scaleTo(r));
+        ret[2]=center.add(ret[0].sub(center).scaleTo(r0));
+        return ret;
+    }
 }
