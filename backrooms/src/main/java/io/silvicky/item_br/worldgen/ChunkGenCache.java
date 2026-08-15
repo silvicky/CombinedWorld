@@ -134,7 +134,7 @@ public class ChunkGenCache
                         (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), cs[2], cs[1], cs[0], 6 * finalI, 6 - 12 * finalI, 0.5), z), EDGE));
             }
             //big ones, see the func call below
-            boolean direction=ports[(defect+1)%4].sub(center).dot(ports[defect].sub(center))<0;
+            boolean direction=ports[(defect+1)%4].sub(center).dot(ports[defect].sub(center))>0;
             if(direction)
             {
                 Point2[] cs2 = getInscribedCircle(center, ports[defect].sub(center), ports[(defect + 1) % 4].sub(center), 30);
