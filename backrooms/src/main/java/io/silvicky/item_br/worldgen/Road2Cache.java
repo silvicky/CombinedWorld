@@ -81,6 +81,13 @@ public class Road2Cache extends ChunkGenCache
                 (x, z) -> setBlockState(new BlockPos(x, h, z), EDGE));
     }
 
+    private void drawStraightRoad(Point2 start, Point2 end, int h0, int h1)
+    {
+        drawSideRect(start, end, 5,
+                (x, z) -> setBlockState(new BlockPos(x, getSlopeLine(new Point2(x, z), start, end, h0, h1-h0, 0.1), z), ROAD),
+                (x, z) -> setBlockState(new BlockPos(x, getSlopeLine(new Point2(x, z), start, end, h0, h1-h0, 0.1), z), EDGE));
+    }
+
     private void drawCurvedRoad2(Arc arc, int h)
     {
         drawSideRing(arc, 5,
@@ -118,9 +125,7 @@ public class Road2Cache extends ChunkGenCache
                 Arc cs = getInscribedCircle(center, ports[i].sub(center), ports[(i + 1) % 4].sub(center), 30);
                 drawCurvedRoad(cs, -5, 6*finalI, 6-6*finalI);
                 Point2[] cs2 = getLineOutsideInscribedCircle(center, ports[i].sub(center), ports[(i + 1) % 4].sub(center), cs.center(), 30);
-                drawSideRect(cs2[0], cs2[1], 5,
-                        (x, z) -> setBlockState(new BlockPos(x, getSlopeLine(new Point2(x, z), cs2[0], cs2[1], 6 * finalI, 6 - 12 * finalI, 0.1), z), ROAD),
-                        (x, z) -> setBlockState(new BlockPos(x, getSlopeLine(new Point2(x, z), cs2[0], cs2[1], 6 * finalI, 6 - 12 * finalI, 0.1), z), EDGE));
+                drawStraightRoad(cs2[0], cs2[1], 6 * finalI, 6 - 6 * finalI);
             }
         } else if (directions.size() == 3) {
             //3-way interchange
