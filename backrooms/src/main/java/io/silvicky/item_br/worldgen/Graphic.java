@@ -79,8 +79,11 @@ public class Graphic
         });
     }
 
-    public static void drawArc(Point2 p0, Point2 p1, Point2 center, BiConsumer<Integer, Integer> consumer)
+    public static void drawArc(Arc arc, BiConsumer<Integer, Integer> consumer)
     {
+        Point2 center=arc.center();
+        Point2 p0=arc.start();
+        Point2 p1=arc.end();
         long r=center.sub(p1).len2();
         Point2[] move=
                 {
@@ -143,14 +146,14 @@ public class Graphic
         return ret;
     }
 
-    public static void drawRing(Point2 p00, Point2 p01, Point2 p10, Point2 p11, Point2 center, BiConsumer<Integer, Integer> consumer)
+    public static void drawRing(Arc arc0, Arc arc1, BiConsumer<Integer, Integer> consumer)
     {
-        List<Point2> arc0=new ArrayList<>();
-        List<Point2> arc1=new ArrayList<>();
-        drawArc(p00,p01,center,(x,z)->arc0.add(new Point2(x,z)));
-        drawArc(p10,p11,center,(x,z)->arc1.add(new Point2(x,z)));
-        List<List<Point2>> arc0f=fragment(arc0,center.z);
-        List<List<Point2>> arc1f=fragment(arc1,center.z);
+        List<Point2> arc0Points =new ArrayList<>();
+        List<Point2> arc1Points =new ArrayList<>();
+        drawArc(arc0,(x,z)-> arc0Points.add(new Point2(x,z)));
+        drawArc(arc1,(x,z)-> arc1Points.add(new Point2(x,z)));
+        List<List<Point2>> arc0f=fragment(arc0Points,arc0.center().z);
+        List<List<Point2>> arc1f=fragment(arc1Points,arc1.center().z);
         if(arc0f.size()!=arc1f.size())
         {
             throw new RuntimeException("Arc sizes mismatch!");
@@ -177,16 +180,20 @@ public class Graphic
         }
     }
 
-    public static void drawSideRing(Point2 p0, Point2 p1, Point2 center, double width, BiConsumer<Integer, Integer> consumer, BiConsumer<Integer, Integer> consumerEdge)
+    public static void drawSideRing(Arc arc0, double width, BiConsumer<Integer, Integer> consumer, BiConsumer<Integer, Integer> consumerEdge)
     {
+        Point2 center=arc0.center();
+        Point2 p0=arc0.start();
+        Point2 p1=arc0.end();
         Point2 vecTrans0 = p0.sub(center).scaleTo(width);
         Point2 vecTrans1 = p1.sub(center).scaleTo(width);
         Point2 p10=p0.add(vecTrans0);
         Point2 p11=p1.add(vecTrans1);
         Set<Point2> edges=new HashSet<>();
-        drawArc(p10,p11,center,(x,z)->edges.add(new Point2(x,z)));
-        drawArc(p0,p1,center,(x,z)->edges.add(new Point2(x,z)));
-        drawRing(p0,p1,p10,p11,center,(x,z)->
+        Arc arc1=new Arc(center,p10,p11);
+        drawArc(arc0,(x,z)->edges.add(new Point2(x,z)));
+        drawArc(arc1,(x,z)->edges.add(new Point2(x,z)));
+        drawRing(arc0,arc1,(x,z)->
         {
             if(edges.contains(new Point2(x,z))) consumerEdge.accept(x,z);
             else consumer.accept(x,z);
@@ -274,8 +281,11 @@ public class Graphic
         return base+(int)round(height*ratio);
     }
 
-    public static int getSlopeArc(Point2 cur, Point2 p0, Point2 p1, Point2 center, int base, double height, double bufferInsideArc)
+    public static int getSlopeArc(Point2 cur, Arc arc, int base, double height, double bufferInsideArc)
     {
+        Point2 center=arc.center();
+        Point2 p0=arc.start();
+        Point2 p1=arc.end();
         final double bufferOutsideArc =0.1;
         double t0=p0.sub(center).atan2();
         double t1=p1.sub(center).atan2();
@@ -291,9 +301,8 @@ public class Graphic
     /**
      * @return center, points on d0 and d1
      */
-    public static Point2[] getInscribedCircle(Point2 p, Point2 d0, Point2 d1, double r)
+    public static Arc getInscribedCircle(Point2 p, Point2 d0, Point2 d1, double r)
     {
-        Point2[] ret=new Point2[3];
         Point2d d0d=new Point2d(d0);
         Point2d d1d=new Point2d(d1);
         Point2d avg=d0d.normalize().add(d1d.normalize());
@@ -301,10 +310,10 @@ public class Graphic
         double tan=abs(avg.tan(d1d));
         double dis=r/sin;
         double dis2=r/tan;
-        ret[0]=p.add(new Point2(avg.scaleTo(dis)));
-        ret[1]=p.add(new Point2(d0d.scaleTo(dis2)));
-        ret[2]=p.add(new Point2(d1d.scaleTo(dis2)));
-        return ret;
+        return new Arc(
+                p.add(new Point2(avg.scaleTo(dis))),
+                p.add(new Point2(d0d.scaleTo(dis2))),
+                p.add(new Point2(d1d.scaleTo(dis2))));
     }
 
     /**
