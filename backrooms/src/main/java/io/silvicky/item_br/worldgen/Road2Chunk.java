@@ -4,7 +4,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.state.BlockState;
 
-import static io.silvicky.item_br.worldgen.ChunkGenCache.*;
+import static io.silvicky.item_br.worldgen.Road2Cache.EDGE;
+import static io.silvicky.item_br.worldgen.Road2Cache.ROAD;
 
 public class Road2Chunk extends SimpleChunk
 {

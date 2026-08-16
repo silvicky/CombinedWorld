@@ -22,7 +22,7 @@ public class Road2CustomRule implements CustomRuleAdv
         if(cache==null)
         {
             ServerLevel level = (ServerLevel) (chunk.levelHeightAccessor);
-            cache=new ChunkGenCache(0,256,level,randomState);
+            cache=new Road2Cache(level,randomState);
         }
         cache.apply(chunk);
     }
