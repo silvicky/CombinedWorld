@@ -83,8 +83,9 @@ public class Graphic
     {
         Point2d center=arc.center();
         Point2 p0=arc.start();
-        Point2 p1=arc.end();
-        double r=center.sub(new Point2d(p1)).len2();
+        double r=arc.r()*arc.r();
+        double aStart=arc.aStart();
+        double aEnd=arc.aEnd();
         Point2[] move=
                 {
                         new Point2(0,1),
@@ -96,7 +97,9 @@ public class Graphic
         int z=p0.z;
         while (true) {
             consumer.accept(x, z);
-            if (x == p1.x && z == p1.z) break;
+            double a=new Point2d(x,z).sub(center).atan2();
+            if(a<aStart)a+=2*PI;
+            if(a>=aEnd)break;
             Point2d dir=new Point2d(x,z).sub(center);
             int quadrant=0;
             if(dir.z<0)quadrant+=2;
@@ -191,7 +194,7 @@ public class Graphic
         Point2 p10=p0.add(new Point2(vecTrans0));
         Point2 p11=p1.add(new Point2(vecTrans1));
         Set<Point2> edges=new HashSet<>();
-        Arc arc1=new Arc(center,p10,p11);
+        Arc arc1=new Arc(center,p10,p11, arc0.r()+width);
         drawArc(arc0,(x,z)->edges.add(new Point2(x,z)));
         drawArc(arc1,(x,z)->edges.add(new Point2(x,z)));
         drawRing(arc0,arc1,(x,z)->
@@ -323,7 +326,8 @@ public class Graphic
         return new Arc(
                 new Point2d(p).add(avg.scaleTo(dis)),
                 p.add(new Point2(d0d.scaleTo(dis2))),
-                p.add(new Point2(d1d.scaleTo(dis2))));
+                p.add(new Point2(d1d.scaleTo(dis2))),
+                r);
     }
 
     /**
@@ -385,7 +389,7 @@ public class Graphic
         Point2d pJoint=center.add(pCenter.sub(center).scaleTo(r0));
         Point2 pLineI=new Point2(pLine);
         Point2 pJointI=new Point2(pJoint);
-        if(direction)return new Arc(pCenter,pLineI,pJointI);
-        else return new Arc(pCenter,pJointI,pLineI);
+        if(direction)return new Arc(pCenter,pLineI,pJointI,r);
+        else return new Arc(pCenter,pJointI,pLineI,r);
     }
 }

@@ -36,6 +36,20 @@ public class Road2Cache extends ChunkGenCache
 
     private static final int bufferWidth=176;
 
+    private static final int innerCircleRadius=30;
+
+    private static final int largeCircleRadius=90;
+
+    private static final int roadWidth=5;
+
+    private static final int transitionCircleRadius=60;
+
+    private static final int gapHeight=6;
+
+    private static final double angleBuffer =0.5;
+
+    private static final double linearBuffer=0.1;
+
     public Road2Cache(ServerLevel level, RandomState randomState)
     {
         super(0, 32, level, randomState);
@@ -73,27 +87,27 @@ public class Road2Cache extends ChunkGenCache
 
     private void drawStraightRoad2(Point2 start, Point2 end, int h)
     {
-        drawSideRect(start, end, 5,
+        drawSideRect(start, end, roadWidth,
                 (x, z) -> setBlockState(new BlockPos(x, h, z), ROAD),
                 (x, z) -> setBlockState(new BlockPos(x, h, z), EDGE));
-        drawSideRect(start, end, -5,
+        drawSideRect(start, end, -roadWidth,
                 (x, z) -> setBlockState(new BlockPos(x, h, z), ROAD),
                 (x, z) -> setBlockState(new BlockPos(x, h, z), EDGE));
     }
 
     private void drawStraightRoad(Point2 start, Point2 end, double h0, double h1)
     {
-        drawSideRect(start, end, 5,
-                (x, z) -> setBlockState(new BlockPos(x, getSlopeLine(new Point2(x, z), start, end, h0, h1-h0, 0.1), z), ROAD),
-                (x, z) -> setBlockState(new BlockPos(x, getSlopeLine(new Point2(x, z), start, end, h0, h1-h0, 0.1), z), EDGE));
+        drawSideRect(start, end, roadWidth,
+                (x, z) -> setBlockState(new BlockPos(x, getSlopeLine(new Point2(x, z), start, end, h0, h1-h0, linearBuffer), z), ROAD),
+                (x, z) -> setBlockState(new BlockPos(x, getSlopeLine(new Point2(x, z), start, end, h0, h1-h0, linearBuffer), z), EDGE));
     }
 
     private void drawCurvedRoad2(Arc arc, int h)
     {
-        drawSideRing(arc, 5,
+        drawSideRing(arc, roadWidth,
                 (x, z) -> setBlockState(new BlockPos(x, h, z), ROAD),
                 (x, z) -> setBlockState(new BlockPos(x, h, z), EDGE));
-        drawSideRing(arc, -5,
+        drawSideRing(arc, -roadWidth,
                 (x, z) -> setBlockState(new BlockPos(x, h, z), ROAD),
                 (x, z) -> setBlockState(new BlockPos(x, h, z), EDGE));
     }
@@ -101,8 +115,8 @@ public class Road2Cache extends ChunkGenCache
     private void drawCurvedRoad(Arc arc, double width, double h0, double h1)
     {
         drawSideRing(arc, width,
-                (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), arc, h0, h1-h0, 0.5), z), ROAD),
-                (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), arc, h0, h1-h0, 0.5), z), EDGE));
+                (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer), z), ROAD),
+                (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer), z), EDGE));
     }
 
     private void drawCurvedRoad(Arc arc, double width, double h0, double h1, double bufferStart, double bufferEnd)
@@ -124,52 +138,52 @@ public class Road2Cache extends ChunkGenCache
             //4-way interchange
             for (int i = 0; i < 4; i++) {
                 int finalI = i % 2;
-                Arc cs = getInscribedCircle(center, ports[i].sub(center), ports[(i + 1) % 4].sub(center), 30);
-                drawCurvedRoad(cs, -5, 6*finalI, 6-6*finalI);
-                Point2[] cs2 = getLineOutsideInscribedCircle(center, ports[i].sub(center), ports[(i + 1) % 4].sub(center), cs.center(), 30);
-                drawStraightRoad(cs2[0], cs2[1], 6 * finalI, 6 - 6 * finalI);
+                Arc cs = getInscribedCircle(center, ports[i].sub(center), ports[(i + 1) % 4].sub(center), innerCircleRadius);
+                drawCurvedRoad(cs, -roadWidth, gapHeight*finalI, gapHeight-gapHeight*finalI);
+                Point2[] cs2 = getLineOutsideInscribedCircle(center, ports[i].sub(center), ports[(i + 1) % 4].sub(center), cs.center(), innerCircleRadius);
+                drawStraightRoad(cs2[0], cs2[1], gapHeight * finalI, gapHeight - gapHeight * finalI);
             }
         } else if (directions.size() == 3) {
             //3-way interchange
-            int defect = 6;
+            int defect = gapHeight;
             for (int i : directions) defect -= i;
             //the small ones
             for (int i = 0; i < 2; i++) {
                 int finalI = (defect + i) % 2;
-                Arc cs = getInscribedCircle(center, ports[(defect + i + 2) % 4].sub(center), ports[(defect + i + 1) % 4].sub(center), 90);
-                drawCurvedRoad(cs, -5, 6*finalI, 6-6*finalI);
+                Arc cs = getInscribedCircle(center, ports[(defect + i + 2) % 4].sub(center), ports[(defect + i + 1) % 4].sub(center), largeCircleRadius);
+                drawCurvedRoad(cs, -roadWidth, gapHeight*finalI, gapHeight-gapHeight*finalI);
             }
             //big ones, see the func call below
             boolean direction = ports[(defect + 1) % 4].sub(center).dot(ports[defect].sub(center)) > 0;
             if (direction) {
-                Arc cs2 = getInscribedCircle(center, ports[defect].sub(center), ports[(defect + 1) % 4].sub(center), 30);
+                Arc cs2 = getInscribedCircle(center, ports[defect].sub(center), ports[(defect + 1) % 4].sub(center), innerCircleRadius);
                 int finalI = defect % 2;
                 //missing straight line
-                drawStraightRoad2(ports[(defect + 2) % 4], cs2.start(), finalI * 6);
+                drawStraightRoad2(ports[(defect + 2) % 4], cs2.start(), finalI * gapHeight);
                 //the inner circle
-                drawCurvedRoad(cs2, -5, 6*finalI, 6-6*finalI);
-                Arc cs3 = getInscribedCircleOfCircleAndLine(cs2.center(), cs2.end(), 60, true);
+                drawCurvedRoad(cs2, -roadWidth, gapHeight*finalI, gapHeight-gapHeight*finalI);
+                Arc cs3 = getInscribedCircleOfCircleAndLine(cs2.center(), cs2.end(), transitionCircleRadius, true);
                 //outer circle
-                double jointHeight = getSlopeArcD(cs3.end(), cs2, 6 * finalI, 6 - 12 * finalI, 0.5, 0);
-                drawCurvedRoad(new Arc(cs2.center(),cs2.start(),cs3.end()), 5, 6*finalI, jointHeight, 0.5,  0);
+                double jointHeight = getSlopeArcD(cs3.end(), cs2, gapHeight * finalI, gapHeight - 2* gapHeight * finalI, angleBuffer, 0);
+                drawCurvedRoad(new Arc(cs2.center(),cs2.start(),cs3.end(),innerCircleRadius), roadWidth, gapHeight*finalI, jointHeight, angleBuffer,  0);
                 //transition into line
-                drawCurvedRoad(cs3, -5, 6-6*finalI, jointHeight, 0.5, 0);
+                drawCurvedRoad(cs3, -roadWidth, gapHeight-gapHeight*finalI, jointHeight, angleBuffer, 0);
             } else {
-                Arc cs2 = getInscribedCircle(center, ports[(defect + 3) % 4].sub(center), ports[defect].sub(center), 30);
+                Arc cs2 = getInscribedCircle(center, ports[(defect + 3) % 4].sub(center), ports[defect].sub(center), innerCircleRadius);
                 int finalI = defect % 2;
-                drawStraightRoad2(ports[(defect + 2) % 4], cs2.end(), finalI * 6);
-                drawCurvedRoad(cs2, -5, 6-6*finalI, 6*finalI);
-                Arc cs3 = getInscribedCircleOfCircleAndLine(cs2.center(), cs2.start(), 60, false);
-                double jointHeight = getSlopeArcD(cs3.start(), cs2, 6 - 6 * finalI, 12 * finalI - 6, 0, 0.5);
-                drawCurvedRoad(new Arc(cs2.center(), cs3.start(), cs2.end()), 5, jointHeight, 6*finalI, 0, 0.5);
-                drawCurvedRoad(cs3, -5, jointHeight, 6-6*finalI, 0, 0.5);
+                drawStraightRoad2(ports[(defect + 2) % 4], cs2.end(), finalI * gapHeight);
+                drawCurvedRoad(cs2, -roadWidth, gapHeight-gapHeight*finalI, gapHeight*finalI);
+                Arc cs3 = getInscribedCircleOfCircleAndLine(cs2.center(), cs2.start(), transitionCircleRadius, false);
+                double jointHeight = getSlopeArcD(cs3.start(), cs2, gapHeight - gapHeight * finalI, 2 * gapHeight * finalI - gapHeight, 0, angleBuffer);
+                drawCurvedRoad(new Arc(cs2.center(), cs3.start(), cs2.end(),innerCircleRadius), roadWidth, jointHeight, gapHeight*finalI, 0, angleBuffer);
+                drawCurvedRoad(cs3, -roadWidth, jointHeight, gapHeight-gapHeight*finalI, 0, angleBuffer);
             }
         } else if (directions.size() == 2) {
             //connect directly
             if (directions.getLast() - directions.getFirst() == 2) {
                 //straight
                 int finalI = directions.getFirst();
-                drawStraightRoad2(ports[finalI + 2], ports[finalI], finalI * 6);
+                drawStraightRoad2(ports[finalI + 2], ports[finalI], finalI * gapHeight);
             } else {
                 //curve with slope
                 int p0, p1;
@@ -182,26 +196,26 @@ public class Road2Cache extends ChunkGenCache
                     p1 = directions.getLast();
                 }
                 Point2d c = getIntersection(ports[p0], ports[p0 ^ 2].sub(ports[p0]), ports[p1], ports[p1 ^ 2].sub(ports[p1]));
-                int h0 = (p0 % 2) * 6;
-                int h1 = (p1 % 2) * 6;
-                Arc arc=new Arc(c,ports[p0],ports[p1]);
-                drawCurvedRoad(arc, 5, h0, h1);
-                drawCurvedRoad(arc, -5, h0, h1);
+                int h0 = (p0 % 2) * gapHeight;
+                int h1 = (p1 % 2) * gapHeight;
+                Arc arc=new Arc(c,ports[p0],ports[p1],c.sub(new Point2d(ports[p0])).len());
+                drawCurvedRoad(arc, roadWidth, h0, h1);
+                drawCurvedRoad(arc, -roadWidth, h0, h1);
             }
         } else if (directions.size() == 1) {
             //dead end
             int p = directions.getFirst();
-            int y = (p % 2) * 6 + 1;
+            int y = (p % 2) * gapHeight + 1;
             Point2 vec = ports[p ^ 2].sub(ports[p]);
-            Point2 a = ports[p].add(vec.turnLeft().scaleTo(5));
-            Point2 b = ports[p].add(vec.turnLeft().scaleTo(-5));
+            Point2 a = ports[p].add(vec.turnLeft().scaleTo(roadWidth));
+            Point2 b = ports[p].add(vec.turnLeft().scaleTo(-roadWidth));
             drawLine(a, b, (x, z) -> setBlockState(new BlockPos(x, y, z), WALL));
         }
         //public parts
         for (int i = 0; i < 2; i++) {
             //road at cross
             if (coordination[i] && coordination[i + 2]) {
-                drawStraightRoad2(ports[i + 2], ports[i], i * 6);
+                drawStraightRoad2(ports[i + 2], ports[i], i * gapHeight);
             }
             //connecting road
             if (coordination[i]) {
@@ -210,18 +224,19 @@ public class Road2Cache extends ChunkGenCache
                     Point2d[] cs = connect(ports[i], ports[i].sub(ports[i + 2]), portsN[i + 2], portsN[i + 2].sub(portsN[i]));
                     Point2d joint = cs[0].add(cs[1]).scale(0.5);
                     Point2 jointI=new Point2(joint);
+                    double r=cs[0].sub(cs[1]).len()/2;
                     Arc arc0,arc1;
                     if (joint.sub(cs[0]).cross(new Point2d(ports[i]).sub(cs[0])) > 0) {
-                        arc0=new Arc(cs[0],ports[i],jointI);
-                        arc1=new Arc(cs[1],portsN[i+2],jointI);
+                        arc0=new Arc(cs[0],ports[i],jointI,r);
+                        arc1=new Arc(cs[1],portsN[i+2],jointI,r);
                     } else {
-                        arc0=new Arc(cs[0],jointI,ports[i]);
-                        arc1=new Arc(cs[1],jointI,portsN[i+2]);
+                        arc0=new Arc(cs[0],jointI,ports[i],r);
+                        arc1=new Arc(cs[1],jointI,portsN[i+2],r);
                     }
-                    drawCurvedRoad2(arc0, i * 6);
-                    drawCurvedRoad2(arc1, i * 6);
+                    drawCurvedRoad2(arc0, i * gapHeight);
+                    drawCurvedRoad2(arc1, i * gapHeight);
                 } catch (Exception e) {
-                    drawStraightRoad2(ports[i], portsN[i + 2], i * 6);
+                    drawStraightRoad2(ports[i], portsN[i + 2], i * gapHeight);
                 }
             }
         }
