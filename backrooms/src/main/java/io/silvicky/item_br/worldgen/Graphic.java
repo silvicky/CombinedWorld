@@ -354,9 +354,8 @@ public class Graphic
     /**
      * @return points on d0 and d1
      */
-    public static Point2[] getLineOutsideInscribedCircle(Point2 p, Point2 d0, Point2 d1, Point2d center, double r)
+    public static Point2[] getLineOutsideInscribedCircle(Point2 p, Point2 d0, Point2 d1, Point2d center, double r, double bufferOutsideArc)
     {
-        final double bufferOutsideArc =3;
         Point2[] ret=new Point2[2];
         double d=center.sub(new Point2d(p)).len()+r+bufferOutsideArc;
         Point2d pD=new Point2d(p);

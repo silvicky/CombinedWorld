@@ -50,6 +50,8 @@ public class Road2Cache extends ChunkGenCache
 
     private static final double linearBuffer=0.1;
 
+    private static final double bufferOutsideArc=3;
+
     public Road2Cache(ServerLevel level, RandomState randomState)
     {
         super(0, 32, level, randomState);
@@ -140,7 +142,7 @@ public class Road2Cache extends ChunkGenCache
                 int finalI = i % 2;
                 Arc cs = getInscribedCircle(center, ports[i].sub(center), ports[(i + 1) % 4].sub(center), innerCircleRadius);
                 drawCurvedRoad(cs, -roadWidth, gapHeight*finalI, gapHeight-gapHeight*finalI);
-                Point2[] cs2 = getLineOutsideInscribedCircle(center, ports[i].sub(center), ports[(i + 1) % 4].sub(center), cs.center(), innerCircleRadius);
+                Point2[] cs2 = getLineOutsideInscribedCircle(center, ports[i].sub(center), ports[(i + 1) % 4].sub(center), cs.center(), innerCircleRadius, bufferOutsideArc);
                 drawStraightRoad(cs2[0], cs2[1], gapHeight * finalI, gapHeight - gapHeight * finalI);
             }
         } else if (directions.size() == 3) {
