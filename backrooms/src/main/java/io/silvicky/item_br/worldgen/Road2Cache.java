@@ -71,6 +71,38 @@ public class Road2Cache extends ChunkGenCache
         return regionPos.at(random.nextInt(bufferWidth,regionSize-bufferWidth),random.nextInt(bufferWidth,regionSize-bufferWidth));
     }
 
+    private void drawStraightRoad2(Point2 start, Point2 end, int h)
+    {
+        drawSideRect(start, end, 5,
+                (x, z) -> setBlockState(new BlockPos(x, h, z), ROAD),
+                (x, z) -> setBlockState(new BlockPos(x, h, z), EDGE));
+        drawSideRect(start, end, -5,
+                (x, z) -> setBlockState(new BlockPos(x, h, z), ROAD),
+                (x, z) -> setBlockState(new BlockPos(x, h, z), EDGE));
+    }
+
+    private void drawCurvedRoad2(Arc arc, int h)
+    {
+        drawSideRing(arc, 5,
+                (x, z) -> setBlockState(new BlockPos(x, h, z), ROAD),
+                (x, z) -> setBlockState(new BlockPos(x, h, z), EDGE));
+        drawSideRing(arc, -5,
+                (x, z) -> setBlockState(new BlockPos(x, h, z), ROAD),
+                (x, z) -> setBlockState(new BlockPos(x, h, z), EDGE));
+    }
+
+    private void drawCurvedRoad(Arc arc, double width, int h0, int h1)
+    {
+        drawCurvedRoadPartial(arc,arc,width,h0,h1);
+    }
+
+    private void drawCurvedRoadPartial(Arc arc, Arc arcRef, double width, int h0, int h1)
+    {
+        drawSideRing(arc, width,
+                (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), arcRef, h0, h1-h0, 0.5), z), ROAD),
+                (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), arcRef, h0, h1-h0, 0.5), z), EDGE));
+    }
+
     private void genRegion(RegionPos regionPos) {
         if (generatedRegions.contains(regionPos)) return;
         generatedRegions.add(regionPos);
@@ -84,9 +116,7 @@ public class Road2Cache extends ChunkGenCache
             for (int i = 0; i < 4; i++) {
                 int finalI = i % 2;
                 Arc cs = getInscribedCircle(center, ports[i].sub(center), ports[(i + 1) % 4].sub(center), 30);
-                drawSideRing(cs, -5,
-                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), cs, 6 * finalI, 6 - 12 * finalI, 0.5), z), ROAD),
-                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), cs, 6 * finalI, 6 - 12 * finalI, 0.5), z), EDGE));
+                drawCurvedRoad(cs, -5, 6*finalI, 6-6*finalI);
                 Point2[] cs2 = getLineOutsideInscribedCircle(center, ports[i].sub(center), ports[(i + 1) % 4].sub(center), cs.center(), 30);
                 drawSideRect(cs2[0], cs2[1], 5,
                         (x, z) -> setBlockState(new BlockPos(x, getSlopeLine(new Point2(x, z), cs2[0], cs2[1], 6 * finalI, 6 - 12 * finalI, 0.1), z), ROAD),
@@ -99,11 +129,8 @@ public class Road2Cache extends ChunkGenCache
             //the small ones
             for (int i = 0; i < 2; i++) {
                 int finalI = (defect + i) % 2;
-                Arc cs = getInscribedCircle(center, ports[(defect + i + 1) % 4].sub(center), ports[(defect + i + 2) % 4].sub(center), 90);
-                Arc csp=new Arc(cs.center(),cs.end(),cs.start());
-                drawSideRing(csp, -5,
-                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), csp, 6 * finalI, 6 - 12 * finalI, 0.5), z), ROAD),
-                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), csp, 6 * finalI, 6 - 12 * finalI, 0.5), z), EDGE));
+                Arc cs = getInscribedCircle(center, ports[(defect + i + 2) % 4].sub(center), ports[(defect + i + 1) % 4].sub(center), 90);
+                drawCurvedRoad(cs, -5, 6*finalI, 6-6*finalI);
             }
             //big ones, see the func call below
             boolean direction = ports[(defect + 1) % 4].sub(center).dot(ports[defect].sub(center)) > 0;
@@ -111,60 +138,33 @@ public class Road2Cache extends ChunkGenCache
                 Arc cs2 = getInscribedCircle(center, ports[defect].sub(center), ports[(defect + 1) % 4].sub(center), 30);
                 int finalI = defect % 2;
                 //missing straight line
-                drawSideRect(ports[(defect + 2) % 4], cs2.start(), 5,
-                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
-                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
-                drawSideRect(ports[(defect + 2) % 4], cs2.start(), -5,
-                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
-                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
+                drawStraightRoad2(ports[(defect + 2) % 4], cs2.start(), finalI * 6);
                 //the inner circle
-                drawSideRing(cs2, -5,
-                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), cs2, 6 * finalI, 6 - 12 * finalI, 0.5), z), ROAD),
-                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), cs2, 6 * finalI, 6 - 12 * finalI, 0.5), z), EDGE));
+                drawCurvedRoad(cs2, -5, 6*finalI, 6-6*finalI);
                 Point2[] cs3 = getInscribedCircleOfCircleAndLine(cs2.center(), cs2.end(), 60, true);
                 //outer circle
-                drawSideRing(new Arc(cs2.center(),cs2.start(),cs3[2]), 5,
-                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), cs2, 6 * finalI, 6 - 12 * finalI, 0.5), z), ROAD),
-                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), cs2, 6 * finalI, 6 - 12 * finalI, 0.5), z), EDGE));
+                drawCurvedRoadPartial(new Arc(cs2.center(),cs2.start(),cs3[2]), cs2, 5, 6*finalI, 6-6*finalI);
                 //transition into line
                 int jointHeight = getSlopeArc(cs3[2], cs2, 6 * finalI, 6 - 12 * finalI, 0.5);
                 Arc xx=new Arc(cs3[0], cs3[1], cs3[2]);
-                drawSideRing(xx, -5,
-                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), xx, 6 - 6 * finalI, jointHeight - 6 + 6 * finalI, 0.5), z), ROAD),
-                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), xx, 6 - 6 * finalI, jointHeight - 6 + 6 * finalI, 0.5), z), EDGE));
+                drawCurvedRoad(xx, -5, 6-6*finalI, jointHeight);
             } else {
                 Arc cs2 = getInscribedCircle(center, ports[(defect + 3) % 4].sub(center), ports[defect].sub(center), 30);
                 int finalI = defect % 2;
-                drawSideRect(ports[(defect + 2) % 4], cs2.end(), 5,
-                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
-                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
-                drawSideRect(ports[(defect + 2) % 4], cs2.end(), -5,
-                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
-                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
-                drawSideRing(cs2, -5,
-                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), cs2, 6 - 6 * finalI, 12 * finalI - 6, 0.5), z), ROAD),
-                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), cs2, 6 - 6 * finalI, 12 * finalI - 6, 0.5), z), EDGE));
+                drawStraightRoad2(ports[(defect + 2) % 4], cs2.end(), finalI * 6);
+                drawCurvedRoad(cs2, -5, 6-6*finalI, 6*finalI);
                 Point2[] cs3 = getInscribedCircleOfCircleAndLine(cs2.center(), cs2.start(), 60, false);
-                drawSideRing(new Arc(cs2.center(), cs3[2], cs2.end()), 5,
-                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), cs2, 6 - 6 * finalI, 12 * finalI - 6, 0.5), z), ROAD),
-                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), cs2, 6 - 6 * finalI, 12 * finalI - 6, 0.5), z), EDGE));
+                drawCurvedRoadPartial(new Arc(cs2.center(), cs3[2], cs2.end()), cs2, 5, 6-6*finalI, 6*finalI);
                 int jointHeight = getSlopeArc(cs3[2], cs2, 6 - 6 * finalI, 12 * finalI - 6, 0.5);
                 Arc xx=new Arc(cs3[0], cs3[2], cs3[1]);
-                drawSideRing(xx, -5,
-                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), xx, jointHeight, 6 - 6 * finalI - jointHeight, 0.5), z), ROAD),
-                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), xx, jointHeight, 6 - 6 * finalI - jointHeight, 0.5), z), EDGE));
+                drawCurvedRoad(xx, -5, jointHeight, 6-6*finalI);
             }
         } else if (directions.size() == 2) {
             //connect directly
             if (directions.getLast() - directions.getFirst() == 2) {
                 //straight
                 int finalI = directions.getFirst();
-                drawSideRect(ports[finalI + 2], ports[finalI], 5,
-                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
-                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
-                drawSideRect(ports[finalI + 2], ports[finalI], -5,
-                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
-                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
+                drawStraightRoad2(ports[finalI + 2], ports[finalI], finalI * 6);
             } else {
                 //curve with slope
                 int p0, p1;
@@ -180,12 +180,8 @@ public class Road2Cache extends ChunkGenCache
                 int h0 = (p0 % 2) * 6;
                 int h1 = (p1 % 2) * 6;
                 Arc arc=new Arc(c,ports[p0],ports[p1]);
-                drawSideRing(arc, 5,
-                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), arc, h0, h1 - h0, 0.5), z), ROAD),
-                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), arc, h0, h1 - h0, 0.5), z), EDGE));
-                drawSideRing(arc, -5,
-                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), arc, h0, h1 - h0, 0.5), z), ROAD),
-                        (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), arc, h0, h1 - h0, 0.5), z), EDGE));
+                drawCurvedRoad(arc, 5, h0, h1);
+                drawCurvedRoad(arc, -5, h0, h1);
             }
         } else if (directions.size() == 1) {
             //dead end
@@ -198,15 +194,9 @@ public class Road2Cache extends ChunkGenCache
         }
         //public parts
         for (int i = 0; i < 2; i++) {
-            int finalI = i;
             //road at cross
             if (coordination[i] && coordination[i + 2]) {
-                drawSideRect(ports[i + 2], ports[i], 5,
-                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
-                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
-                drawSideRect(ports[i + 2], ports[i], -5,
-                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
-                        (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
+                drawStraightRoad2(ports[i + 2], ports[i], i * 6);
             }
             //connecting road
             if (coordination[i]) {
@@ -214,44 +204,18 @@ public class Road2Cache extends ChunkGenCache
                 try {
                     Point2[] cs = connect(ports[i], ports[i].sub(ports[i + 2]), portsN[i + 2], portsN[i + 2].sub(portsN[i]));
                     Point2 joint = cs[0].add(cs[1]).scale(0.5);
+                    Arc arc0,arc1;
                     if (joint.sub(cs[0]).cross(ports[i].sub(cs[0])) > 0) {
-                        Arc arc0=new Arc(cs[0],ports[i],joint);
-                        Arc arc1=new Arc(cs[1],portsN[i+2],joint);
-                        drawSideRing(arc0, 5,
-                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
-                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
-                        drawSideRing(arc0, -5,
-                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
-                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
-                        drawSideRing(arc1, 5,
-                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
-                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
-                        drawSideRing(arc1, -5,
-                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
-                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
+                        arc0=new Arc(cs[0],ports[i],joint);
+                        arc1=new Arc(cs[1],portsN[i+2],joint);
                     } else {
-                        Arc arc0=new Arc(cs[0],joint,ports[i]);
-                        Arc arc1=new Arc(cs[1],joint,portsN[i+2]);
-                        drawSideRing(arc0, 5,
-                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
-                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
-                        drawSideRing(arc0, -5,
-                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
-                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
-                        drawSideRing(arc1, 5,
-                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
-                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
-                        drawSideRing(arc1, -5,
-                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
-                                (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
+                        arc0=new Arc(cs[0],joint,ports[i]);
+                        arc1=new Arc(cs[1],joint,portsN[i+2]);
                     }
+                    drawCurvedRoad2(arc0, i * 6);
+                    drawCurvedRoad2(arc1, i * 6);
                 } catch (Exception e) {
-                    drawSideRect(ports[i], portsN[i + 2], 5,
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
-                    drawSideRect(ports[i], portsN[i + 2], -5,
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), ROAD),
-                            (x, z) -> setBlockState(new BlockPos(x, finalI * 6, z), EDGE));
+                    drawStraightRoad2(ports[i], portsN[i + 2], i * 6);
                 }
             }
         }
