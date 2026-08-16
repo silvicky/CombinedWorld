@@ -148,23 +148,21 @@ public class Road2Cache extends ChunkGenCache
                 drawStraightRoad2(ports[(defect + 2) % 4], cs2.start(), finalI * 6);
                 //the inner circle
                 drawCurvedRoad(cs2, -5, 6*finalI, 6-6*finalI);
-                Point2[] cs3 = getInscribedCircleOfCircleAndLine(cs2.center(), cs2.end(), 60, true);
+                Arc cs3 = getInscribedCircleOfCircleAndLine(cs2.center(), cs2.end(), 60, true);
                 //outer circle
-                double jointHeight = getSlopeArcD(cs3[2], cs2, 6 * finalI, 6 - 12 * finalI, 0.5, 0);
-                drawCurvedRoad(new Arc(cs2.center(),cs2.start(),cs3[2]), 5, 6*finalI, jointHeight, 0.5,  0);
+                double jointHeight = getSlopeArcD(cs3.end(), cs2, 6 * finalI, 6 - 12 * finalI, 0.5, 0);
+                drawCurvedRoad(new Arc(cs2.center(),cs2.start(),cs3.end()), 5, 6*finalI, jointHeight, 0.5,  0);
                 //transition into line
-                Arc xx=new Arc(cs3[0], cs3[1], cs3[2]);
-                drawCurvedRoad(xx, -5, 6-6*finalI, jointHeight, 0.5, 0);
+                drawCurvedRoad(cs3, -5, 6-6*finalI, jointHeight, 0.5, 0);
             } else {
                 Arc cs2 = getInscribedCircle(center, ports[(defect + 3) % 4].sub(center), ports[defect].sub(center), 30);
                 int finalI = defect % 2;
                 drawStraightRoad2(ports[(defect + 2) % 4], cs2.end(), finalI * 6);
                 drawCurvedRoad(cs2, -5, 6-6*finalI, 6*finalI);
-                Point2[] cs3 = getInscribedCircleOfCircleAndLine(cs2.center(), cs2.start(), 60, false);
-                double jointHeight = getSlopeArcD(cs3[2], cs2, 6 - 6 * finalI, 12 * finalI - 6, 0, 0.5);
-                drawCurvedRoad(new Arc(cs2.center(), cs3[2], cs2.end()), 5, jointHeight, 6*finalI, 0, 0.5);
-                Arc xx=new Arc(cs3[0], cs3[2], cs3[1]);
-                drawCurvedRoad(xx, -5, jointHeight, 6-6*finalI, 0, 0.5);
+                Arc cs3 = getInscribedCircleOfCircleAndLine(cs2.center(), cs2.start(), 60, false);
+                double jointHeight = getSlopeArcD(cs3.start(), cs2, 6 - 6 * finalI, 12 * finalI - 6, 0, 0.5);
+                drawCurvedRoad(new Arc(cs2.center(), cs3.start(), cs2.end()), 5, jointHeight, 6*finalI, 0, 0.5);
+                drawCurvedRoad(cs3, -5, jointHeight, 6-6*finalI, 0, 0.5);
             }
         } else if (directions.size() == 2) {
             //connect directly
