@@ -2,8 +2,18 @@ package io.silvicky.item_br.worldgen;
 
 import static java.lang.Math.sqrt;
 
-public record Point2d(double x, double z)
+public class Point2d
 {
+    public final double x;
+
+    public final double z;
+
+    public Point2d(double x, double z)
+    {
+        this.x=x;
+        this.z=z;
+    }
+
     public Point2d(Point2 p)
     {
         this(p.x, p.z);
@@ -72,4 +82,17 @@ public record Point2d(double x, double z)
         return x == point2.x && z == point2.z;
     }
 
+    public Point2d sub(Point2d point2d)
+    {
+        return new Point2d(x - point2d.x, z - point2d.z);
+    }
+
+    public double atan2()
+    {
+        return Math.atan2(z, x);
+    }
+
+    public Point2d turnLeft() {
+        return new Point2d(z, -x);
+    }
 }

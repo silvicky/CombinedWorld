@@ -81,10 +81,10 @@ public class Graphic
 
     public static void drawArc(Arc arc, BiConsumer<Integer, Integer> consumer)
     {
-        Point2 center=arc.center();
+        Point2d center=arc.center();
         Point2 p0=arc.start();
         Point2 p1=arc.end();
-        long r=center.sub(p1).len2();
+        double r=center.sub(new Point2d(p1)).len2();
         Point2[] move=
                 {
                         new Point2(0,1),
@@ -97,7 +97,7 @@ public class Graphic
         while (true) {
             consumer.accept(x, z);
             if (x == p1.x && z == p1.z) break;
-            Point2 dir=new Point2(x,z).sub(center);
+            Point2d dir=new Point2d(x,z).sub(center);
             int quadrant=0;
             if(dir.z<0)quadrant+=2;
             if(dir.x*dir.z<0||(dir.z==0&&dir.x<0))quadrant+=1;
@@ -115,10 +115,10 @@ public class Graphic
             }
             x+=advance.x;
             z+=advance.z;
-            long err=abs(new Point2(x,z).sub(center).len2()-r);
+            double err=abs(new Point2d(x,z).sub(center).len2()-r);
             int x1=x+shift.x;
             int z1=z+shift.z;
-            long err1=abs(new Point2(x1,z1).sub(center).len2()-r);
+            double err1=abs(new Point2d(x1,z1).sub(center).len2()-r);
             if(err1<err)
             {
                 x=x1;
@@ -127,15 +127,16 @@ public class Graphic
         }
     }
 
-    private static List<List<Point2>> fragment(List<Point2> line, int cz)
+    private static List<List<Point2>> fragment(List<Point2> line, double cz)
     {
         List<List<Point2>> ret=new ArrayList<>();
         List<Point2> cur=new ArrayList<>();
         ret.add(cur);
+        int iz=(int)round(cz);
         for(Point2 p:line)
         {
             cur.add(p);
-            if(p.z==cz)
+            if(p.z==iz)
             {
                 cur=new ArrayList<>();
                 ret.add(cur);
@@ -182,13 +183,13 @@ public class Graphic
 
     public static void drawSideRing(Arc arc0, double width, BiConsumer<Integer, Integer> consumer, BiConsumer<Integer, Integer> consumerEdge)
     {
-        Point2 center=arc0.center();
+        Point2d center=arc0.center();
         Point2 p0=arc0.start();
         Point2 p1=arc0.end();
-        Point2 vecTrans0 = p0.sub(center).scaleTo(width);
-        Point2 vecTrans1 = p1.sub(center).scaleTo(width);
-        Point2 p10=p0.add(vecTrans0);
-        Point2 p11=p1.add(vecTrans1);
+        Point2d vecTrans0 = new Point2d(p0).sub(center).scaleTo(width);
+        Point2d vecTrans1 = new Point2d(p1).sub(center).scaleTo(width);
+        Point2 p10=p0.add(new Point2(vecTrans0));
+        Point2 p11=p1.add(new Point2(vecTrans1));
         Set<Point2> edges=new HashSet<>();
         Arc arc1=new Arc(center,p10,p11);
         drawArc(arc0,(x,z)->edges.add(new Point2(x,z)));
@@ -223,7 +224,7 @@ public class Graphic
     /**
      * @return two centers
      */
-    public static Point2[] connect(Point2 p0, Point2 d0, Point2 p1, Point2 d1)
+    public static Point2d[] connect(Point2 p0, Point2 d0, Point2 p1, Point2 d1)
     {
         Point2 d0v=d0.turnLeft();
         if(d0v.dot(p1.sub(p0))<0)d0v=d0v.scale(-1);
@@ -268,7 +269,9 @@ public class Graphic
         {
             throw new RuntimeException("Invalid solution!");
         }
-        return new Point2[]{p0.add(d0v.scaleTo(r)),p1.add(d1v.scaleTo(r))};
+        return new Point2d[]{
+                new Point2d(p0).add(new Point2d(d0v).scaleTo(r)),
+                new Point2d(p1).add(new Point2d(d1v).scaleTo(r))};
     }
 
     public static int getSlopeLine(Point2 cur, Point2 p0, Point2 p1, double base, double height, double bufferInsideLine)
@@ -283,14 +286,14 @@ public class Graphic
 
     public static double getSlopeArcD(Point2 cur, Arc arc, double base, double height, double bufferStart, double bufferEnd)
     {
-        Point2 center=arc.center();
+        Point2d center=arc.center();
         Point2 p0=arc.start();
         Point2 p1=arc.end();
         final double bufferOutsideArc =0.1;
-        double t0=p0.sub(center).atan2();
-        double t1=p1.sub(center).atan2();
+        double t0=new Point2d(p0).sub(center).atan2();
+        double t1=new Point2d(p1).sub(center).atan2();
         if(t1<t0- bufferOutsideArc)t1+=2*PI;
-        double tc=cur.sub(center).atan2();
+        double tc=new Point2d(cur).sub(center).atan2();
         if(tc<t0- bufferOutsideArc)tc+=2*PI;
         if(tc>t1+ bufferOutsideArc)tc-=2*PI;
         double ratio=(tc-t0-bufferStart)/(t1-t0-bufferStart-bufferEnd);
@@ -318,7 +321,7 @@ public class Graphic
         double dis=r/sin;
         double dis2=r/tan;
         return new Arc(
-                p.add(new Point2(avg.scaleTo(dis))),
+                new Point2d(p).add(avg.scaleTo(dis)),
                 p.add(new Point2(d0d.scaleTo(dis2))),
                 p.add(new Point2(d1d.scaleTo(dis2))));
     }
@@ -347,15 +350,18 @@ public class Graphic
     /**
      * @return points on d0 and d1
      */
-    public static Point2[] getLineOutsideInscribedCircle(Point2 p, Point2 d0, Point2 d1, Point2 center, double r)
+    public static Point2[] getLineOutsideInscribedCircle(Point2 p, Point2 d0, Point2 d1, Point2d center, double r)
     {
         final double bufferOutsideArc =3;
         Point2[] ret=new Point2[2];
-        double d=center.sub(p).len()+r+bufferOutsideArc;
-        Point2 rot=center.sub(p);
-        Point2 i=rot.scaleTo(d).add(p);
-        ret[0]=new Point2(getIntersection(p,d0.turnLeft(),i,rot));
-        ret[1]=new Point2(getIntersection(p,d1.turnLeft(),i,rot));
+        double d=center.sub(new Point2d(p)).len()+r+bufferOutsideArc;
+        Point2d pD=new Point2d(p);
+        Point2d rot=center.sub(pD);
+        Point2d i=rot.scaleTo(d).add(pD);
+        Point2 rotI=new Point2(rot);
+        Point2 iI=new Point2(i);
+        ret[0]=new Point2(getIntersection(p,d0.turnLeft(),iI,rotI));
+        ret[1]=new Point2(getIntersection(p,d1.turnLeft(),iI,rotI));
         return ret;
     }
 
@@ -363,20 +369,23 @@ public class Graphic
      * If direction=true, arc is drawn on the "right" if the line is below the circle.
      * @return center, points on the line and circle
      */
-    public static Arc getInscribedCircleOfCircleAndLine(Point2 center, Point2 intersection, double r, boolean direction)
+    public static Arc getInscribedCircleOfCircleAndLine(Point2d center, Point2 intersection, double r, boolean direction)
     {
-        Point2 d=center.sub(intersection);
-        Point2 dv=d.turnLeft();
+        Point2d d=center.sub(new Point2d(intersection));
+        Point2d dv=d.turnLeft();
+        Point2d intersectionD=new Point2d(intersection);
         if(direction)dv=dv.scale(-1);
         double r0=d.len();
         //sqrt (r+r0)^2-(r-r0)^2
         //=... (r^2+2rr0+r0^2)-(r^2-2rr0+r0^2)
         //=sqrt(4rr0)
         double dis=sqrt(4*r*r0);
-        Point2 pLine=intersection.add(dv.scaleTo(dis));
-        Point2 pCenter=pLine.add(d.scaleTo(r));
-        Point2 pJoint=center.add(pCenter.sub(center).scaleTo(r0));
-        if(direction)return new Arc(pCenter,pLine,pJoint);
-        else return new Arc(pCenter,pJoint,pLine);
+        Point2d pLine=intersectionD.add(dv.scaleTo(dis));
+        Point2d pCenter=pLine.add(d.scaleTo(r));
+        Point2d pJoint=center.add(pCenter.sub(center).scaleTo(r0));
+        Point2 pLineI=new Point2(pLine);
+        Point2 pJointI=new Point2(pJoint);
+        if(direction)return new Arc(pCenter,pLineI,pJointI);
+        else return new Arc(pCenter,pJointI,pLineI);
     }
 }

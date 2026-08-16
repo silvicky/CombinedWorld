@@ -20,8 +20,8 @@ public class Point2
 
     public Point2(Point2d point)
     {
-        this.x=(int)round(point.x());
-        this.z=(int)round(point.z());
+        this.x=(int)round(point.x);
+        this.z=(int)round(point.z);
     }
 
     public Point2 add(int x, int z)
@@ -54,11 +54,6 @@ public class Point2
         return (long) x *point.x + (long) z *point.z;
     }
 
-    public long cross(Point2 point)
-    {
-        return (long) z *point.x - (long) x *point.z;
-    }
-
     public double len()
     {
         return sqrt(len2());
@@ -72,11 +67,6 @@ public class Point2
     public Point2 turnLeft()
     {
         return new Point2(z, -x);
-    }
-
-    public double atan2()
-    {
-        return Math.atan2(z,x);
     }
 
     public BlockPos atY(int y){return new BlockPos(x,y,z);}

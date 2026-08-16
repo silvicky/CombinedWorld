@@ -32,9 +32,9 @@ public class Road2Cache extends ChunkGenCache
 
     private static final int[][] n ={{1,0},{0,1},{-1,0},{0,-1}};
 
-    private static final int portLength=128;
+    private static final int portLength=144;
 
-    private static final int bufferWidth=160;
+    private static final int bufferWidth=176;
 
     public Road2Cache(ServerLevel level, RandomState randomState)
     {
@@ -181,7 +181,7 @@ public class Road2Cache extends ChunkGenCache
                     p0 = directions.getFirst();
                     p1 = directions.getLast();
                 }
-                Point2 c = new Point2(getIntersection(ports[p0], ports[p0 ^ 2].sub(ports[p0]), ports[p1], ports[p1 ^ 2].sub(ports[p1])));
+                Point2d c = getIntersection(ports[p0], ports[p0 ^ 2].sub(ports[p0]), ports[p1], ports[p1 ^ 2].sub(ports[p1]));
                 int h0 = (p0 % 2) * 6;
                 int h1 = (p1 % 2) * 6;
                 Arc arc=new Arc(c,ports[p0],ports[p1]);
@@ -207,15 +207,16 @@ public class Road2Cache extends ChunkGenCache
             if (coordination[i]) {
                 Point2[] portsN = getNodePorts(regionPos.add(n[i][0], n[i][1]));
                 try {
-                    Point2[] cs = connect(ports[i], ports[i].sub(ports[i + 2]), portsN[i + 2], portsN[i + 2].sub(portsN[i]));
-                    Point2 joint = cs[0].add(cs[1]).scale(0.5);
+                    Point2d[] cs = connect(ports[i], ports[i].sub(ports[i + 2]), portsN[i + 2], portsN[i + 2].sub(portsN[i]));
+                    Point2d joint = cs[0].add(cs[1]).scale(0.5);
+                    Point2 jointI=new Point2(joint);
                     Arc arc0,arc1;
-                    if (joint.sub(cs[0]).cross(ports[i].sub(cs[0])) > 0) {
-                        arc0=new Arc(cs[0],ports[i],joint);
-                        arc1=new Arc(cs[1],portsN[i+2],joint);
+                    if (joint.sub(cs[0]).cross(new Point2d(ports[i]).sub(cs[0])) > 0) {
+                        arc0=new Arc(cs[0],ports[i],jointI);
+                        arc1=new Arc(cs[1],portsN[i+2],jointI);
                     } else {
-                        arc0=new Arc(cs[0],joint,ports[i]);
-                        arc1=new Arc(cs[1],joint,portsN[i+2]);
+                        arc0=new Arc(cs[0],jointI,ports[i]);
+                        arc1=new Arc(cs[1],jointI,portsN[i+2]);
                     }
                     drawCurvedRoad2(arc0, i * 6);
                     drawCurvedRoad2(arc1, i * 6);
