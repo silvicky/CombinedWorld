@@ -281,7 +281,7 @@ public class Graphic
         return (int)round(base+height*ratio);
     }
 
-    public static double getSlopeArcD(Point2 cur, Arc arc, double base, double height, double bufferInsideArc)
+    public static double getSlopeArcD(Point2 cur, Arc arc, double base, double height, double bufferStart, double bufferEnd)
     {
         Point2 center=arc.center();
         Point2 p0=arc.start();
@@ -293,14 +293,19 @@ public class Graphic
         double tc=cur.sub(center).atan2();
         if(tc<t0- bufferOutsideArc)tc+=2*PI;
         if(tc>t1+ bufferOutsideArc)tc-=2*PI;
-        double ratio=(tc-t0-bufferInsideArc)/(t1-t0-2*bufferInsideArc);
+        double ratio=(tc-t0-bufferStart)/(t1-t0-bufferStart-bufferEnd);
         ratio=clamp(ratio,0,1);
         return base+ratio*height;
     }
 
     public static int getSlopeArc(Point2 cur, Arc arc, double base, double height, double bufferInsideArc)
     {
-        return (int)round(getSlopeArcD(cur, arc, base, height, bufferInsideArc));
+        return (int)round(getSlopeArcD(cur, arc, base, height, bufferInsideArc, bufferInsideArc));
+    }
+
+    public static int getSlopeArc(Point2 cur, Arc arc, double base, double height, double bufferStart, double bufferEnd)
+    {
+        return (int)round(getSlopeArcD(cur, arc, base, height, bufferStart, bufferEnd));
     }
 
     public static Arc getInscribedCircle(Point2 p, Point2 d0, Point2 d1, double r)

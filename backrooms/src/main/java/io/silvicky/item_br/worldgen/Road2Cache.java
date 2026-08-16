@@ -100,14 +100,16 @@ public class Road2Cache extends ChunkGenCache
 
     private void drawCurvedRoad(Arc arc, double width, double h0, double h1)
     {
-        drawCurvedRoadPartial(arc,arc,width,h0,h1);
+        drawSideRing(arc, width,
+                (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), arc, h0, h1-h0, 0.5), z), ROAD),
+                (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), arc, h0, h1-h0, 0.5), z), EDGE));
     }
 
-    private void drawCurvedRoadPartial(Arc arc, Arc arcRef, double width, double h0, double h1)
+    private void drawCurvedRoad(Arc arc, double width, double h0, double h1, double bufferStart, double bufferEnd)
     {
         drawSideRing(arc, width,
-                (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), arcRef, h0, h1-h0, 0.5), z), ROAD),
-                (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), arcRef, h0, h1-h0, 0.5), z), EDGE));
+                (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), arc, h0, h1-h0, bufferStart, bufferEnd), z), ROAD),
+                (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), arc, h0, h1-h0, bufferStart, bufferEnd), z), EDGE));
     }
 
     private void genRegion(RegionPos regionPos) {
@@ -148,21 +150,21 @@ public class Road2Cache extends ChunkGenCache
                 drawCurvedRoad(cs2, -5, 6*finalI, 6-6*finalI);
                 Point2[] cs3 = getInscribedCircleOfCircleAndLine(cs2.center(), cs2.end(), 60, true);
                 //outer circle
-                drawCurvedRoadPartial(new Arc(cs2.center(),cs2.start(),cs3[2]), cs2, 5, 6*finalI, 6-6*finalI);
+                double jointHeight = getSlopeArcD(cs3[2], cs2, 6 * finalI, 6 - 12 * finalI, 0.5, 0);
+                drawCurvedRoad(new Arc(cs2.center(),cs2.start(),cs3[2]), 5, 6*finalI, jointHeight, 0.5,  0);
                 //transition into line
-                double jointHeight = getSlopeArcD(cs3[2], cs2, 6 * finalI, 6 - 12 * finalI, 0.5);
                 Arc xx=new Arc(cs3[0], cs3[1], cs3[2]);
-                drawCurvedRoad(xx, -5, 6-6*finalI, jointHeight);
+                drawCurvedRoad(xx, -5, 6-6*finalI, jointHeight, 0.5, 0);
             } else {
                 Arc cs2 = getInscribedCircle(center, ports[(defect + 3) % 4].sub(center), ports[defect].sub(center), 30);
                 int finalI = defect % 2;
                 drawStraightRoad2(ports[(defect + 2) % 4], cs2.end(), finalI * 6);
                 drawCurvedRoad(cs2, -5, 6-6*finalI, 6*finalI);
                 Point2[] cs3 = getInscribedCircleOfCircleAndLine(cs2.center(), cs2.start(), 60, false);
-                drawCurvedRoadPartial(new Arc(cs2.center(), cs3[2], cs2.end()), cs2, 5, 6-6*finalI, 6*finalI);
-                double jointHeight = getSlopeArcD(cs3[2], cs2, 6 - 6 * finalI, 12 * finalI - 6, 0.5);
+                double jointHeight = getSlopeArcD(cs3[2], cs2, 6 - 6 * finalI, 12 * finalI - 6, 0, 0.5);
+                drawCurvedRoad(new Arc(cs2.center(), cs3[2], cs2.end()), 5, jointHeight, 6*finalI, 0, 0.5);
                 Arc xx=new Arc(cs3[0], cs3[2], cs3[1]);
-                drawCurvedRoad(xx, -5, jointHeight, 6-6*finalI);
+                drawCurvedRoad(xx, -5, jointHeight, 6-6*finalI, 0, 0.5);
             }
         } else if (directions.size() == 2) {
             //connect directly
