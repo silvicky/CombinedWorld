@@ -271,17 +271,17 @@ public class Graphic
         return new Point2[]{p0.add(d0v.scaleTo(r)),p1.add(d1v.scaleTo(r))};
     }
 
-    public static int getSlopeLine(Point2 cur, Point2 p0, Point2 p1, int base, double height, double bufferInsideLine)
+    public static int getSlopeLine(Point2 cur, Point2 p0, Point2 p1, double base, double height, double bufferInsideLine)
     {
         Point2 d=p1.sub(p0);
         Point2 dc=cur.sub(p0);
         double ratio=(double)d.dot(dc)/d.len2();
         ratio=(ratio-bufferInsideLine)/(1-2*bufferInsideLine);
         ratio=clamp(ratio,0,1);
-        return base+(int)round(height*ratio);
+        return (int)round(base+height*ratio);
     }
 
-    public static int getSlopeArc(Point2 cur, Arc arc, int base, double height, double bufferInsideArc)
+    public static double getSlopeArcD(Point2 cur, Arc arc, double base, double height, double bufferInsideArc)
     {
         Point2 center=arc.center();
         Point2 p0=arc.start();
@@ -295,12 +295,14 @@ public class Graphic
         if(tc>t1+ bufferOutsideArc)tc-=2*PI;
         double ratio=(tc-t0-bufferInsideArc)/(t1-t0-2*bufferInsideArc);
         ratio=clamp(ratio,0,1);
-        return base+(int)round(ratio*height);
+        return base+ratio*height;
     }
 
-    /**
-     * @return center, points on d0 and d1
-     */
+    public static int getSlopeArc(Point2 cur, Arc arc, double base, double height, double bufferInsideArc)
+    {
+        return (int)round(getSlopeArcD(cur, arc, base, height, bufferInsideArc));
+    }
+
     public static Arc getInscribedCircle(Point2 p, Point2 d0, Point2 d1, double r)
     {
         Point2d d0d=new Point2d(d0);

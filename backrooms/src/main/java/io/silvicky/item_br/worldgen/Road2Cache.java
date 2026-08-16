@@ -81,7 +81,7 @@ public class Road2Cache extends ChunkGenCache
                 (x, z) -> setBlockState(new BlockPos(x, h, z), EDGE));
     }
 
-    private void drawStraightRoad(Point2 start, Point2 end, int h0, int h1)
+    private void drawStraightRoad(Point2 start, Point2 end, double h0, double h1)
     {
         drawSideRect(start, end, 5,
                 (x, z) -> setBlockState(new BlockPos(x, getSlopeLine(new Point2(x, z), start, end, h0, h1-h0, 0.1), z), ROAD),
@@ -98,12 +98,12 @@ public class Road2Cache extends ChunkGenCache
                 (x, z) -> setBlockState(new BlockPos(x, h, z), EDGE));
     }
 
-    private void drawCurvedRoad(Arc arc, double width, int h0, int h1)
+    private void drawCurvedRoad(Arc arc, double width, double h0, double h1)
     {
         drawCurvedRoadPartial(arc,arc,width,h0,h1);
     }
 
-    private void drawCurvedRoadPartial(Arc arc, Arc arcRef, double width, int h0, int h1)
+    private void drawCurvedRoadPartial(Arc arc, Arc arcRef, double width, double h0, double h1)
     {
         drawSideRing(arc, width,
                 (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), arcRef, h0, h1-h0, 0.5), z), ROAD),
@@ -150,7 +150,7 @@ public class Road2Cache extends ChunkGenCache
                 //outer circle
                 drawCurvedRoadPartial(new Arc(cs2.center(),cs2.start(),cs3[2]), cs2, 5, 6*finalI, 6-6*finalI);
                 //transition into line
-                int jointHeight = getSlopeArc(cs3[2], cs2, 6 * finalI, 6 - 12 * finalI, 0.5);
+                double jointHeight = getSlopeArcD(cs3[2], cs2, 6 * finalI, 6 - 12 * finalI, 0.5);
                 Arc xx=new Arc(cs3[0], cs3[1], cs3[2]);
                 drawCurvedRoad(xx, -5, 6-6*finalI, jointHeight);
             } else {
@@ -160,7 +160,7 @@ public class Road2Cache extends ChunkGenCache
                 drawCurvedRoad(cs2, -5, 6-6*finalI, 6*finalI);
                 Point2[] cs3 = getInscribedCircleOfCircleAndLine(cs2.center(), cs2.start(), 60, false);
                 drawCurvedRoadPartial(new Arc(cs2.center(), cs3[2], cs2.end()), cs2, 5, 6-6*finalI, 6*finalI);
-                int jointHeight = getSlopeArc(cs3[2], cs2, 6 - 6 * finalI, 12 * finalI - 6, 0.5);
+                double jointHeight = getSlopeArcD(cs3[2], cs2, 6 - 6 * finalI, 12 * finalI - 6, 0.5);
                 Arc xx=new Arc(cs3[0], cs3[2], cs3[1]);
                 drawCurvedRoad(xx, -5, jointHeight, 6-6*finalI);
             }
