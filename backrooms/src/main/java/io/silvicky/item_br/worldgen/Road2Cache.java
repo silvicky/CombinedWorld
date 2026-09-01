@@ -4,7 +4,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.RandomState;
@@ -128,7 +127,8 @@ public class Road2Cache extends ChunkGenCache
                 (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), arc, h0, h1-h0, bufferStart, bufferEnd), z), EDGE));
     }
 
-    private void genRegion(RegionPos regionPos) {
+    @Override
+    void genRegion(RegionPos regionPos) {
         if (generatedRegions.contains(regionPos)) return;
         generatedRegions.add(regionPos);
         boolean[] coordination = getNodeCoordination(randomState, regionPos.x, regionPos.z);
@@ -242,14 +242,5 @@ public class Road2Cache extends ChunkGenCache
                 }
             }
         }
-    }
-
-    @Override
-    void genChunk(ChunkPos chunkPos)
-    {
-        RegionPos regionPos=RegionPos.of(chunkPos);
-        genRegion(regionPos);
-        genRegion(regionPos.add(-1,0));
-        genRegion(regionPos.add(0,-1));
     }
 }
