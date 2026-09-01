@@ -30,11 +30,11 @@ public abstract class ChunkGenCache
 
     private boolean recycleMode=false;
 
-    private static final int queueLowerBound = 16;
+    private static final int queueLowerBound = 256;
 
-    private static final int queueUpperBound = 32;
+    private static final int queueUpperBound = 512;
 
-    private static final int queueRecycleCount = 3;
+    private static final int queueRecycleCount = 8;
 
     public ChunkGenCache(int baseY, int height, ServerLevel level, RandomState randomState)
     {
@@ -68,7 +68,6 @@ public abstract class ChunkGenCache
                 recycleMode = true;
             }
         }
-        //System.out.println(regionContent.size()+" "+ cachedRegionsQueue.size()+" "+ cachedRegionsSet.size());
     }
 
     public void setBlockState(BlockPos pos, BlockState state)
