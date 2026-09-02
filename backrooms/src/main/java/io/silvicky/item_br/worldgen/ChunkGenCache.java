@@ -94,12 +94,15 @@ public abstract class ChunkGenCache
         return true;
     }
 
+    abstract List<RegionPos> getSourceRegions(RegionPos regionPos);
+
     private void genChunk(ChunkPos chunkPos)
     {
         RegionPos regionPos=RegionPos.of(chunkPos);
-        boolean success=tryGenRegion(regionPos);
-        success=success||tryGenRegion(regionPos.add(-1,0));
-        success=success||tryGenRegion(regionPos.add(0,-1));
+        boolean success=false;
+        for(RegionPos sourceRegionPos:getSourceRegions(regionPos)){
+            success=success||tryGenRegion(sourceRegionPos);
+        }
         if(success)checkRecycle();
     }
 

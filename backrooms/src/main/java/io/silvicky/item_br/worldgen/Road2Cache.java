@@ -243,4 +243,11 @@ public class Road2Cache extends ChunkGenCache
             }
         }
     }
+
+    @Override
+    List<RegionPos> getSourceRegions(RegionPos regionPos) {
+        return List.of(regionPos,
+                        regionPos.add(-1,0),
+                        regionPos.add(0,-1));
+    }
 }
