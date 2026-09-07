@@ -1,5 +1,7 @@
 package io.silvicky.item_br.worldgen;
 
+import com.mojang.datafixers.util.Pair;
+
 import java.util.*;
 import java.util.function.BiConsumer;
 
@@ -63,20 +65,25 @@ public class Graphic
         }
     }
 
-    public static void drawSideRect(Point2 p0, Point2 p1, double width, BiConsumer<Integer, Integer> consumer, BiConsumer<Integer, Integer> consumerEdge)
+    public static void drawSideRect(Point2 p0, Point2 p1, RoadPattern pattern)
     {
         Point2 vecLine=p1.sub(p0);
-        Point2 vecTrans = vecLine.turnLeft().scaleTo(width);
-        Point2 p10=p0.add(vecTrans);
-        Point2 p11=p1.add(vecTrans);
-        Set<Point2> edges=new HashSet<>();
-        drawLine(p10,p11,(x,z)->edges.add(new Point2(x,z)));
-        drawLine(p0,p1,(x,z)->edges.add(new Point2(x,z)));
-        drawRect(p0,p1,p10,p11,(x,z)->
+        Point2 vecTransMin = vecLine.turnLeft().scaleTo(pattern.min());
+        Point2 vecTransMax = vecLine.turnLeft().scaleTo(pattern.max());
+        Point2 p00=p0.add(vecTransMin);
+        Point2 p01=p1.add(vecTransMin);
+        Point2 p10=p0.add(vecTransMax);
+        Point2 p11=p1.add(vecTransMax);
+        Map<Point2, BiConsumer<Integer, Integer>> edges=new HashMap<>();
+        for(Pair<Double, BiConsumer<Integer, Integer>> i: pattern.features())
         {
-            if(edges.contains(new Point2(x,z)))consumerEdge.accept(x,z);
-            else consumer.accept(x,z);
-        });
+            Point2 vecTransX=vecLine.turnLeft().scaleTo(i.getFirst());
+            Point2 px0=p0.add(vecTransX);
+            Point2 px1=p1.add(vecTransX);
+            drawLine(px0,px1,(x,z)-> edges.put(new Point2(x,z), i.getSecond()));
+        }
+        drawRect(p00,p01,p10,p11,(x,z)->
+                edges.getOrDefault(new Point2(x,z),pattern.road()).accept(x,z));
     }
 
     public static void drawArc(Arc arc, BiConsumer<Integer, Integer> consumer)
@@ -184,24 +191,33 @@ public class Graphic
         }
     }
 
-    public static void drawSideRing(Arc arc0, double width, BiConsumer<Integer, Integer> consumer, BiConsumer<Integer, Integer> consumerEdge)
+    public static void drawSideRing(Arc arc, RoadPattern pattern)
     {
-        Point2d center=arc0.center();
-        Point2 p0=arc0.start();
-        Point2 p1=arc0.end();
-        Point2d vecTrans0 = new Point2d(p0).sub(center).scaleTo(width);
-        Point2d vecTrans1 = new Point2d(p1).sub(center).scaleTo(width);
-        Point2 p10=p0.add(new Point2(vecTrans0));
-        Point2 p11=p1.add(new Point2(vecTrans1));
-        Set<Point2> edges=new HashSet<>();
-        Arc arc1=new Arc(center,p10,p11, arc0.r()+width);
-        drawArc(arc0,(x,z)->edges.add(new Point2(x,z)));
-        drawArc(arc1,(x,z)->edges.add(new Point2(x,z)));
-        drawRing(arc0,arc1,(x,z)->
+        Point2d center= arc.center();
+        Point2 p0= arc.start();
+        Point2 p1= arc.end();
+        Point2d vecTrans00 = new Point2d(p0).sub(center).scaleTo(pattern.min());
+        Point2d vecTrans01 = new Point2d(p1).sub(center).scaleTo(pattern.min());
+        Point2d vecTrans10 = new Point2d(p0).sub(center).scaleTo(pattern.max());
+        Point2d vecTrans11 = new Point2d(p1).sub(center).scaleTo(pattern.max());
+        Point2 p00=p0.add(new Point2(vecTrans00));
+        Point2 p01=p1.add(new Point2(vecTrans01));
+        Point2 p10=p0.add(new Point2(vecTrans10));
+        Point2 p11=p1.add(new Point2(vecTrans11));
+        Arc arc0=new Arc(center,p00,p01, arc.r()+ pattern.min());
+        Arc arc1=new Arc(center,p10,p11, arc.r()+ pattern.max());
+        Map<Point2, BiConsumer<Integer, Integer>> edges=new HashMap<>();
+        for(Pair<Double, BiConsumer<Integer, Integer>> i: pattern.features())
         {
-            if(edges.contains(new Point2(x,z))) consumerEdge.accept(x,z);
-            else consumer.accept(x,z);
-        });
+            Point2d vecTransX0=new Point2d(p0).sub(center).scaleTo(i.getFirst());
+            Point2d vecTransX1=new Point2d(p1).sub(center).scaleTo(i.getFirst());
+            Point2 px0=p0.add(new Point2(vecTransX0));
+            Point2 px1=p1.add(new Point2(vecTransX1));
+            Arc arcX=new Arc(center,px0,px1,arc.r()+i.getFirst());
+            drawArc(arcX,(x,z)-> edges.put(new Point2(x,z), i.getSecond()));
+        }
+        drawRing(arc0,arc1,(x,z)->
+                edges.getOrDefault(new Point2(x,z),pattern.road()).accept(x,z));
     }
 
     public static List<Double> solveQuadratic(double a, double b, double c)

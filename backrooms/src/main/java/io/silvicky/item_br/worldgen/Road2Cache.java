@@ -1,5 +1,6 @@
 package io.silvicky.item_br.worldgen;
 
+import com.mojang.datafixers.util.Pair;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
@@ -51,6 +52,59 @@ public class Road2Cache extends ChunkGenCache
 
     private static final double bufferOutsideArc=3;
 
+    private RoadPattern mainPattern(int h)
+    {
+        return new RoadPattern(
+                -roadWidth,
+                roadWidth,
+                (x,z)->setBlockState(new BlockPos(x,h,z), ROAD),
+                List.of(
+                        new Pair<>((double) -roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE)),
+                        new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,h,z),EDGE)),
+                        new Pair<>((double) roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE))
+                )
+        );
+    }
+
+    private RoadPattern slopedPattern(Point2 start, Point2 end, double h0, double h1)
+    {
+        return new RoadPattern(
+                0,
+                roadWidth,
+                (x,z)->setBlockState(new BlockPos(x,getSlopeLine(new Point2(x, z), start, end, h0, h1-h0, linearBuffer),z), ROAD),
+                List.of(
+                        new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,getSlopeLine(new Point2(x, z), start, end, h0, h1-h0, linearBuffer),z),EDGE)),
+                        new Pair<>((double) roadWidth,(x,z)->setBlockState(new BlockPos(x,getSlopeLine(new Point2(x, z), start, end, h0, h1-h0, linearBuffer),z),EDGE))
+                )
+        );
+    }
+
+    private RoadPattern slopedPattern(double width, Arc arc, double h0, double h1)
+    {
+        return new RoadPattern(
+                0,
+                width,
+                (x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer),z), ROAD),
+                List.of(
+                        new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer),z),EDGE)),
+                        new Pair<>(width,(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer),z),EDGE))
+                )
+        );
+    }
+
+    private RoadPattern slopedPattern(double width, Arc arc, double h0, double h1, double bufferStart, double bufferEnd)
+    {
+        return new RoadPattern(
+                0,
+                width,
+                (x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, bufferStart, bufferEnd),z), ROAD),
+                List.of(
+                        new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, bufferStart, bufferEnd),z),EDGE)),
+                        new Pair<>(width,(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, bufferStart, bufferEnd),z),EDGE))
+                )
+        );
+    }
+
     public Road2Cache(ServerLevel level, RandomState randomState)
     {
         super(0, 32, level, randomState);
@@ -88,43 +142,27 @@ public class Road2Cache extends ChunkGenCache
 
     private void drawStraightRoad2(Point2 start, Point2 end, int h)
     {
-        drawSideRect(start, end, roadWidth,
-                (x, z) -> setBlockState(new BlockPos(x, h, z), ROAD),
-                (x, z) -> setBlockState(new BlockPos(x, h, z), EDGE));
-        drawSideRect(start, end, -roadWidth,
-                (x, z) -> setBlockState(new BlockPos(x, h, z), ROAD),
-                (x, z) -> setBlockState(new BlockPos(x, h, z), EDGE));
+        drawSideRect(start, end, mainPattern(h));
     }
 
     private void drawStraightRoad(Point2 start, Point2 end, double h0, double h1)
     {
-        drawSideRect(start, end, roadWidth,
-                (x, z) -> setBlockState(new BlockPos(x, getSlopeLine(new Point2(x, z), start, end, h0, h1-h0, linearBuffer), z), ROAD),
-                (x, z) -> setBlockState(new BlockPos(x, getSlopeLine(new Point2(x, z), start, end, h0, h1-h0, linearBuffer), z), EDGE));
+        drawSideRect(start, end, slopedPattern(start, end, h0, h1));
     }
 
     private void drawCurvedRoad2(Arc arc, int h)
     {
-        drawSideRing(arc, roadWidth,
-                (x, z) -> setBlockState(new BlockPos(x, h, z), ROAD),
-                (x, z) -> setBlockState(new BlockPos(x, h, z), EDGE));
-        drawSideRing(arc, -roadWidth,
-                (x, z) -> setBlockState(new BlockPos(x, h, z), ROAD),
-                (x, z) -> setBlockState(new BlockPos(x, h, z), EDGE));
+        drawSideRing(arc, mainPattern(h));
     }
 
     private void drawCurvedRoad(Arc arc, double width, double h0, double h1)
     {
-        drawSideRing(arc, width,
-                (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer), z), ROAD),
-                (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer), z), EDGE));
+        drawSideRing(arc, slopedPattern(width, arc, h0, h1));
     }
 
     private void drawCurvedRoad(Arc arc, double width, double h0, double h1, double bufferStart, double bufferEnd)
     {
-        drawSideRing(arc, width,
-                (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), arc, h0, h1-h0, bufferStart, bufferEnd), z), ROAD),
-                (x, z) -> setBlockState(new BlockPos(x, getSlopeArc(new Point2(x, z), arc, h0, h1-h0, bufferStart, bufferEnd), z), EDGE));
+        drawSideRing(arc, slopedPattern(width, arc, h0, h1, bufferStart, bufferEnd));
     }
 
     @Override
