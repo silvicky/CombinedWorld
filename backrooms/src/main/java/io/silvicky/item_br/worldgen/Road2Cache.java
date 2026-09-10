@@ -55,13 +55,15 @@ public class Road2Cache extends ChunkGenCache
     private RoadPattern mainPattern(int h)
     {
         return new RoadPattern(
-                -roadWidth,
-                roadWidth,
+                -2*roadWidth,
+                2*roadWidth,
                 (x,z)->setBlockState(new BlockPos(x,h,z), ROAD),
                 List.of(
+                        new Pair<>((double) -2*roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE)),
                         new Pair<>((double) -roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE)),
                         new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,h,z),EDGE)),
-                        new Pair<>((double) roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE))
+                        new Pair<>((double) roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE)),
+                        new Pair<>((double) 2*roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE))
                 )
         );
     }
@@ -69,12 +71,28 @@ public class Road2Cache extends ChunkGenCache
     private RoadPattern slopedPattern(Point2 start, Point2 end, double h0, double h1)
     {
         return new RoadPattern(
+                -roadWidth,
                 0,
-                roadWidth,
                 (x,z)->setBlockState(new BlockPos(x,getSlopeLine(new Point2(x, z), start, end, h0, h1-h0, linearBuffer),z), ROAD),
                 List.of(
-                        new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,getSlopeLine(new Point2(x, z), start, end, h0, h1-h0, linearBuffer),z),EDGE)),
-                        new Pair<>((double) roadWidth,(x,z)->setBlockState(new BlockPos(x,getSlopeLine(new Point2(x, z), start, end, h0, h1-h0, linearBuffer),z),EDGE))
+                        new Pair<>((double) -roadWidth,(x,z)->setBlockState(new BlockPos(x,getSlopeLine(new Point2(x, z), start, end, h0, h1-h0, linearBuffer),z),EDGE)),
+                        new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,getSlopeLine(new Point2(x, z), start, end, h0, h1-h0, linearBuffer),z),EDGE))
+                )
+        );
+    }
+
+    private RoadPattern slopedPattern(Arc arc, double h0, double h1)
+    {
+        return new RoadPattern(
+                -2*roadWidth,
+                2*roadWidth,
+                (x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer),z), ROAD),
+                List.of(
+                        new Pair<>((double) -2*roadWidth,(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer),z),EDGE)),
+                        new Pair<>((double) -roadWidth,(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer),z),EDGE)),
+                        new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer),z),EDGE)),
+                        new Pair<>((double) roadWidth,(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer),z),EDGE)),
+                        new Pair<>((double) 2*roadWidth,(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer),z),EDGE))
                 )
         );
     }
@@ -104,6 +122,8 @@ public class Road2Cache extends ChunkGenCache
                 )
         );
     }
+
+    private final RoadPattern samplePattern = mainPattern(0);
 
     public Road2Cache(ServerLevel level, RandomState randomState)
     {
@@ -155,6 +175,11 @@ public class Road2Cache extends ChunkGenCache
         drawSideRing(arc, mainPattern(h));
     }
 
+    private void drawCurvedRoad2(Arc arc, double h0, double h1)
+    {
+        drawSideRing(arc, slopedPattern(arc, h0, h1));
+    }
+
     private void drawCurvedRoad(Arc arc, double width, double h0, double h1)
     {
         drawSideRing(arc, slopedPattern(width, arc, h0, h1));
@@ -178,9 +203,15 @@ public class Road2Cache extends ChunkGenCache
             //4-way interchange
             for (int i = 0; i < 4; i++) {
                 int finalI = i % 2;
-                Arc cs = getInscribedCircle(center, ports[i].sub(center), ports[(i + 1) % 4].sub(center), innerCircleRadius);
-                drawCurvedRoad(cs, -roadWidth, gapHeight*finalI, gapHeight-gapHeight*finalI);
-                Point2[] cs2 = getLineOutsideInscribedCircle(center, ports[i].sub(center), ports[(i + 1) % 4].sub(center), cs.center(), innerCircleRadius, bufferOutsideArc);
+                Point2 d0=ports[i].sub(center);
+                Point2 d1=ports[(i+1)%4].sub(center);
+                Point2d realCenter=new Point2d(center)
+                        .add(new Point2d(d0).turnLeft().scaleTo(-samplePattern.max()))
+                        .add(new Point2d(d1).turnLeft().scaleTo(-samplePattern.min()));
+                Arc cs = getInscribedCircle(realCenter, d0, d1, innerCircleRadius);
+                drawCurvedRoad(cs, roadWidth, gapHeight*finalI, gapHeight-gapHeight*finalI);
+                //TODO this is too ugly, use curve
+                Point2[] cs2 = getLineOutsideInscribedCircle(realCenter, d0, d1, cs.center(), innerCircleRadius, bufferOutsideArc+2*roadWidth);
                 drawStraightRoad(cs2[0], cs2[1], gapHeight * finalI, gapHeight - gapHeight * finalI);
             }
         } else if (directions.size() == 3) {
@@ -190,15 +221,26 @@ public class Road2Cache extends ChunkGenCache
             //the small ones
             for (int i = 0; i < 2; i++) {
                 int finalI = (defect + i) % 2;
-                Arc cs = getInscribedCircle(center, ports[(defect + i + 2) % 4].sub(center), ports[(defect + i + 1) % 4].sub(center), largeCircleRadius);
-                drawCurvedRoad(cs, -roadWidth, gapHeight*finalI, gapHeight-gapHeight*finalI);
+                Point2 d0=ports[(defect + i + 2) % 4].sub(center);
+                Point2 d1=ports[(defect + i + 1) % 4].sub(center);
+                Point2d realCenter=new Point2d(center)
+                        .add(new Point2d(d0).turnLeft().scaleTo(samplePattern.max()))
+                        .add(new Point2d(d1).turnLeft().scaleTo(samplePattern.min()));
+                Arc cs = getInscribedCircle(realCenter, d0, d1, largeCircleRadius);
+                drawCurvedRoad(cs, roadWidth, gapHeight*finalI, gapHeight-gapHeight*finalI);
             }
             //big ones, see the func call below
+            //this stuff is partially hard-coded
             boolean direction = ports[(defect + 1) % 4].sub(center).dot(ports[defect].sub(center)) > 0;
             if (direction) {
-                Arc cs2 = getInscribedCircle(center, ports[defect].sub(center), ports[(defect + 1) % 4].sub(center), innerCircleRadius);
+                Point2 d0=ports[defect].sub(center);
+                Point2 d1=ports[(defect + 1) % 4].sub(center);
+                Point2d realCenter=new Point2d(center)
+                        .add(new Point2d(d1).turnLeft().scaleTo(roadWidth));
+                Arc cs2 = getInscribedCircle(realCenter, d0, d1, innerCircleRadius);
                 int finalI = defect % 2;
                 //missing straight line
+                //TODO idk why but mismatching!
                 drawStraightRoad2(ports[(defect + 2) % 4], cs2.start(), finalI * gapHeight);
                 //the inner circle
                 drawCurvedRoad(cs2, -roadWidth, gapHeight*finalI, gapHeight-gapHeight*finalI);
@@ -209,7 +251,11 @@ public class Road2Cache extends ChunkGenCache
                 //transition into line
                 drawCurvedRoad(cs3, -roadWidth, gapHeight-gapHeight*finalI, jointHeight, angleBuffer, 0);
             } else {
-                Arc cs2 = getInscribedCircle(center, ports[(defect + 3) % 4].sub(center), ports[defect].sub(center), innerCircleRadius);
+                Point2 d0=ports[(defect + 3) % 4].sub(center);
+                Point2 d1=ports[defect].sub(center);
+                Point2d realCenter=new Point2d(center)
+                        .add(new Point2d(d0).turnLeft().scaleTo(-roadWidth));
+                Arc cs2 = getInscribedCircle(realCenter, d0, d1, innerCircleRadius);
                 int finalI = defect % 2;
                 drawStraightRoad2(ports[(defect + 2) % 4], cs2.end(), finalI * gapHeight);
                 drawCurvedRoad(cs2, -roadWidth, gapHeight-gapHeight*finalI, gapHeight*finalI);
@@ -235,20 +281,19 @@ public class Road2Cache extends ChunkGenCache
                     p0 = directions.getFirst();
                     p1 = directions.getLast();
                 }
-                Point2d c = getIntersection(ports[p0], ports[p0 ^ 2].sub(ports[p0]), ports[p1], ports[p1 ^ 2].sub(ports[p1]));
+                Point2d c = getIntersection(new Point2d(ports[p0]), ports[p0 ^ 2].sub(ports[p0]), new Point2d(ports[p1]), ports[p1 ^ 2].sub(ports[p1]));
                 int h0 = (p0 % 2) * gapHeight;
                 int h1 = (p1 % 2) * gapHeight;
                 Arc arc=new Arc(c,ports[p0],ports[p1],c.sub(new Point2d(ports[p0])).len());
-                drawCurvedRoad(arc, roadWidth, h0, h1);
-                drawCurvedRoad(arc, -roadWidth, h0, h1);
+                drawCurvedRoad2(arc, h0, h1);
             }
         } else if (directions.size() == 1) {
             //dead end
             int p = directions.getFirst();
             int y = (p % 2) * gapHeight + 1;
             Point2 vec = ports[p ^ 2].sub(ports[p]);
-            Point2 a = ports[p].add(vec.turnLeft().scaleTo(roadWidth));
-            Point2 b = ports[p].add(vec.turnLeft().scaleTo(-roadWidth));
+            Point2 a = ports[p].add(vec.turnLeft().scaleTo(samplePattern.max()));
+            Point2 b = ports[p].add(vec.turnLeft().scaleTo(samplePattern.min()));
             drawLine(a, b, (x, z) -> setBlockState(new BlockPos(x, y, z), WALL));
         }
         //public parts

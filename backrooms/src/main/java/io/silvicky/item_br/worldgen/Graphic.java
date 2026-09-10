@@ -91,8 +91,9 @@ public class Graphic
         Point2d center=arc.center();
         Point2 p0=arc.start();
         double r=arc.r()*arc.r();
-        double aStart=arc.aStart();
-        double aEnd=arc.aEnd();
+        double aStart=new Point2d(arc.start()).sub(center).atan2();
+        double aEnd=new Point2d(arc.end()).sub(center).atan2();
+        if(aEnd<aStart)aEnd+=2*PI;
         Point2[] move=
                 {
                         new Point2(0,1),
@@ -194,26 +195,12 @@ public class Graphic
     public static void drawSideRing(Arc arc, RoadPattern pattern)
     {
         Point2d center= arc.center();
-        Point2 p0= arc.start();
-        Point2 p1= arc.end();
-        Point2d vecTrans00 = new Point2d(p0).sub(center).scaleTo(pattern.min());
-        Point2d vecTrans01 = new Point2d(p1).sub(center).scaleTo(pattern.min());
-        Point2d vecTrans10 = new Point2d(p0).sub(center).scaleTo(pattern.max());
-        Point2d vecTrans11 = new Point2d(p1).sub(center).scaleTo(pattern.max());
-        Point2 p00=p0.add(new Point2(vecTrans00));
-        Point2 p01=p1.add(new Point2(vecTrans01));
-        Point2 p10=p0.add(new Point2(vecTrans10));
-        Point2 p11=p1.add(new Point2(vecTrans11));
-        Arc arc0=new Arc(center,p00,p01, arc.r()+ pattern.min());
-        Arc arc1=new Arc(center,p10,p11, arc.r()+ pattern.max());
+        Arc arc0=new Arc(center,arc.r()+ pattern.min(), arc.aStart(), arc.aEnd());
+        Arc arc1=new Arc(center, arc.r()+ pattern.max(), arc.aStart(), arc.aEnd());
         Map<Point2, BiConsumer<Integer, Integer>> edges=new HashMap<>();
         for(Pair<Double, BiConsumer<Integer, Integer>> i: pattern.features())
         {
-            Point2d vecTransX0=new Point2d(p0).sub(center).scaleTo(i.getFirst());
-            Point2d vecTransX1=new Point2d(p1).sub(center).scaleTo(i.getFirst());
-            Point2 px0=p0.add(new Point2(vecTransX0));
-            Point2 px1=p1.add(new Point2(vecTransX1));
-            Arc arcX=new Arc(center,px0,px1,arc.r()+i.getFirst());
+            Arc arcX=new Arc(center,arc.r()+i.getFirst(), arc.aStart(), arc.aEnd());
             drawArc(arcX,(x,z)-> edges.put(new Point2(x,z), i.getSecond()));
         }
         drawRing(arc0,arc1,(x,z)->
@@ -330,7 +317,7 @@ public class Graphic
         return (int)round(getSlopeArcD(cur, arc, base, height, bufferStart, bufferEnd));
     }
 
-    public static Arc getInscribedCircle(Point2 p, Point2 d0, Point2 d1, double r)
+    public static Arc getInscribedCircle(Point2d p, Point2 d0, Point2 d1, double r)
     {
         Point2d d0d=new Point2d(d0);
         Point2d d1d=new Point2d(d1);
@@ -339,25 +326,28 @@ public class Graphic
         double tan=abs(avg.tan(d1d));
         double dis=r/sin;
         double dis2=r/tan;
+        Point2d c=p.add(avg.scaleTo(dis));
+        Point2d p0=p.add(d0d.scaleTo(dis2));
+        Point2d p1=p.add(d1d.scaleTo(dis2));
         return new Arc(
-                new Point2d(p).add(avg.scaleTo(dis)),
-                p.add(new Point2(d0d.scaleTo(dis2))),
-                p.add(new Point2(d1d.scaleTo(dis2))),
-                r);
+                c,
+                r,
+                p0.sub(c).atan2(),
+                p1.sub(c).atan2());
     }
 
     /**
      * note the names!
      */
-    public static Point2d getIntersection(Point2 p0, Point2 d0v, Point2 p1, Point2 d1v)
+    public static Point2d getIntersection(Point2d p0, Point2 d0v, Point2d p1, Point2 d1v)
     {
         //d.x * x + d.z * z = ...
         double a0=d0v.x;
         double a1=d1v.x;
         double b0=d0v.z;
         double b1=d1v.z;
-        double c0=-d0v.dot(p0);
-        double c1=-d1v.dot(p1);
+        double c0=-new Point2d(d0v).dot(p0);
+        double c1=-new Point2d(d1v).dot(p1);
         double det=a0*b1-a1*b0;
         double x=(b0*c1-b1*c0)/det;
         double z=(a1*c0-a0*c1)/det;
@@ -370,17 +360,15 @@ public class Graphic
     /**
      * @return points on d0 and d1
      */
-    public static Point2[] getLineOutsideInscribedCircle(Point2 p, Point2 d0, Point2 d1, Point2d center, double r, double bufferOutsideArc)
+    public static Point2[] getLineOutsideInscribedCircle(Point2d p, Point2 d0, Point2 d1, Point2d center, double r, double bufferOutsideArc)
     {
         Point2[] ret=new Point2[2];
-        double d=center.sub(new Point2d(p)).len()+r+bufferOutsideArc;
-        Point2d pD=new Point2d(p);
-        Point2d rot=center.sub(pD);
-        Point2d i=rot.scaleTo(d).add(pD);
+        double d=center.sub(p).len()+r+bufferOutsideArc;
+        Point2d rot=center.sub(p);
+        Point2d i=rot.scaleTo(d).add(p);
         Point2 rotI=new Point2(rot);
-        Point2 iI=new Point2(i);
-        ret[0]=new Point2(getIntersection(p,d0.turnLeft(),iI,rotI));
-        ret[1]=new Point2(getIntersection(p,d1.turnLeft(),iI,rotI));
+        ret[0]=new Point2(getIntersection(p,d0.turnLeft(), i,rotI));
+        ret[1]=new Point2(getIntersection(p,d1.turnLeft(), i,rotI));
         return ret;
     }
 
