@@ -9,23 +9,58 @@ import static java.lang.Math.*;
 
 public class Graphic
 {
-    public static void drawLine(Point2 p0, Point2 p1, BiConsumer<Integer, Integer> consumer)
+    public static void drawLine(Line line, BiConsumer<Integer, Integer> consumer)
     {
-        int dx = abs(p1.x - p0.x);
-        int dz = abs(p1.z - p0.z);
-        int sx = p0.x < p1.x ? 1 : -1;
-        int sz = p0.z < p1.z ? 1 : -1;
-        int err = dx - dz;
+        double dx = sin(line.a());
+        double dz = -cos(line.a());
 
-        int x=p0.x;
-        int z=p0.z;
+        Point2 mx=new Point2(dx>=0?1:-1,0);
+        Point2 mz=new Point2(0,dz>=0?1:-1);
+
+        Point2 advance, shift;
+
+        if(abs(dx)>=abs(dz))
+        {
+            advance=mx;
+            shift=mz;
+        }
+        else
+        {
+            advance=mz;
+            shift=mx;
+        }
+
+        Point2 realStart;
+        double realEnd;
+
+        if(line.dStart()<line.dEnd())
+        {
+            realStart=line.start();
+            realEnd=line.end().x*sin(line.a())-line.end().z*cos(line.a());
+        }
+        else {
+            realStart=line.end();
+            realEnd=line.start().x*sin(line.a())-line.start().z*cos(line.a());
+        }
+
+        int x=realStart.x;
+        int z=realStart.z;
 
         while (true) {
             consumer.accept(x, z);
-            if (x == p1.x && z == p1.z) break;
-            int e2 = 2 * err;
-            if (e2 > -dz) { err -= dz; x += sx; }
-            if (e2 < dx) { err += dx; z += sz; }
+            double d=x*sin(line.a())-z*cos(line.a());
+            if(d>=realEnd)break;
+            x+=advance.x;
+            z+=advance.z;
+            double err=abs(x*cos(line.a())+z*sin(line.a())-line.b());
+            int x1=x+shift.x;
+            int z1=z+shift.z;
+            double err1=abs(x1*cos(line.a())+z1*sin(line.a())-line.b());
+            if(err1<err)
+            {
+                x=x1;
+                z=z1;
+            }
         }
     }
 
@@ -42,47 +77,30 @@ public class Graphic
         for(int z=minZ; z<=maxZ; z++)consumer.accept(x, z);
     }
 
-    public static void drawRect(Point2 p00, Point2 p01, Point2 p10, Point2 p11, BiConsumer<Integer, Integer> consumer)
+    public static void drawRect(Line l0, Line l1, BiConsumer<Integer, Integer> consumer)
     {
-        int minX=p00.x;
-        int maxX=p00.x;
-        for(Point2 p:new Point2[]{p01,p10,p11})
+        Map<Integer,List<Integer>> points=new HashMap<>();
+        BiConsumer<Integer,Integer> consumerBorder = (x,z)->points.computeIfAbsent(x,_->new ArrayList<>()).add(z);
+        drawLine(l0,consumerBorder);
+        drawLine(l1,consumerBorder);
+        drawLine(new Line(l0.a()-PI/2,l0.dStart(),-l0.b(),-l1.b()),consumerBorder);
+        drawLine(new Line(l0.a()-PI/2,l0.dEnd(),-l0.b(),-l1.b()),consumerBorder);
+        for(Map.Entry<Integer, List<Integer>> i:points.entrySet())
         {
-            minX=min(minX,p.x);
-            maxX=max(maxX,p.x);
-        }
-        List<List<Integer>> points=new ArrayList<>();
-        for(int x=minX;x<=maxX;x++)points.add(new ArrayList<>());
-        int baseX = minX;
-        BiConsumer<Integer,Integer> consumerBorder = (x,z)->points.get(x- baseX).add(z);
-        drawLine(p00,p01,consumerBorder);
-        drawLine(p10,p11,consumerBorder);
-        drawLine(p00,p10,consumerBorder);
-        drawLine(p01,p11,consumerBorder);
-        for(int i=0;i<points.size();i++)
-        {
-            fill(i+baseX, points.get(i), consumer);
+            fill(i.getKey(), i.getValue(), consumer);
         }
     }
 
-    public static void drawSideRect(Point2 p0, Point2 p1, RoadPattern pattern)
+    public static void drawSideRect(Line line, RoadPattern pattern)
     {
-        Point2 vecLine=p1.sub(p0);
-        Point2 vecTransMin = vecLine.turnLeft().scaleTo(pattern.min());
-        Point2 vecTransMax = vecLine.turnLeft().scaleTo(pattern.max());
-        Point2 p00=p0.add(vecTransMin);
-        Point2 p01=p1.add(vecTransMin);
-        Point2 p10=p0.add(vecTransMax);
-        Point2 p11=p1.add(vecTransMax);
         Map<Point2, BiConsumer<Integer, Integer>> edges=new HashMap<>();
         for(Pair<Double, BiConsumer<Integer, Integer>> i: pattern.features())
         {
-            Point2 vecTransX=vecLine.turnLeft().scaleTo(i.getFirst());
-            Point2 px0=p0.add(vecTransX);
-            Point2 px1=p1.add(vecTransX);
-            drawLine(px0,px1,(x,z)-> edges.put(new Point2(x,z), i.getSecond()));
+            drawLine(new Line(line.a(),line.b()+i.getFirst(),line.dStart(),line.dEnd()),(x,z)-> edges.put(new Point2(x,z), i.getSecond()));
         }
-        drawRect(p00,p01,p10,p11,(x,z)->
+        drawRect(new Line(line.a(),line.b()+ pattern.min(),line.dStart(),line.dEnd()),
+                new Line(line.a(),line.b()+pattern.max(),line.dStart(),line.dEnd()),
+                (x,z)->
                 edges.getOrDefault(new Point2(x,z),pattern.road()).accept(x,z));
     }
 
@@ -168,9 +186,10 @@ public class Graphic
         List<List<Point2>> arc1f=fragment(arc1Points,arc1.center().z);
         if(arc0f.size()!=arc1f.size())
         {
-            throw new RuntimeException("Arc sizes mismatch!");
+            //TODO use some soft ways
+            //throw new RuntimeException("Arc sizes mismatch!");
         }
-        for(int i=0;i<arc0f.size();i++)
+        for(int i=0;i<min(arc0f.size(),arc1f.size());i++)
         {
             Map<Integer,List<Integer>> points=new HashMap<>();
             for(Point2 p:arc0f.get(i))
@@ -181,9 +200,10 @@ public class Graphic
             {
                 points.computeIfAbsent(p.x,_->new ArrayList<>()).add(p.z);
             }
-            drawLine(arc0f.get(i).getFirst(),arc1f.get(i).getFirst(),
+            //TODO use new constructor
+            drawLine(new Line(arc0f.get(i).getFirst(),arc1f.get(i).getFirst()),
                     (x,z)->points.computeIfAbsent(x,_->new ArrayList<>()).add(z));
-            drawLine(arc0f.get(i).getLast(),arc1f.get(i).getLast(),
+            drawLine(new Line(arc0f.get(i).getLast(),arc1f.get(i).getLast()),
                     (x,z)->points.computeIfAbsent(x,_->new ArrayList<>()).add(z));
             for(Map.Entry<Integer,List<Integer>> e:points.entrySet())
             {

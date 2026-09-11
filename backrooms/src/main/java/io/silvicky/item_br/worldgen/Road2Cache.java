@@ -162,12 +162,12 @@ public class Road2Cache extends ChunkGenCache
 
     private void drawStraightRoad2(Point2 start, Point2 end, int h)
     {
-        drawSideRect(start, end, mainPattern(h));
+        drawSideRect(new Line(start, end), mainPattern(h));
     }
 
     private void drawStraightRoad(Point2 start, Point2 end, double h0, double h1)
     {
-        drawSideRect(start, end, slopedPattern(start, end, h0, h1));
+        drawSideRect(new Line(start, end), slopedPattern(start, end, h0, h1));
     }
 
     private void drawCurvedRoad2(Arc arc, int h)
@@ -223,6 +223,7 @@ public class Road2Cache extends ChunkGenCache
                 int finalI = (defect + i) % 2;
                 Point2 d0=ports[(defect + i + 2) % 4].sub(center);
                 Point2 d1=ports[(defect + i + 1) % 4].sub(center);
+                //FIXME wait wtf??
                 Point2d realCenter=new Point2d(center)
                         .add(new Point2d(d0).turnLeft().scaleTo(samplePattern.max()))
                         .add(new Point2d(d1).turnLeft().scaleTo(samplePattern.min()));
@@ -240,7 +241,7 @@ public class Road2Cache extends ChunkGenCache
                 Arc cs2 = getInscribedCircle(realCenter, d0, d1, innerCircleRadius);
                 int finalI = defect % 2;
                 //missing straight line
-                //TODO idk why but mismatching!
+                //TODO idk why but mismatching! rewrite line?
                 drawStraightRoad2(ports[(defect + 2) % 4], cs2.start(), finalI * gapHeight);
                 //the inner circle
                 drawCurvedRoad(cs2, -roadWidth, gapHeight*finalI, gapHeight-gapHeight*finalI);
@@ -294,7 +295,8 @@ public class Road2Cache extends ChunkGenCache
             Point2 vec = ports[p ^ 2].sub(ports[p]);
             Point2 a = ports[p].add(vec.turnLeft().scaleTo(samplePattern.max()));
             Point2 b = ports[p].add(vec.turnLeft().scaleTo(samplePattern.min()));
-            drawLine(a, b, (x, z) -> setBlockState(new BlockPos(x, y, z), WALL));
+            //TODO use n...
+            drawLine(new Line(a, b), (x, z) -> setBlockState(new BlockPos(x, y, z), WALL));
         }
         //public parts
         for (int i = 0; i < 2; i++) {
