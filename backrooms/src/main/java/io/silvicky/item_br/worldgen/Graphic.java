@@ -160,6 +160,7 @@ public class Graphic
         Map<Integer, List<Integer>> points = new HashMap<>();
         drawArc(arc0, (x, z) -> points.computeIfAbsent(x, _ -> new ArrayList<>()).add(z));
         drawArc(arc1, (x, z) -> points.computeIfAbsent(x, _ -> new ArrayList<>()).add(z));
+        //todo fix it seems that arcs and lines went to different ends
         drawLine(new Line(arc0.aStart() - PI / 2,
                         arc0.start(),
                         arc1.start(),

@@ -311,15 +311,14 @@ public class Road2Cache extends ChunkGenCache
                 try {
                     Point2d[] cs = connect(ports[i], ports[i].sub(ports[i + 2]), portsN[i + 2], portsN[i + 2].sub(portsN[i]));
                     Point2d joint = cs[0].add(cs[1]).scale(0.5);
-                    Point2 jointI=new Point2(joint);
                     double r=cs[0].sub(cs[1]).len()/2;
                     Arc arc0,arc1;
                     if (joint.sub(cs[0]).cross(new Point2d(ports[i]).sub(cs[0])) > 0) {
-                        arc0=new Arc(cs[0],ports[i],jointI,r);
-                        arc1=new Arc(cs[1],portsN[i+2],jointI,r);
+                        arc0=new Arc(cs[0],r,new Point2d(ports[i]).sub(cs[0]).atan2(),joint.sub(cs[0]).atan2());
+                        arc1=new Arc(cs[1],r,new Point2d(portsN[i+2]).sub(cs[1]).atan2(),joint.sub(cs[1]).atan2());
                     } else {
-                        arc0=new Arc(cs[0],jointI,ports[i],r);
-                        arc1=new Arc(cs[1],jointI,portsN[i+2],r);
+                        arc0=new Arc(cs[0],r,joint.sub(cs[0]).atan2(),new Point2d(ports[i]).sub(cs[0]).atan2());
+                        arc1=new Arc(cs[1],r,joint.sub(cs[1]).atan2(),new Point2d(portsN[i+2]).sub(cs[1]).atan2());
                     }
                     drawCurvedRoad2(arc0, i * gapHeight);
                     drawCurvedRoad2(arc1, i * gapHeight);
