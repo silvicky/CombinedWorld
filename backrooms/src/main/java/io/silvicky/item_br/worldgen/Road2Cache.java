@@ -17,6 +17,7 @@ import java.util.Set;
 import static io.silvicky.item_br.worldgen.Graphic.*;
 import static io.silvicky.item_br.worldgen.RegionPos.regionSize;
 import static io.silvicky.item_br.worldgen.RoadCustomRule.getNodeCoordination;
+import static java.lang.Math.abs;
 
 public class Road2Cache extends ChunkGenCache
 {
@@ -205,9 +206,10 @@ public class Road2Cache extends ChunkGenCache
                 int finalI = i % 2;
                 Point2 d0=ports[i].sub(center);
                 Point2 d1=ports[(i+1)%4].sub(center);
+                double sinOfAngle=abs(d0.cross(d1)/d0.len()/d1.len());
                 Point2d realCenter=new Point2d(center)
-                        .add(new Point2d(d0).turnLeft().scaleTo(-samplePattern.max()))
-                        .add(new Point2d(d1).turnLeft().scaleTo(-samplePattern.min()));
+                        .add(new Point2d(d0).scaleTo(samplePattern.max()/sinOfAngle))
+                        .add(new Point2d(d1).scaleTo(samplePattern.max()/sinOfAngle));
                 Arc cs = getInscribedCircle(realCenter, d0, d1, innerCircleRadius);
                 drawCurvedRoad(cs, roadWidth, gapHeight*finalI, gapHeight-gapHeight*finalI);
                 //TODO this is too ugly, use curve
@@ -223,10 +225,10 @@ public class Road2Cache extends ChunkGenCache
                 int finalI = (defect + i) % 2;
                 Point2 d0=ports[(defect + i + 2) % 4].sub(center);
                 Point2 d1=ports[(defect + i + 1) % 4].sub(center);
-                //FIXME wait wtf??
+                double sinOfAngle=abs(d0.cross(d1)/d0.len()/d1.len());
                 Point2d realCenter=new Point2d(center)
-                        .add(new Point2d(d0).turnLeft().scaleTo(samplePattern.max()))
-                        .add(new Point2d(d1).turnLeft().scaleTo(samplePattern.min()));
+                        .add(new Point2d(d0).scaleTo(samplePattern.max()/sinOfAngle))
+                        .add(new Point2d(d1).scaleTo(samplePattern.max()/sinOfAngle));
                 Arc cs = getInscribedCircle(realCenter, d0, d1, largeCircleRadius);
                 drawCurvedRoad(cs, roadWidth, gapHeight*finalI, gapHeight-gapHeight*finalI);
             }
@@ -236,12 +238,12 @@ public class Road2Cache extends ChunkGenCache
             if (direction) {
                 Point2 d0=ports[defect].sub(center);
                 Point2 d1=ports[(defect + 1) % 4].sub(center);
+                double sinOfAngle=abs(d0.cross(d1)/d0.len()/d1.len());
                 Point2d realCenter=new Point2d(center)
-                        .add(new Point2d(d1).turnLeft().scaleTo(roadWidth));
+                        .add(new Point2d(d0).scaleTo(roadWidth/sinOfAngle));
                 Arc cs2 = getInscribedCircle(realCenter, d0, d1, innerCircleRadius);
                 int finalI = defect % 2;
                 //missing straight line
-                //TODO idk why but mismatching! rewrite line?
                 drawStraightRoad2(ports[(defect + 2) % 4], cs2.start(), finalI * gapHeight);
                 //the inner circle
                 drawCurvedRoad(cs2, -roadWidth, gapHeight*finalI, gapHeight-gapHeight*finalI);
@@ -254,8 +256,9 @@ public class Road2Cache extends ChunkGenCache
             } else {
                 Point2 d0=ports[(defect + 3) % 4].sub(center);
                 Point2 d1=ports[defect].sub(center);
+                double sinOfAngle=abs(d0.cross(d1)/d0.len()/d1.len());
                 Point2d realCenter=new Point2d(center)
-                        .add(new Point2d(d0).turnLeft().scaleTo(-roadWidth));
+                        .add(new Point2d(d1).scaleTo(roadWidth/sinOfAngle));
                 Arc cs2 = getInscribedCircle(realCenter, d0, d1, innerCircleRadius);
                 int finalI = defect % 2;
                 drawStraightRoad2(ports[(defect + 2) % 4], cs2.end(), finalI * gapHeight);

@@ -69,6 +69,11 @@ public class Point2
         return new Point2(z, -x);
     }
 
+    public double cross(Point2 point)
+    {
+        return z * point.x - x * point.z;
+    }
+
     public BlockPos atY(int y){return new BlockPos(x,y,z);}
 
     @Override
