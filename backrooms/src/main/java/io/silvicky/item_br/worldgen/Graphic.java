@@ -45,7 +45,7 @@ public class Graphic
 
         int x=realStart.x;
         int z=realStart.z;
-
+//TODO have a better end
         while (true) {
             consumer.accept(x, z);
             double d=x*sin(line.a())-z*cos(line.a());
@@ -162,14 +162,14 @@ public class Graphic
         drawArc(arc1, (x, z) -> points.computeIfAbsent(x, _ -> new ArrayList<>()).add(z));
         //todo fix it seems that arcs and lines went to different ends
         drawLine(new Line(arc0.aStart() - PI / 2,
-                        arc0.start(),
-                        arc1.start(),
-                        arc0.center().dot(new Point2d(sin(arc0.aStart()), -cos(arc0.aStart())))),
+                        arc0.center().dot(new Point2d(sin(arc0.aStart()), -cos(arc0.aStart()))),
+                        arc0.center().dot(new Point2d(-cos(arc0.aStart()), -sin(arc0.aStart())))-arc0.r(),
+                        arc0.center().dot(new Point2d(-cos(arc0.aStart()), -sin(arc0.aStart())))-arc1.r()),
                 (x, z) -> points.computeIfAbsent(x, _ -> new ArrayList<>()).add(z));
         drawLine(new Line(arc0.aEnd() - PI / 2,
-                        arc0.end(),
-                        arc1.end(),
-                        arc0.center().dot(new Point2d(sin(arc0.aEnd()), -cos(arc0.aEnd())))),
+                        arc0.center().dot(new Point2d(sin(arc0.aEnd()), -cos(arc0.aEnd()))),
+                        arc0.center().dot(new Point2d(-cos(arc0.aEnd()), -sin(arc0.aEnd())))-arc0.r(),
+                        arc0.center().dot(new Point2d(-cos(arc0.aEnd()), -sin(arc0.aEnd())))-arc1.r()),
                 (x, z) -> points.computeIfAbsent(x, _ -> new ArrayList<>()).add(z));
         for (Map.Entry<Integer, List<Integer>> e : points.entrySet()) {
             fill(e.getKey(), e.getValue(), consumer);
