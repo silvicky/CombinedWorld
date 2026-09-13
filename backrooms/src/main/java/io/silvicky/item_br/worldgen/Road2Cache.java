@@ -17,6 +17,7 @@ import java.util.Set;
 import static io.silvicky.item_br.worldgen.Graphic.*;
 import static io.silvicky.item_br.worldgen.RegionPos.regionSize;
 import static io.silvicky.item_br.worldgen.RoadCustomRule.getNodeCoordination;
+import static java.lang.Math.PI;
 import static java.lang.Math.abs;
 
 public class Road2Cache extends ChunkGenCache
@@ -295,11 +296,8 @@ public class Road2Cache extends ChunkGenCache
             //dead end
             int p = directions.getFirst();
             int y = (p % 2) * gapHeight + 1;
-            Point2 vec = ports[p ^ 2].sub(ports[p]);
-            Point2 a = ports[p].add(vec.turnLeft().scaleTo(samplePattern.max()));
-            Point2 b = ports[p].add(vec.turnLeft().scaleTo(samplePattern.min()));
-            //TODO use n...
-            drawLine(new Line(a, b), (x, z) -> setBlockState(new BlockPos(x, y, z), WALL));
+            Line line = new Line(ports[p],center);
+            drawLine(new Line(line.a()-PI/2,line.dStart(),-line.b()- samplePattern.min(),-line.b()-samplePattern.max()), (x, z) -> setBlockState(new BlockPos(x, y, z), WALL));
         }
         //public parts
         for (int i = 0; i < 2; i++) {

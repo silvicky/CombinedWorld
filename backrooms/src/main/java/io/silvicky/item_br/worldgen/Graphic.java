@@ -156,60 +156,42 @@ public class Graphic
         }
     }
 
-    private static List<List<Point2>> fragment(List<Point2> line, double cz)
-    {
-        List<List<Point2>> ret=new ArrayList<>();
-        List<Point2> cur=new ArrayList<>();
-        ret.add(cur);
-        int iz=(int)round(cz);
-        for(Point2 p:line)
-        {
-            cur.add(p);
-            if(p.z==iz)
-            {
-                cur=new ArrayList<>();
-                ret.add(cur);
-                cur.add(p);
-            }
+    private static void drawFragmentedRing(Arc arc0, Arc arc1, BiConsumer<Integer, Integer> consumer) {
+        Map<Integer, List<Integer>> points = new HashMap<>();
+        drawArc(arc0, (x, z) -> points.computeIfAbsent(x, _ -> new ArrayList<>()).add(z));
+        drawArc(arc1, (x, z) -> points.computeIfAbsent(x, _ -> new ArrayList<>()).add(z));
+        drawLine(new Line(arc0.aStart() - PI / 2,
+                        arc0.start(),
+                        arc1.start(),
+                        arc0.center().dot(new Point2d(sin(arc0.aStart()), -cos(arc0.aStart())))),
+                (x, z) -> points.computeIfAbsent(x, _ -> new ArrayList<>()).add(z));
+        drawLine(new Line(arc0.aEnd() - PI / 2,
+                        arc0.end(),
+                        arc1.end(),
+                        arc0.center().dot(new Point2d(sin(arc0.aEnd()), -cos(arc0.aEnd())))),
+                (x, z) -> points.computeIfAbsent(x, _ -> new ArrayList<>()).add(z));
+        for (Map.Entry<Integer, List<Integer>> e : points.entrySet()) {
+            fill(e.getKey(), e.getValue(), consumer);
         }
-        if(ret.getLast().size()==1)ret.removeLast();
-        return ret;
     }
 
     public static void drawRing(Arc arc0, Arc arc1, BiConsumer<Integer, Integer> consumer)
     {
-        List<Point2> arc0Points =new ArrayList<>();
-        List<Point2> arc1Points =new ArrayList<>();
-        drawArc(arc0,(x,z)-> arc0Points.add(new Point2(x,z)));
-        drawArc(arc1,(x,z)-> arc1Points.add(new Point2(x,z)));
-        List<List<Point2>> arc0f=fragment(arc0Points,arc0.center().z);
-        List<List<Point2>> arc1f=fragment(arc1Points,arc1.center().z);
-        if(arc0f.size()!=arc1f.size())
+        double border=0;
+        double lb=arc0.aStart();
+        double rb=arc0.aEnd();
+        while(border<lb)border+=PI;
+        while(border<=rb)
         {
-            //TODO use some soft ways
-            //throw new RuntimeException("Arc sizes mismatch!");
+            drawFragmentedRing(new Arc(arc0.center(),arc0.r(),lb,border),
+                    new Arc(arc1.center(),arc1.r(),lb,border),
+                    consumer);
+            lb=border;
+            border+=PI;
         }
-        for(int i=0;i<min(arc0f.size(),arc1f.size());i++)
-        {
-            Map<Integer,List<Integer>> points=new HashMap<>();
-            for(Point2 p:arc0f.get(i))
-            {
-                points.computeIfAbsent(p.x,_->new ArrayList<>()).add(p.z);
-            }
-            for(Point2 p:arc1f.get(i))
-            {
-                points.computeIfAbsent(p.x,_->new ArrayList<>()).add(p.z);
-            }
-            //TODO use new constructor
-            drawLine(new Line(arc0f.get(i).getFirst(),arc1f.get(i).getFirst()),
-                    (x,z)->points.computeIfAbsent(x,_->new ArrayList<>()).add(z));
-            drawLine(new Line(arc0f.get(i).getLast(),arc1f.get(i).getLast()),
-                    (x,z)->points.computeIfAbsent(x,_->new ArrayList<>()).add(z));
-            for(Map.Entry<Integer,List<Integer>> e:points.entrySet())
-            {
-                fill(e.getKey(),e.getValue(),consumer);
-            }
-        }
+        drawFragmentedRing(new Arc(arc0.center(),arc0.r(),lb,rb),
+                new Arc(arc1.center(),arc1.r(),lb,rb),
+                consumer);
     }
 
     public static void drawSideRing(Arc arc, RoadPattern pattern)
