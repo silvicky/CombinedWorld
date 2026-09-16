@@ -45,17 +45,17 @@ public class Graphic
 
         int x=realStart.x;
         int z=realStart.z;
-//TODO have a better end
+
         while (true) {
             consumer.accept(x, z);
-            double d=x*sin(line.a())-z*cos(line.a());
+            double d=line.getProgress(new Point2d(x,z));
             if(d>=realEnd)break;
             x+=advance.x;
             z+=advance.z;
-            double err=abs(x*cos(line.a())+z*sin(line.a())-line.b());
+            double err=line.getDistance(new Point2d(x,z));
             int x1=x+shift.x;
             int z1=z+shift.z;
-            double err1=abs(x1*cos(line.a())+z1*sin(line.a())-line.b());
+            double err1=line.getDistance(new Point2d(x1,z1));
             if(err1<err)
             {
                 x=x1;
@@ -105,7 +105,7 @@ public class Graphic
     }
 
     public static void drawArc(Arc arc, BiConsumer<Integer, Integer> consumer)
-    {
+    {//TODO also use new distance method
         Point2d center=arc.center();
         Point2 p0=arc.start();
         double r=arc.r()*arc.r();
@@ -160,7 +160,6 @@ public class Graphic
         Map<Integer, List<Integer>> points = new HashMap<>();
         drawArc(arc0, (x, z) -> points.computeIfAbsent(x, _ -> new ArrayList<>()).add(z));
         drawArc(arc1, (x, z) -> points.computeIfAbsent(x, _ -> new ArrayList<>()).add(z));
-        //todo fix it seems that arcs and lines went to different ends
         drawLine(new Line(arc0.aStart() - PI / 2,
                         arc0.center().dot(new Point2d(sin(arc0.aStart()), -cos(arc0.aStart()))),
                         arc0.center().dot(new Point2d(-cos(arc0.aStart()), -sin(arc0.aStart())))-arc0.r(),
@@ -283,11 +282,9 @@ public class Graphic
                 new Point2d(p1).add(new Point2d(d1v).scaleTo(r))};
     }
 
-    public static int getSlopeLine(Point2 cur, Point2 p0, Point2 p1, double base, double height, double bufferInsideLine)
+    public static int getSlopeLine(Point2 cur, Line line, double base, double height, double bufferInsideLine)
     {
-        Point2 d=p1.sub(p0);
-        Point2 dc=cur.sub(p0);
-        double ratio=(double)d.dot(dc)/d.len2();
+        double ratio=(line.getProgress(new Point2d(cur))-line.dStart())/(line.dEnd()-line.dStart());
         ratio=(ratio-bufferInsideLine)/(1-2*bufferInsideLine);
         ratio=clamp(ratio,0,1);
         return (int)round(base+height*ratio);
