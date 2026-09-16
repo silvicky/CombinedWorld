@@ -181,9 +181,9 @@ public class Road2Cache extends ChunkGenCache
         drawSideRect(new Line(start, end), mainPattern(h));
     }
 
-    private void drawStraightRoad2R(Point2 start, Point2 end, int h)
+    private void drawStraightRoad2R(Line line, int h)
     {
-        drawSideRect(new Line(start, end), reducedPattern(h));
+        drawSideRect(line, reducedPattern(h));
     }
 
     private void drawStraightRoad(Line line, double h0, double h1)
@@ -240,6 +240,8 @@ public class Road2Cache extends ChunkGenCache
             //3-way interchange
             int defect = gapHeight;
             for (int i : directions) defect -= i;
+            Line other=new Line(ports[(defect+2)%4],center);
+            double dStart=other.getProgress(new Point2d(ports[(defect+2)%4]));
             //the small ones
             for (int i = 0; i < 2; i++) {
                 int finalI = (defect + i) % 2;
@@ -251,8 +253,6 @@ public class Road2Cache extends ChunkGenCache
                         .add(new Point2d(d1).scaleTo(samplePattern.max()/sinOfAngle));
                 Arc cs = getInscribedCircle(realCenter, d0, d1, largeCircleRadius);
                 drawCurvedRoad(cs, roadWidth, gapHeight*finalI, gapHeight-gapHeight*finalI);
-                Line other=new Line(ports[(defect+2)%4],center);//fixme mismatch?
-                double dStart=other.getProgress(new Point2d(ports[(defect+2)%4]));
                 double dEnd=other.getProgress(cs.center());
                 if(i==0)
                 {
@@ -275,7 +275,7 @@ public class Road2Cache extends ChunkGenCache
                 Arc cs2 = getInscribedCircle(realCenter, d0, d1, innerCircleRadius);
                 int finalI = defect % 2;
                 //missing straight line
-                drawStraightRoad2R(ports[(defect + 2) % 4], cs2.start(), finalI * gapHeight);
+                drawStraightRoad2R(new Line(other.a(),other.b(),dStart,other.getProgress(cs2.center())), finalI * gapHeight);
                 //the inner circle
                 drawCurvedRoad(cs2, -roadWidth, gapHeight*finalI, gapHeight-gapHeight*finalI);
                 Arc cs3 = getInscribedCircleOfCircleAndLine(cs2.center(), cs2.end(), transitionCircleRadius, true);
@@ -292,7 +292,7 @@ public class Road2Cache extends ChunkGenCache
                         .add(new Point2d(d1).scaleTo(roadWidth/sinOfAngle));
                 Arc cs2 = getInscribedCircle(realCenter, d0, d1, innerCircleRadius);
                 int finalI = defect % 2;
-                drawStraightRoad2R(ports[(defect + 2) % 4], cs2.end(), finalI * gapHeight);
+                drawStraightRoad2R(new Line(other.a(),other.b(),dStart,other.getProgress(cs2.center())), finalI * gapHeight);
                 drawCurvedRoad(cs2, -roadWidth, gapHeight-gapHeight*finalI, gapHeight*finalI);
                 Arc cs3 = getInscribedCircleOfCircleAndLine(cs2.center(), cs2.start(), transitionCircleRadius, false);
                 double jointHeight = getSlopeArcD(cs3.start(), cs2, gapHeight - gapHeight * finalI, 2 * gapHeight * finalI - gapHeight, 0, angleBuffer);
