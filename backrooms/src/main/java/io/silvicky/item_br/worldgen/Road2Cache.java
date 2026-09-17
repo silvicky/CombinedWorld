@@ -54,17 +54,19 @@ public class Road2Cache extends ChunkGenCache
 
     private static final double bufferOutsideArc=3;
 
-    private RoadPattern mainPattern(int h)
+    private RoadPattern mainPattern(AbstractSegment segment, int h)
     {
+        Dash l=new Dash(segment);
+        Dash r=new Dash(segment);
         return new RoadPattern(
                 -2*roadWidth,
                 2*roadWidth,
                 (x,z)->setBlockState(new BlockPos(x,h,z), ROAD),
                 List.of(
                         new Pair<>((double) -2*roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE)),
-                        new Pair<>((double) -roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE)),
+                        new Pair<>((double) -roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),l.get(new Point2d(x,z))?EDGE:ROAD)),
                         new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,h,z),EDGE)),
-                        new Pair<>((double) roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE)),
+                        new Pair<>((double) roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),r.get(new Point2d(x,z))?EDGE:ROAD)),
                         new Pair<>((double) 2*roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE))
                 )
         );
@@ -139,7 +141,7 @@ public class Road2Cache extends ChunkGenCache
         );
     }
 
-    private final RoadPattern samplePattern = mainPattern(0);
+    private final RoadPattern samplePattern = mainPattern(new Line(0,0,0,0),0);
 
     public Road2Cache(ServerLevel level, RandomState randomState)
     {
@@ -176,9 +178,9 @@ public class Road2Cache extends ChunkGenCache
         return regionPos.at(random.nextInt(bufferWidth,regionSize-bufferWidth),random.nextInt(bufferWidth,regionSize-bufferWidth));
     }
 
-    private void drawStraightRoad2(Point2 start, Point2 end, int h)
+    private void drawStraightRoad2(Line line, int h)
     {
-        drawSideRect(new Line(start, end), mainPattern(h));
+        drawSideRect(line, mainPattern(line, h));
     }
 
     private void drawStraightRoad2R(Line line, int h)
@@ -193,7 +195,7 @@ public class Road2Cache extends ChunkGenCache
 
     private void drawCurvedRoad2(Arc arc, int h)
     {
-        drawSideRing(arc, mainPattern(h));
+        drawSideRing(arc, mainPattern(arc, h));
     }
 
     private void drawCurvedRoad2(Arc arc, double h0, double h1)
@@ -304,7 +306,7 @@ public class Road2Cache extends ChunkGenCache
             if (directions.getLast() - directions.getFirst() == 2) {
                 //straight
                 int finalI = directions.getFirst();
-                drawStraightRoad2(ports[finalI + 2], ports[finalI], finalI * gapHeight);
+                drawStraightRoad2(new Line(ports[finalI + 2], ports[finalI]), finalI * gapHeight);
             } else {
                 //curve with slope
                 int p0, p1;
@@ -333,7 +335,7 @@ public class Road2Cache extends ChunkGenCache
         for (int i = 0; i < 2; i++) {
             //road at cross
             if (coordination[i] && coordination[i + 2]) {
-                drawStraightRoad2(ports[i + 2], ports[i], i * gapHeight);
+                drawStraightRoad2(new Line(ports[i + 2], ports[i]), i * gapHeight);
             }
             //connecting road
             if (coordination[i]) {
@@ -353,7 +355,7 @@ public class Road2Cache extends ChunkGenCache
                     drawCurvedRoad2(arc0, i * gapHeight);
                     drawCurvedRoad2(arc1, i * gapHeight);
                 } catch (Exception e) {
-                    drawStraightRoad2(ports[i], portsN[i + 2], i * gapHeight);
+                    drawStraightRoad2(new Line(ports[i], portsN[i + 2]), i * gapHeight);
                 }
             }
         }

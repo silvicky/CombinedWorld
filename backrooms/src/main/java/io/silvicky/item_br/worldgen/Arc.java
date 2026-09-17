@@ -2,7 +2,7 @@ package io.silvicky.item_br.worldgen;
 
 import static java.lang.Math.*;
 
-public record Arc(Point2d center, Point2 start, Point2 end, double r, double aStart, double aEnd)
+public record Arc(Point2d center, Point2 start, Point2 end, double r, double aStart, double aEnd) implements AbstractSegment
 {
     public Arc(Point2d center, Point2 start, Point2 end, double r)
     {
@@ -18,5 +18,45 @@ public record Arc(Point2d center, Point2 start, Point2 end, double r, double aSt
         Point2 start=new Point2(center.add(new Point2d(r*cos(aStart),r*sin(aStart))));
         Point2 end=new Point2(center.add(new Point2d(r*cos(aEnd),r*sin(aEnd))));
         this(center,start,end,r,aStart,aEnd);
+    }
+
+    @Override
+    public double getOffset(Point2d point2d)
+    {
+        return point2d.sub(center).len();
+    }
+
+    @Override
+    public double getProgress(Point2d point2d)
+    {
+        return point2d.sub(center).atan2();
+    }
+
+    @Override
+    public double getDistance(Point2d point2d)
+    {
+        double p=getProgress(point2d);
+        if(p<aStart)p+=2*PI;
+        if(p>aEnd)
+        {
+            //TODO use accurate
+            return min(new Point2d(start).sub(point2d).len(),
+                    new Point2d(end).sub(point2d).len());
+        }
+        return abs(getOffset(point2d)-r);
+    }
+
+    @Override
+    public double length() {
+        return r*(aEnd-aStart);
+    }
+
+    @Override
+    public double getRelativeProgress(Point2d point2d)
+    {
+        //TODO better rounding
+        double p=getProgress(point2d);
+        if(p<aStart-0.1)p+=2*PI;
+        return r*(p-aStart);
     }
 }

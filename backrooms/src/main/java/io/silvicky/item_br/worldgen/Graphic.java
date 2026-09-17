@@ -93,6 +93,7 @@ public class Graphic
 
     public static void drawSideRect(Line line, RoadPattern pattern)
     {
+        //TODO use a timestamp in the future to avoid this
         Map<Point2, BiConsumer<Integer, Integer>> edges=new HashMap<>();
         for(Pair<Double, BiConsumer<Integer, Integer>> i: pattern.features())
         {
@@ -100,8 +101,13 @@ public class Graphic
         }
         drawRect(new Line(line.a(),line.b()+ pattern.min(),line.dStart(),line.dEnd()),
                 new Line(line.a(),line.b()+pattern.max(),line.dStart(),line.dEnd()),
-                (x,z)->
-                edges.getOrDefault(new Point2(x,z),pattern.road()).accept(x,z));
+                (x,z)-> {
+                    if(!edges.containsKey(new Point2(x,z)))pattern.road().accept(x, z);
+                });
+        for(Pair<Double, BiConsumer<Integer, Integer>> i: pattern.features())
+        {
+            drawLine(new Line(line.a(),line.b()+i.getFirst(),line.dStart(),line.dEnd()), i.getSecond());
+        }
     }
 
     public static void drawArc(Arc arc, BiConsumer<Integer, Integer> consumer)
@@ -205,8 +211,14 @@ public class Graphic
             Arc arcX=new Arc(center,arc.r()+i.getFirst(), arc.aStart(), arc.aEnd());
             drawArc(arcX,(x,z)-> edges.put(new Point2(x,z), i.getSecond()));
         }
-        drawRing(arc0,arc1,(x,z)->
-                edges.getOrDefault(new Point2(x,z),pattern.road()).accept(x,z));
+        drawRing(arc0,arc1,(x,z)-> {
+            if(!edges.containsKey(new Point2(x,z)))pattern.road().accept(x, z);
+        });
+        for(Pair<Double, BiConsumer<Integer, Integer>> i: pattern.features())
+        {
+            Arc arcX=new Arc(center,arc.r()+i.getFirst(), arc.aStart(), arc.aEnd());
+            drawArc(arcX,i.getSecond());
+        }
     }
 
     public static List<Double> solveQuadratic(double a, double b, double c)
