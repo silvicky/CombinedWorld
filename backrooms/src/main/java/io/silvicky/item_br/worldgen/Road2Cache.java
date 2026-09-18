@@ -5,8 +5,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.levelgen.RandomState;
 
 import java.util.ArrayList;
@@ -16,19 +15,14 @@ import java.util.Set;
 
 import static io.silvicky.item_br.worldgen.Graphic.*;
 import static io.silvicky.item_br.worldgen.RegionPos.regionSize;
+import static io.silvicky.item_br.worldgen.Road2Blocks.*;
 import static io.silvicky.item_br.worldgen.RoadCustomRule.getNodeCoordination;
 import static java.lang.Math.PI;
 import static java.lang.Math.abs;
 
-public class Road2Cache extends ChunkGenCache
+public class Road2Cache extends ChunkGenCache<Road2Blocks>
 {
     private static final Identifier key=Identifier.parse("silvicky:road2");
-
-    public static BlockState ROAD = Blocks.CONCRETE.orange().defaultBlockState();
-
-    public static BlockState EDGE = Blocks.CONCRETE.white().defaultBlockState();
-
-    public static BlockState WALL = Blocks.CONCRETE.red().defaultBlockState();
 
     private final Set<RegionPos> generatedRegions=new HashSet<>();
 
@@ -64,9 +58,9 @@ public class Road2Cache extends ChunkGenCache
                 (x,z)->setBlockState(new BlockPos(x,h,z), ROAD),
                 List.of(
                         new Pair<>((double) -2*roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE)),
-                        new Pair<>((double) -roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),l.get(new Point2d(x,z))?EDGE:ROAD)),
+                        new Pair<>((double) -roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),l.get(new Point2d(x,z))?DASH:ROAD)),
                         new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,h,z),EDGE)),
-                        new Pair<>((double) roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),r.get(new Point2d(x,z))?EDGE:ROAD)),
+                        new Pair<>((double) roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),r.get(new Point2d(x,z))?DASH:ROAD)),
                         new Pair<>((double) 2*roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE))
                 )
         );
@@ -366,5 +360,10 @@ public class Road2Cache extends ChunkGenCache
         return List.of(regionPos,
                         regionPos.add(-1,0),
                         regionPos.add(0,-1));
+    }
+
+    @Override
+    SimpleChunk<Road2Blocks> getNewChunk(ChunkPos chunkPos) {
+        return new Road2Chunk(baseY,height,chunkPos);
     }
 }

@@ -3,14 +3,13 @@ package io.silvicky.item_br.worldgen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.levelgen.RandomState;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-public abstract class ChunkGenCache
+public abstract class ChunkGenCache<T extends AbstractBlock<T>>
 {
     final int baseY;
 
@@ -20,7 +19,7 @@ public abstract class ChunkGenCache
 
     final RandomState randomState;
 
-    private final Map<RegionPos, Map<ChunkPos, SimpleChunk>> regionContent =new ConcurrentHashMap<>();
+    private final Map<RegionPos, Map<ChunkPos, SimpleChunk<T>>> regionContent =new ConcurrentHashMap<>();
 
     private final Map<RegionPos, Byte> refCount = new ConcurrentHashMap<>();
 
@@ -70,15 +69,15 @@ public abstract class ChunkGenCache
         }
     }
 
-    public void setBlockState(BlockPos pos, BlockState state)
+    public void setBlockState(BlockPos pos, T state)
     {
         if (pos.getY() < this.baseY || pos.getY() >= this.baseY + height) {
             return;
         }
         ChunkPos chunkPos=ChunkPos.containing(pos);
         RegionPos regionPos=RegionPos.of(chunkPos);
-        Map<ChunkPos, SimpleChunk> map= regionContent.computeIfAbsent(regionPos, _ -> new HashMap<>());
-        SimpleChunk simpleChunk=map.computeIfAbsent(chunkPos,_->new Road2Chunk(baseY,height,chunkPos));
+        Map<ChunkPos, SimpleChunk<T>> map= regionContent.computeIfAbsent(regionPos, _ -> new HashMap<>());
+        SimpleChunk<T> simpleChunk=map.computeIfAbsent(chunkPos,_->getNewChunk(chunkPos));
         simpleChunk.setBlockState(pos, state);
     }
 
@@ -110,8 +109,10 @@ public abstract class ChunkGenCache
     {
         ChunkPos chunkPos=chunk.getPos();
         genChunk(chunkPos);
-        Map<ChunkPos, SimpleChunk> map= regionContent.getOrDefault(RegionPos.of(chunkPos), new HashMap<>());
-        SimpleChunk simpleChunk=map.getOrDefault(chunkPos,new Road2Chunk(baseY,height,chunkPos));
+        Map<ChunkPos, SimpleChunk<T>> map= regionContent.getOrDefault(RegionPos.of(chunkPos), new HashMap<>());
+        SimpleChunk<T> simpleChunk=map.getOrDefault(chunkPos,getNewChunk(chunkPos));
         simpleChunk.apply(chunk);
     }
+
+    abstract SimpleChunk<T> getNewChunk(ChunkPos chunkPos);
 }

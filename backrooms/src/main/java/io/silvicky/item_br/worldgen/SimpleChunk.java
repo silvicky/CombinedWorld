@@ -2,13 +2,12 @@ package io.silvicky.item_br.worldgen;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class SimpleChunk
+public class SimpleChunk<T extends AbstractBlock<T>>
 {
     private final int baseY;
 
@@ -16,7 +15,7 @@ public class SimpleChunk
 
     private final ChunkPos chunkPos;
 
-    private final Map<BlockPos, BlockState> blockStates=new HashMap<>();
+    private final Map<BlockPos, T> blockStates=new HashMap<>();
 
     public SimpleChunk(int baseY, int height, ChunkPos chunkPos)
     {
@@ -25,24 +24,24 @@ public class SimpleChunk
         this.chunkPos = chunkPos;
     }
 
-    public void setBlockState(BlockPos pos, BlockState state)
+    public void setBlockState(BlockPos pos, T block)
     {
         if(chunkPos.contains(pos)&&pos.getY()>=this.baseY&&pos.getY()<this.baseY+height)
         {
-            blockStates.put(pos, state);
+            blockStates.put(pos, block);
         }
     }
 
-    public BlockState getBlockState(BlockPos pos)
+    public T getBlockState(BlockPos pos)
     {
         return blockStates.get(pos);
     }
 
     public void apply(ChunkAccess chunk)
     {
-        for(Map.Entry<BlockPos, BlockState> entry:blockStates.entrySet())
+        for(Map.Entry<BlockPos, T> entry:blockStates.entrySet())
         {
-            chunk.setBlockState(entry.getKey(), entry.getValue());
+            entry.getValue().apply(entry.getKey(), chunk);
         }
     }
 }
