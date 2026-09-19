@@ -3,15 +3,12 @@ package io.silvicky.item_br.worldgen;
 import com.mojang.datafixers.util.Pair;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.levelgen.RandomState;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import static io.silvicky.item_br.worldgen.Graphic.*;
 import static io.silvicky.item_br.worldgen.RegionPos.regionSize;
@@ -23,8 +20,6 @@ import static java.lang.Math.abs;
 public class Road2Cache extends ChunkGenCache<Road2Blocks>
 {
     private static final Identifier key=Identifier.parse("silvicky:road2");
-
-    private final Set<RegionPos> generatedRegions=new HashSet<>();
 
     private static final int[][] n ={{1,0},{0,1},{-1,0},{0,-1}};
 
@@ -137,9 +132,9 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
 
     private final RoadPattern samplePattern = mainPattern(new Line(0,0,0,0),0);
 
-    public Road2Cache(ServerLevel level, RandomState randomState)
+    public Road2Cache(RandomState randomState, RegionPos regionPos)
     {
-        super(0, 32, level, randomState);
+        super(randomState, regionPos);
     }
 
     private Point2[] getNeighbors(RegionPos pos)
@@ -208,9 +203,7 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
     }
 
     @Override
-    void genRegion(RegionPos regionPos) {
-        if (generatedRegions.contains(regionPos)) return;
-        generatedRegions.add(regionPos);
+    void generate() {
         boolean[] coordination = getNodeCoordination(randomState, regionPos.x, regionPos.z);
         List<Integer> directions = new ArrayList<>();
         for (int i = 0; i < 4; i++) if (coordination[i]) directions.add(i);
@@ -356,14 +349,7 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
     }
 
     @Override
-    List<RegionPos> getSourceRegions(RegionPos regionPos) {
-        return List.of(regionPos,
-                        regionPos.add(-1,0),
-                        regionPos.add(0,-1));
-    }
-
-    @Override
     SimpleChunk<Road2Blocks> getNewChunk(ChunkPos chunkPos) {
-        return new Road2Chunk(baseY,height,chunkPos);
+        return new Road2Chunk();
     }
 }
