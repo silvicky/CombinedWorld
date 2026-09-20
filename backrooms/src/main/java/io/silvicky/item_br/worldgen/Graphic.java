@@ -201,7 +201,7 @@ public class Graphic
     }
 
     public static void drawSideRing(Arc arc, RoadPattern pattern)
-    {
+    {//todo still mismatch, also in lines
         Point2d center= arc.center();
         Arc arc0=new Arc(center,arc.r()+ pattern.min(), arc.aStart(), arc.aEnd());
         Arc arc1=new Arc(center, arc.r()+ pattern.max(), arc.aStart(), arc.aEnd());

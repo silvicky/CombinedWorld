@@ -14,8 +14,7 @@ import static io.silvicky.item_br.worldgen.Graphic.*;
 import static io.silvicky.item_br.worldgen.RegionPos.regionSize;
 import static io.silvicky.item_br.worldgen.Road2Blocks.*;
 import static io.silvicky.item_br.worldgen.RoadCustomRule.getNodeCoordination;
-import static java.lang.Math.PI;
-import static java.lang.Math.abs;
+import static java.lang.Math.*;
 
 public class Road2Cache extends ChunkGenCache<Road2Blocks>
 {
@@ -29,7 +28,7 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
 
     private static final int innerCircleRadius=30;
 
-    private static final int largeCircleRadius=90;
+    private static final int largeCircleRadius=80;
 
     private static final int roadWidth=5;
 
@@ -70,6 +69,21 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
                 List.of(
                         new Pair<>((double) -roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE)),
                         new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,h,z),EDGE)),
+                        new Pair<>((double) roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE))
+                )
+        );
+    }
+
+    private RoadPattern reducedPatternS(AbstractSegment segment, int h)
+    {
+        Dash dash=new Dash(segment);
+        return new RoadPattern(
+                -roadWidth,
+                roadWidth,
+                (x,z)->setBlockState(new BlockPos(x,h,z), ROAD),
+                List.of(
+                        new Pair<>((double) -roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE)),
+                        new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,h,z),dash.get(new Point2d(x,z))?DASH:ROAD)),
                         new Pair<>((double) roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE))
                 )
         );
@@ -177,6 +191,11 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
         drawSideRect(line, reducedPattern(h));
     }
 
+    private void drawStraightRoadS(Line line, int h)
+    {
+        drawSideRect(line, reducedPatternS(line,h));
+    }
+
     private void drawStraightRoad(Line line, double h0, double h1)
     {
         drawSideRect(line, slopedPattern(line, h0, h1));
@@ -245,11 +264,11 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
                 double dEnd=other.getProgress(cs.center());
                 if(i==0)
                 {
-                    drawStraightRoad(new Line(other.a()-PI,-other.b()-samplePattern.min(),-dStart,-dEnd),(defect%2)*gapHeight,(defect%2)*gapHeight);
+                    drawStraightRoadS(new Line(other.a() - PI, -other.b() - samplePattern.min() - roadWidth, -dStart, -dEnd), (defect % 2) * gapHeight);
                 }
                 else
                 {
-                    drawStraightRoad(new Line(other.a(),other.b()+samplePattern.max(),dStart,dEnd),(defect%2)*gapHeight,(defect%2)*gapHeight);
+                    drawStraightRoadS(new Line(other.a(), other.b() + samplePattern.max() - roadWidth, dStart, dEnd), (defect % 2) * gapHeight);
                 }
             }
             //big ones, see the func call below

@@ -8,6 +8,8 @@ import java.util.*;
 
 public abstract class ChunkCacheManager<B extends AbstractBlock<B>, C extends ChunkGenCache<B>, K extends SimpleChunk<B>>
 {
+    private static final int cacheSize=256;
+
     private final Map<RegionPos, C> caches = Collections.synchronizedMap(new LinkedHashMap<>(cacheSize, 0.75f, true) {
         @Override
         protected boolean removeEldestEntry(Map.Entry<RegionPos, C> eldest) {
@@ -16,8 +18,6 @@ public abstract class ChunkCacheManager<B extends AbstractBlock<B>, C extends Ch
     });
 
     final RandomState randomState;
-
-    private static final int cacheSize=256;
 
     protected ChunkCacheManager(RandomState randomState) {
         this.randomState = randomState;
@@ -29,14 +29,14 @@ public abstract class ChunkCacheManager<B extends AbstractBlock<B>, C extends Ch
 
     private C request(RegionPos pos)
     {
-        if(caches.containsKey(pos))
-        {
-            return caches.get(pos);
+        synchronized(caches) {
+            C cur = caches.get(pos);
+            if (cur != null) return cur;
+            C result = newCache(pos);
+            result.generate();
+            caches.put(pos, result);
+            return result;
         }
-        C result = newCache(pos);
-        result.generate();
-        caches.put(pos, result);
-        return result;
     }
 
     abstract List<RegionPos> getSourceRegions(RegionPos regionPos);
