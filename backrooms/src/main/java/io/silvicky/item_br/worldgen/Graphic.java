@@ -111,10 +111,9 @@ public class Graphic
     }
 
     public static void drawArc(Arc arc, BiConsumer<Integer, Integer> consumer)
-    {//TODO also use new distance method
+    {
         Point2d center=arc.center();
         Point2 p0=arc.start();
-        double r=arc.r()*arc.r();
         double aStart=new Point2d(arc.start()).sub(center).atan2();
         double aEnd=new Point2d(arc.end()).sub(center).atan2();
         if(aEnd<aStart)aEnd+=2*PI;
@@ -150,10 +149,10 @@ public class Graphic
             }
             x+=advance.x;
             z+=advance.z;
-            double err=abs(new Point2d(x,z).sub(center).len2()-r);
+            double err=arc.getDistance(new Point2d(x,z));
             int x1=x+shift.x;
             int z1=z+shift.z;
-            double err1=abs(new Point2d(x1,z1).sub(center).len2()-r);
+            double err1=arc.getDistance(new Point2d(x1,z1));
             if(err1<err)
             {
                 x=x1;
@@ -201,7 +200,7 @@ public class Graphic
     }
 
     public static void drawSideRing(Arc arc, RoadPattern pattern)
-    {//todo still mismatch, also in lines
+    {//todo still mismatch, also in lines, the problem seems to be that, some ending points are not accessible at all
         Point2d center= arc.center();
         Arc arc0=new Arc(center,arc.r()+ pattern.min(), arc.aStart(), arc.aEnd());
         Arc arc1=new Arc(center, arc.r()+ pattern.max(), arc.aStart(), arc.aEnd());

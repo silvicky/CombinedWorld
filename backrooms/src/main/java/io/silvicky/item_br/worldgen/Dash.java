@@ -11,11 +11,11 @@ public class Dash
 
     private boolean status=true;
 
-    private static final int dashLength=6;
+    private static final int defaultDashLength=6;
 
-    private static final int dashSpacing=9;
+    private static final int defaultDashSpacing=9;
 
-    public Dash(AbstractSegment segment)
+    public Dash(AbstractSegment segment, int dashLength, int dashSpacing)
     {
         this.segment = segment;
         int dashCount=(int) segment.length()/(dashLength+dashSpacing);
@@ -30,6 +30,11 @@ public class Dash
             nodes.add(cur);
             cur+=dashLength;
         }
+    }
+
+    public Dash(AbstractSegment segment)
+    {
+        this(segment,defaultDashLength,defaultDashSpacing);
     }
 
     public boolean get(Point2d point2d) {

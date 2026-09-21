@@ -104,15 +104,17 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
 
     private RoadPattern slopedPattern(Arc arc, double h0, double h1)
     {
+        Dash l=new Dash(arc);
+        Dash r=new Dash(arc);
         return new RoadPattern(
                 -2*roadWidth,
                 2*roadWidth,
                 (x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer),z), ROAD),
                 List.of(
                         new Pair<>((double) -2*roadWidth,(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer),z),EDGE)),
-                        new Pair<>((double) -roadWidth,(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer),z),EDGE)),
+                        new Pair<>((double) -roadWidth,(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer),z),l.get(new Point2d(x,z))?DASH:ROAD)),
                         new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer),z),EDGE)),
-                        new Pair<>((double) roadWidth,(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer),z),EDGE)),
+                        new Pair<>((double) roadWidth,(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer),z),r.get(new Point2d(x,z))?DASH:ROAD)),
                         new Pair<>((double) 2*roadWidth,(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer),z),EDGE))
                 )
         );
@@ -264,7 +266,7 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
                 double dEnd=other.getProgress(cs.center());
                 if(i==0)
                 {
-                    drawStraightRoadS(new Line(other.a() - PI, -other.b() - samplePattern.min() - roadWidth, -dStart, -dEnd), (defect % 2) * gapHeight);
+                    drawStraightRoadS(new Line(other.a(), other.b() + samplePattern.min() + roadWidth, dStart, dEnd), (defect % 2) * gapHeight);
                 }
                 else
                 {
