@@ -4,12 +4,14 @@ import io.netty.channel.ChannelFutureListener;
 import io.silvicky.item.backrooms.ChunkUnusedException;
 import io.silvicky.item.backrooms.VecTransformer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.PositionAndRotation;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.network.protocol.game.*;
 import net.minecraft.server.network.ServerCommonPacketListenerImpl;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
+import net.minecraft.world.entity.PositionPath;
 import net.minecraft.world.entity.Relative;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.phys.Vec3;
@@ -154,7 +156,8 @@ public class ServerCommonPacketListenerImplMixin
             }
             if (packet instanceof ClientboundMoveVehiclePacket clientboundMoveVehiclePacket)
             {
-                clientboundMoveVehiclePacket.position = vecTransformer.s2cTransform(clientboundMoveVehiclePacket.position);
+                PositionAndRotation pr=clientboundMoveVehiclePacket.movingTo();
+                clientboundMoveVehiclePacket.movingTo = new PositionAndRotation.Immutable(vecTransformer.s2cTransform(pr.position()), pr.yRot(), pr.xRot());
                 return;
             }
             if (packet instanceof ClientboundLevelChunkWithLightPacket clientboundLevelChunkWithLightPacket)
@@ -166,7 +169,7 @@ public class ServerCommonPacketListenerImplMixin
             }
             if (packet instanceof ClientboundEntityPositionSyncPacket clientboundEntityPositionSyncPacket)
             {
-                clientboundEntityPositionSyncPacket.values().position = vecTransformer.s2cTransform(clientboundEntityPositionSyncPacket.values().position);
+                clientboundEntityPositionSyncPacket.position = new PositionPath.Linear(vecTransformer.s2cTransform(clientboundEntityPositionSyncPacket.position().endPosition()));
                 return;
             }
             if (packet instanceof ClientboundDamageEventPacket clientboundDamageEventPacket)

@@ -59,10 +59,6 @@ accessible field net/minecraft/world/phys/BlockHitResult blockPos Lnet/minecraft
 mutable field net/minecraft/world/phys/BlockHitResult blockPos Lnet/minecraft/core/BlockPos;
 accessible field net/minecraft/world/phys/HitResult location Lnet/minecraft/world/phys/Vec3;
 mutable field net/minecraft/world/phys/HitResult location Lnet/minecraft/world/phys/Vec3;
-accessible field net/minecraft/network/protocol/game/ServerboundMoveVehiclePacket position Lnet/minecraft/world/phys/Vec3;
-mutable field net/minecraft/network/protocol/game/ServerboundMoveVehiclePacket position Lnet/minecraft/world/phys/Vec3;
-accessible field net/minecraft/network/protocol/game/ClientboundMoveVehiclePacket position Lnet/minecraft/world/phys/Vec3;
-mutable field net/minecraft/network/protocol/game/ClientboundMoveVehiclePacket position Lnet/minecraft/world/phys/Vec3;
 accessible field net/minecraft/network/protocol/game/ClientboundDamageEventPacket sourcePosition Ljava/util/Optional;
 mutable field net/minecraft/network/protocol/game/ClientboundDamageEventPacket sourcePosition Ljava/util/Optional;
 accessible field net/minecraft/network/protocol/game/ClientboundPlayerLookAtPacket x D
@@ -86,3 +82,13 @@ accessible field net/minecraft/network/protocol/game/ServerboundInteractPacket l
 mutable field net/minecraft/network/protocol/game/ServerboundInteractPacket location Lnet/minecraft/world/phys/Vec3;
 accessible field net/minecraft/network/protocol/game/ServerboundPickItemFromBlockPacket pos Lnet/minecraft/core/BlockPos;
 mutable field net/minecraft/network/protocol/game/ServerboundPickItemFromBlockPacket pos Lnet/minecraft/core/BlockPos;
+accessible field net/minecraft/network/protocol/game/ClientboundLevelEventPacket pos Lnet/minecraft/core/BlockPos;
+mutable field net/minecraft/network/protocol/game/ClientboundLevelEventPacket pos Lnet/minecraft/core/BlockPos;
+accessible field net/minecraft/network/protocol/game/ClientboundMoveVehiclePacket movingTo Lnet/minecraft/core/PositionAndRotation;
+mutable field net/minecraft/network/protocol/game/ClientboundMoveVehiclePacket movingTo Lnet/minecraft/core/PositionAndRotation;
+accessible field net/minecraft/network/protocol/game/ServerboundMoveVehiclePacket movingTo Lnet/minecraft/core/PositionAndRotation;
+mutable field net/minecraft/network/protocol/game/ServerboundMoveVehiclePacket movingTo Lnet/minecraft/core/PositionAndRotation;
+accessible field net/minecraft/network/protocol/game/ClientboundEntityPositionSyncPacket position Lnet/minecraft/world/entity/PositionPath;
+mutable field net/minecraft/network/protocol/game/ClientboundEntityPositionSyncPacket position Lnet/minecraft/world/entity/PositionPath;
+accessible field net/minecraft/network/protocol/game/ClientboundBlockUpdatePacket pos Lnet/minecraft/core/BlockPos;
+mutable field net/minecraft/network/protocol/game/ClientboundBlockUpdatePacket pos Lnet/minecraft/core/BlockPos;
