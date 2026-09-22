@@ -1,6 +1,7 @@
 package io.silvicky.item.mixin;
 
 import io.silvicky.item.backrooms.VecTransformer;
+import net.minecraft.core.PositionAndRotation;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.network.PacketListener;
@@ -38,8 +39,8 @@ public abstract class ConnectionMixin
         modified.add(packet);
         if (packet instanceof ServerboundUseItemOnPacket playerInteractBlockC2SPacket)
         {
-            playerInteractBlockC2SPacket.getHitResult().blockPos= vecTransformer.c2sTransform(playerInteractBlockC2SPacket.getHitResult().blockPos);
-            playerInteractBlockC2SPacket.getHitResult().location =vecTransformer.c2sTransform(playerInteractBlockC2SPacket.getHitResult().location);
+            playerInteractBlockC2SPacket.hitResult().blockPos= vecTransformer.c2sTransform(playerInteractBlockC2SPacket.hitResult().blockPos);
+            playerInteractBlockC2SPacket.hitResult().location =vecTransformer.c2sTransform(playerInteractBlockC2SPacket.hitResult().location);
             return;
         }
         if (packet instanceof ServerboundMovePlayerPacket playerMoveC2SPacket)
@@ -54,7 +55,8 @@ public abstract class ConnectionMixin
         }
         if (packet instanceof ServerboundMoveVehiclePacket vehicleMoveC2SPacket)
         {
-            vehicleMoveC2SPacket.position=vecTransformer.c2sTransform(vehicleMoveC2SPacket.position);
+            PositionAndRotation pr=vehicleMoveC2SPacket.movingTo();
+            vehicleMoveC2SPacket.movingTo=new PositionAndRotation.Immutable(vecTransformer.c2sTransform(pr.position()),pr.yRot(), pr.xRot());
             return;
         }
         if(packet instanceof ServerboundInteractPacket playerInteractEntityC2SPacket)

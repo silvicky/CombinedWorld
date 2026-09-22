@@ -2,11 +2,13 @@ package io.silvicky.item.worldgen;
 
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.NoiseColumn;
 import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeManager;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.block.Blocks;
@@ -16,9 +18,12 @@ import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.blending.Blender;
+import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
+import org.jetbrains.annotations.Nullable;
 import org.jspecify.annotations.NonNull;
 
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 public abstract class AbstractCustomWorldGen extends ChunkGenerator
@@ -34,18 +39,6 @@ public abstract class AbstractCustomWorldGen extends ChunkGenerator
     protected abstract void gen(@NonNull ChunkAccess chunk, @NonNull RandomState randomState);
 
     @Override
-    public void applyCarvers(@NonNull WorldGenRegion region, long seed, @NonNull RandomState randomState, @NonNull BiomeManager biomeManager, @NonNull StructureManager structureManager, @NonNull ChunkAccess chunk)
-    {
-
-    }
-
-    @Override
-    public void buildSurface(@NonNull WorldGenRegion level, @NonNull StructureManager structureManager, @NonNull RandomState randomState, @NonNull ChunkAccess protoChunk)
-    {
-
-    }
-
-    @Override
     public void spawnOriginalMobs(@NonNull WorldGenRegion worldGenRegion)
     {
 
@@ -58,7 +51,7 @@ public abstract class AbstractCustomWorldGen extends ChunkGenerator
     }
 
     @Override
-    public @NonNull CompletableFuture<ChunkAccess> fillFromNoise(@NonNull Blender blender, @NonNull RandomState randomState, @NonNull StructureManager structureManager, @NonNull ChunkAccess centerChunk)
+    public @NonNull CompletableFuture<ChunkAccess> buildTerrain(@NonNull ChunkAccess centerChunk, @NonNull Blender blender, @NonNull RandomState randomState, @NonNull StructureManager structureManager, @NonNull BiomeManager biomeManager, @Nullable WorldGenRegion carverBiomeRegion, @NonNull Set<Holder<Biome>> possibleBiomes)
     {
         gen(centerChunk, randomState);
         return CompletableFuture.completedFuture(centerChunk);
@@ -95,7 +88,7 @@ public abstract class AbstractCustomWorldGen extends ChunkGenerator
     }
 
     @Override
-    public void addDebugScreenInfo(@NonNull List<String> result, @NonNull RandomState randomState, @NonNull BlockPos feetPos)
+    public void addDebugScreenInfo(@NonNull List<String> result, @NonNull RandomState randomState, @NonNull BlockPos feetPos, @NonNull SamplerContext samplerContext)
     {
 
     }

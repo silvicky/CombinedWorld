@@ -18,8 +18,8 @@ public class RoadCustomRule implements CustomRule
     {
         //return true;
         double val;
-        if(direction)val=random.getOrCreateNoise(Noises.CONTINENTALNESS).getValue(x*rLarge,0,z*rMedium);
-        else val=random.getOrCreateNoise(Noises.CONTINENTALNESS).getValue(x*rMedium,rLarge,z*rLarge);
+        if(direction)val=random.getOrCreateNoise(Noises.CONTINENTALNESS).get(x*rLarge,0,z*rMedium);
+        else val=random.getOrCreateNoise(Noises.CONTINENTALNESS).get(x*rMedium,rLarge,z*rLarge);
         return val>=threshold;
     }
 

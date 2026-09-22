@@ -5,6 +5,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.*;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
@@ -13,14 +14,13 @@ import net.minecraft.util.random.WeightedList;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.level.*;
 import net.minecraft.world.level.biome.*;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.chunk.ChunkGeneratorStructureState;
-import net.minecraft.world.level.levelgen.Heightmap;
-import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
-import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
-import net.minecraft.world.level.levelgen.RandomState;
+import net.minecraft.world.level.levelgen.*;
 import net.minecraft.world.level.levelgen.blending.Blender;
+import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureSet;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
@@ -29,6 +29,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 public class DecayWorldGen extends ChunkGenerator
@@ -50,17 +51,17 @@ public class DecayWorldGen extends ChunkGenerator
         this.rule=rule;
     }
 
-    public NoiseGeneratorSettings noise()
+    public RandomState noise(RegistryAccess registryAccess, long levelSeed)
     {
         if(baseGen instanceof NoiseBasedChunkGenerator generator)
         {
-            return generator.generatorSettings().value();
+            return RandomState.create(registryAccess.lookupOrThrow(Registries.NOISE), levelSeed, generator.generatorSettings().value());
         }
         if(baseGen instanceof DecayWorldGen decayWorldGen)
         {
-            return decayWorldGen.noise();
+            return decayWorldGen.noise(registryAccess, levelSeed);
         }
-        return NoiseGeneratorSettings.dummy();
+        return RandomState.create(registryAccess.lookupOrThrow(Registries.NOISE), levelSeed, false, Blocks.STONE.defaultBlockState(), 63, NoiseRouterData.none());
     }
 
     @Override
@@ -94,21 +95,9 @@ public class DecayWorldGen extends ChunkGenerator
     }
 
     @Override
-    public void applyCarvers(@NonNull WorldGenRegion region, long seed, @NonNull RandomState randomState, @NonNull BiomeManager biomeManager, @NonNull StructureManager structureManager, @NonNull ChunkAccess chunk)
-    {
-        baseGen.applyCarvers(region,seed,randomState,biomeManager,structureManager,chunk);
-    }
-
-    @Override
     public @Nullable Pair<BlockPos, Holder<Structure>> findNearestMapStructure(@NonNull ServerLevel level, @NonNull HolderSet<Structure> wantedStructures, @NonNull BlockPos pos, int maxSearchRadius, boolean createReference)
     {
         return baseGen.findNearestMapStructure(level, wantedStructures, pos, maxSearchRadius, createReference);
-    }
-
-    @Override
-    public void buildSurface(@NonNull WorldGenRegion level, @NonNull StructureManager structureManager, @NonNull RandomState randomState, @NonNull ChunkAccess protoChunk)
-    {
-        baseGen.buildSurface(level,structureManager,randomState,protoChunk);
     }
 
     @Override
@@ -136,9 +125,9 @@ public class DecayWorldGen extends ChunkGenerator
     }
 
     @Override
-    public @NonNull WeightedList<MobSpawnSettings.SpawnerData> getMobsAt(@NonNull Holder<Biome> biome, @NonNull StructureManager structureManager, @NonNull MobCategory mobCategory, @NonNull BlockPos pos)
+    public @NonNull WeightedList<MobSpawnSettings.SpawnerData> getMobsAt(@NonNull Level level, @NonNull StructureManager structureManager, @NonNull MobCategory mobCategory, @NonNull BlockPos pos)
     {
-        return baseGen.getMobsAt(biome, structureManager, mobCategory, pos);
+        return baseGen.getMobsAt(level, structureManager, mobCategory, pos);
     }
 
     @Override
@@ -154,10 +143,10 @@ public class DecayWorldGen extends ChunkGenerator
     }
 
     @Override
-    public @NonNull CompletableFuture<ChunkAccess> fillFromNoise(@NonNull Blender blender, @NonNull RandomState randomState, @NonNull StructureManager structureManager, @NonNull ChunkAccess centerChunk)
+    public @NonNull CompletableFuture<ChunkAccess> buildTerrain(@NonNull ChunkAccess centerChunk, @NonNull Blender blender, @NonNull RandomState randomState, @NonNull StructureManager structureManager, @NonNull BiomeManager biomeManager, @Nullable WorldGenRegion carverBiomeRegion, @NonNull Set<Holder<Biome>> possibleBiomes)
     {
         if(rule.decay(centerChunk, randomState))return CompletableFuture.completedFuture(centerChunk);
-        return baseGen.fillFromNoise(blender,randomState,structureManager,centerChunk);
+        return baseGen.buildTerrain(centerChunk,blender,randomState,structureManager,biomeManager,carverBiomeRegion,possibleBiomes);
     }
 
     @Override
@@ -197,9 +186,9 @@ public class DecayWorldGen extends ChunkGenerator
     }
 
     @Override
-    public void addDebugScreenInfo(@NonNull List<String> result, @NonNull RandomState randomState, @NonNull BlockPos feetPos)
+    public void addDebugScreenInfo(@NonNull List<String> result, @NonNull RandomState randomState, @NonNull BlockPos feetPos, @NonNull SamplerContext samplerContext)
     {
-        baseGen.addDebugScreenInfo(result,randomState,feetPos);
+        baseGen.addDebugScreenInfo(result,randomState,feetPos,samplerContext);
     }
 
     @Override

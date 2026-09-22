@@ -5,15 +5,19 @@ import io.silvicky.item.backrooms.PositionedHelper;
 import io.silvicky.item.backrooms.VecTransformer;
 import io.silvicky.item.backrooms.PositionedAccess;
 import io.silvicky.item.worldgen.WorldGenUtil;
+import net.minecraft.core.HolderGetter;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkGenerator;
-import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
+import net.minecraft.world.level.levelgen.NoiseRouter;
+import net.minecraft.world.level.levelgen.RandomState;
+import net.minecraft.world.level.levelgen.synth.NormalNoise;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
@@ -37,9 +41,9 @@ public class ChunkMapMixin
     {
         VecTransformer.getInstance(serverPlayer).tick();
     }
-    @ModifyArg(method = "<init>",at=@At(value = "INVOKE", target = "Lnet/minecraft/world/level/levelgen/RandomState;create(Lnet/minecraft/world/level/levelgen/NoiseGeneratorSettings;Lnet/minecraft/core/HolderGetter;J)Lnet/minecraft/world/level/levelgen/RandomState;", ordinal = 1),index = 0)
-    private NoiseGeneratorSettings inject4(NoiseGeneratorSettings settings, @Local(argsOnly = true)ChunkGenerator generator)
+    @Redirect(method = "<init>",at=@At(value = "INVOKE", target = "Lnet/minecraft/world/level/levelgen/RandomState;create(Lnet/minecraft/core/HolderGetter;JZLnet/minecraft/world/level/block/state/BlockState;ILnet/minecraft/world/level/levelgen/NoiseRouter;)Lnet/minecraft/world/level/levelgen/RandomState;",ordinal = 0))
+    private RandomState inject5(HolderGetter<NormalNoise> noises, long seed, boolean useLegacyRandom, BlockState defaultBlock, int seaLevel, NoiseRouter noiseRouter, @Local(argsOnly = true)ChunkGenerator generator, @Local RegistryAccess registryAccess)
     {
-        return WorldGenUtil.getNoise(generator);
+        return WorldGenUtil.getNoise(registryAccess, seed, generator);
     }
 }
