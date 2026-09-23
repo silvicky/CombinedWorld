@@ -2,7 +2,7 @@ package io.silvicky.item_br.worldgen;
 
 import static java.lang.Math.*;
 
-public record Arc(Point2d center, Point2 start, Point2 end, double r, double aStart, double aEnd) implements AbstractSegment
+public record Arc(Point2d center, Point2 start, Point2 end, double r, double aStart, double aEnd) implements AbstractSegment<Arc>
 {
     public Arc(Point2d center, Point2 start, Point2 end, double r)
     {
@@ -58,5 +58,10 @@ public record Arc(Point2d center, Point2 start, Point2 end, double r, double aSt
         double p=getProgress(point2d);
         if(p<aStart-0.1)p+=2*PI;
         return r*(p-aStart);
+    }
+
+    @Override
+    public Arc move(double offset) {
+        return new Arc(center,r+offset,aStart,aEnd);
     }
 }

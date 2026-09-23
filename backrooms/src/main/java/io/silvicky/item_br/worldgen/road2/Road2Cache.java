@@ -43,7 +43,31 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
 
     private static final double bufferOutsideArc=3;
 
-    private RoadPattern mainPattern(AbstractSegment segment, int h)
+    private RoadPattern trunkPattern(AbstractSegment<?> segment, int h)
+    {
+        Dash l=new Dash(segment);
+        Dash r=new Dash(segment);
+        Dash light=new Dash(segment,1,10);
+        return new RoadPattern(
+                -2*roadWidth-1,
+                2*roadWidth+1,
+                (x,z)->setBlockState(new BlockPos(x,h,z), ROAD),
+                List.of(
+                        new Pair<>((double) -2*roadWidth-1,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE)),
+                        new Pair<>((double) -roadWidth-1,(x, z)->setBlockState(new BlockPos(x,h,z),l.get(new Point2d(x,z))?DASH:ROAD)),
+                        new Pair<>(-1.0,(x,z)->setBlockState(new BlockPos(x,h,z),INTERNAL_EDGE)),
+                        new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,h,z),light.get(new Point2d(x,z))?GRASS_LIGHT:GRASS)),
+                        new Pair<>(1.0,(x,z)->setBlockState(new BlockPos(x,h,z),INTERNAL_EDGE)),
+                        new Pair<>((double) roadWidth+1,(x, z)->setBlockState(new BlockPos(x,h,z),r.get(new Point2d(x,z))?DASH:ROAD)),
+                        new Pair<>((double) 2*roadWidth+1,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE))
+                ),
+                List.of(
+                        new Pair<>(new Pair<>(-1.0,1.0),(x,z)->setBlockState(new BlockPos(x,h,z),GRASS))
+                )
+        );
+    }
+
+    private RoadPattern mainPattern(AbstractSegment<?> segment, int h)
     {
         Dash l=new Dash(segment);
         Dash r=new Dash(segment);
@@ -54,7 +78,7 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
                 List.of(
                         new Pair<>((double) -2*roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE)),
                         new Pair<>((double) -roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),l.get(new Point2d(x,z))?DASH:ROAD)),
-                        new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,h,z),EDGE)),
+                        new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,h,z),INTERNAL_EDGE)),
                         new Pair<>((double) roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),r.get(new Point2d(x,z))?DASH:ROAD)),
                         new Pair<>((double) 2*roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE))
                 )
@@ -69,13 +93,13 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
                 (x,z)->setBlockState(new BlockPos(x,h,z), ROAD),
                 List.of(
                         new Pair<>((double) -roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE)),
-                        new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,h,z),EDGE)),
+                        new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,h,z),INTERNAL_EDGE)),
                         new Pair<>((double) roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE))
                 )
         );
     }
 
-    private RoadPattern reducedPatternS(AbstractSegment segment, int h)
+    private RoadPattern reducedPatternS(AbstractSegment<?> segment, int h)
     {
         Dash dash=new Dash(segment);
         return new RoadPattern(
@@ -114,7 +138,7 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
                 List.of(
                         new Pair<>((double) -2*roadWidth,(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer),z),EDGE)),
                         new Pair<>((double) -roadWidth,(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer),z),l.get(new Point2d(x,z))?DASH:ROAD)),
-                        new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer),z),EDGE)),
+                        new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer),z),INTERNAL_EDGE)),
                         new Pair<>((double) roadWidth,(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer),z),r.get(new Point2d(x,z))?DASH:ROAD)),
                         new Pair<>((double) 2*roadWidth,(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer),z),EDGE))
                 )
@@ -189,6 +213,11 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
         drawSideRect(line, mainPattern(line, h));
     }
 
+    private void drawStraightRoad2T(Line line, int h)
+    {
+        drawSideRect(line, trunkPattern(line, h));
+    }
+
     private void drawStraightRoad2R(Line line, int h)
     {
         drawSideRect(line, reducedPattern(h));
@@ -204,9 +233,9 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
         drawSideRect(line, slopedPattern(line, h0, h1));
     }
 
-    private void drawCurvedRoad2(Arc arc, int h)
+    private void drawCurvedRoad2T(Arc arc, int h)
     {
-        drawSideRing(arc, mainPattern(arc, h));
+        drawSideRing(arc, trunkPattern(arc, h));
     }
 
     private void drawCurvedRoad2(Arc arc, double h0, double h1)
@@ -361,10 +390,10 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
                         arc0=new Arc(cs[0],r,joint.sub(cs[0]).atan2(),new Point2d(ports[i]).sub(cs[0]).atan2());
                         arc1=new Arc(cs[1],r,joint.sub(cs[1]).atan2(),new Point2d(portsN[i+2]).sub(cs[1]).atan2());
                     }
-                    drawCurvedRoad2(arc0, i * gapHeight);
-                    drawCurvedRoad2(arc1, i * gapHeight);
+                    drawCurvedRoad2T(arc0, i * gapHeight);
+                    drawCurvedRoad2T(arc1, i * gapHeight);
                 } catch (Exception e) {
-                    drawStraightRoad2(new Line(ports[i], portsN[i + 2]), i * gapHeight);
+                    drawStraightRoad2T(new Line(ports[i], portsN[i + 2]), i * gapHeight);
                 }
             }
         }

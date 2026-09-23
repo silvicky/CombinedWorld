@@ -1,6 +1,6 @@
 package io.silvicky.item_br.worldgen;
 
-public interface AbstractSegment {
+public interface AbstractSegment<T> {
     double getOffset(Point2d point2d);
 
     double getProgress(Point2d point2d);
@@ -10,4 +10,6 @@ public interface AbstractSegment {
     double length();
 
     double getRelativeProgress(Point2d point2d);
+
+    T move(double offset);
 }

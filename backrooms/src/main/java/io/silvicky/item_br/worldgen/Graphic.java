@@ -97,16 +97,22 @@ public class Graphic
         Map<Point2, BiConsumer<Integer, Integer>> edges=new HashMap<>();
         for(Pair<Double, BiConsumer<Integer, Integer>> i: pattern.features())
         {
-            drawLine(new Line(line.a(),line.b()+i.getFirst(),line.dStart(),line.dEnd()),(x,z)-> edges.put(new Point2(x,z), i.getSecond()));
+            drawLine(line.move(i.getFirst()),(x,z)-> edges.put(new Point2(x,z), i.getSecond()));
         }
-        drawRect(new Line(line.a(),line.b()+ pattern.min(),line.dStart(),line.dEnd()),
-                new Line(line.a(),line.b()+pattern.max(),line.dStart(),line.dEnd()),
+        drawRect(line.move(pattern.min()),
+                line.move(pattern.max()),
                 (x,z)-> {
                     if(!edges.containsKey(new Point2(x,z)))pattern.road().accept(x, z);
                 });
         for(Pair<Double, BiConsumer<Integer, Integer>> i: pattern.features())
         {
-            drawLine(new Line(line.a(),line.b()+i.getFirst(),line.dStart(),line.dEnd()), i.getSecond());
+            drawLine(line.move(i.getFirst()), i.getSecond());
+        }
+        for(Pair<Pair<Double,Double>, BiConsumer<Integer, Integer>> i: pattern.rectFeatures())
+        {
+            drawRect(line.move(i.getFirst().getFirst()),
+                    line.move(i.getFirst().getSecond()),
+                    i.getSecond());
         }
     }
 
@@ -201,22 +207,25 @@ public class Graphic
 
     public static void drawSideRing(Arc arc, RoadPattern pattern)
     {//todo still mismatch, also in lines, the problem seems to be that, some ending points are not accessible at all, and all should be rewritten
-        Point2d center= arc.center();
-        Arc arc0=new Arc(center,arc.r()+ pattern.min(), arc.aStart(), arc.aEnd());
-        Arc arc1=new Arc(center, arc.r()+ pattern.max(), arc.aStart(), arc.aEnd());
         Map<Point2, BiConsumer<Integer, Integer>> edges=new HashMap<>();
         for(Pair<Double, BiConsumer<Integer, Integer>> i: pattern.features())
         {
-            Arc arcX=new Arc(center,arc.r()+i.getFirst(), arc.aStart(), arc.aEnd());
-            drawArc(arcX,(x,z)-> edges.put(new Point2(x,z), i.getSecond()));
+            drawArc(arc.move(i.getFirst()),(x, z)-> edges.put(new Point2(x,z), i.getSecond()));
         }
-        drawRing(arc0,arc1,(x,z)-> {
+        drawRing(arc.move(pattern.min()),
+                arc.move(pattern.max()),
+                (x,z)-> {
             if(!edges.containsKey(new Point2(x,z)))pattern.road().accept(x, z);
         });
         for(Pair<Double, BiConsumer<Integer, Integer>> i: pattern.features())
         {
-            Arc arcX=new Arc(center,arc.r()+i.getFirst(), arc.aStart(), arc.aEnd());
-            drawArc(arcX,i.getSecond());
+            drawArc(arc.move(i.getFirst()),i.getSecond());
+        }
+        for(Pair<Pair<Double,Double>, BiConsumer<Integer, Integer>> i: pattern.rectFeatures())
+        {
+            drawRing(arc.move(i.getFirst().getFirst()),
+                    arc.move(i.getFirst().getSecond()),
+                    i.getSecond());
         }
     }
 

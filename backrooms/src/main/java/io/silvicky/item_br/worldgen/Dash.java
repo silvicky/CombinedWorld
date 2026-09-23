@@ -5,7 +5,7 @@ import java.util.Queue;
 
 public class Dash
 {
-    private final AbstractSegment segment;
+    private final AbstractSegment<?> segment;
 
     private final Queue<Double> nodes = new ArrayDeque<>();
 
@@ -15,14 +15,14 @@ public class Dash
 
     private static final int defaultDashSpacing=9;
 
-    public Dash(AbstractSegment segment, int dashLength, int dashSpacing)
+    public Dash(AbstractSegment<?> segment, int dashLength, int dashSpacing)
     {
         this.segment = segment;
         int dashCount=(int) segment.length()/(dashLength+dashSpacing);
         if(dashCount<=0)return;
         double dashRealLength= segment.length()/dashCount;
         if(dashRealLength<=dashSpacing)return;
-        double cur=3;
+        double cur= (double) dashLength /2;//TODO
         for(int i=0;i<dashCount;i++)
         {
             nodes.add(cur);
@@ -32,7 +32,7 @@ public class Dash
         }
     }
 
-    public Dash(AbstractSegment segment)
+    public Dash(AbstractSegment<?> segment)
     {
         this(segment,defaultDashLength,defaultDashSpacing);
     }

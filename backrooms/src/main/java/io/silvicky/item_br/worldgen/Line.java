@@ -6,7 +6,7 @@ import static java.lang.Math.*;
  * This line is x*cos(a)+z*sin(a)=b
  * The distance is x*sin(a)-z*cos(a)
  */
-public record Line(double a, Point2 start, Point2 end, double b, double dStart, double dEnd) implements AbstractSegment
+public record Line(double a, Point2 start, Point2 end, double b, double dStart, double dEnd) implements AbstractSegment<Line>
 {
     public Line(Point2 start, Point2 end)
     {
@@ -66,5 +66,10 @@ public record Line(double a, Point2 start, Point2 end, double b, double dStart, 
         double d=getProgress(point2d);
         if(dStart<dEnd)return d-dStart;
         return d-dEnd;
+    }
+
+    @Override
+    public Line move(double offset) {
+        return new Line(a,b+offset,dStart,dEnd);
     }
 }
