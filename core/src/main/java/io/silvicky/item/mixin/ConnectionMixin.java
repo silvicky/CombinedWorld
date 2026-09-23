@@ -6,10 +6,7 @@ import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.network.PacketListener;
 import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
-import net.minecraft.network.protocol.game.ServerboundInteractPacket;
-import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
-import net.minecraft.network.protocol.game.ServerboundMoveVehiclePacket;
+import net.minecraft.network.protocol.game.*;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.world.phys.Vec3;
@@ -64,6 +61,7 @@ public abstract class ConnectionMixin
             playerInteractEntityC2SPacket.location =vecTransformer.c2sTransform(playerInteractEntityC2SPacket.location);
             return;
         }
+        if(packet instanceof ServerboundSetStructureBlockPacket){return;}//TODO there are 2 pos!
         for (Field field : packet.getClass().getDeclaredFields())
         {
             if (BlockPos.class.isAssignableFrom(field.getType()))
