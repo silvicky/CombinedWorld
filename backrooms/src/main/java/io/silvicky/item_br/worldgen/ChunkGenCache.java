@@ -9,9 +9,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public abstract class ChunkGenCache<T extends AbstractBlock<T>>
 {
-    final RandomState randomState;
+    protected final RandomState randomState;
 
-    final RegionPos regionPos;
+    protected final RegionPos regionPos;
 
     private final Map<ChunkPos, SimpleChunk<T>> chunks =new ConcurrentHashMap<>();
 
@@ -32,7 +32,7 @@ public abstract class ChunkGenCache<T extends AbstractBlock<T>>
         simpleChunk.setBlockState(pos, state);
     }
 
-    abstract void generate();
+    protected abstract void generate();
 
-    abstract SimpleChunk<T> getNewChunk(ChunkPos chunkPos);
+    protected abstract SimpleChunk<T> getNewChunk(ChunkPos chunkPos);
 }

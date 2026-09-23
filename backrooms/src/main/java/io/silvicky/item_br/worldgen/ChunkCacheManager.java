@@ -17,15 +17,15 @@ public abstract class ChunkCacheManager<B extends AbstractBlock<B>, C extends Ch
         }
     });
 
-    final RandomState randomState;
+    protected final RandomState randomState;
 
     protected ChunkCacheManager(RandomState randomState) {
         this.randomState = randomState;
     }
 
-    abstract C newCache(RegionPos regionPos);
+    protected abstract C newCache(RegionPos regionPos);
 
-    abstract K newChunk();
+    protected abstract K newChunk();
 
     private C request(RegionPos pos)
     {
@@ -39,7 +39,7 @@ public abstract class ChunkCacheManager<B extends AbstractBlock<B>, C extends Ch
         }
     }
 
-    abstract List<RegionPos> getSourceRegions(RegionPos regionPos);
+    protected abstract List<RegionPos> getSourceRegions(RegionPos regionPos);
 
     public void generate(ChunkAccess chunk)
     {

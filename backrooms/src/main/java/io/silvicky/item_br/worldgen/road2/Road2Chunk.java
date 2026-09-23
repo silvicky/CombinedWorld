@@ -1,5 +1,6 @@
-package io.silvicky.item_br.worldgen;
+package io.silvicky.item_br.worldgen.road2;
 
+import io.silvicky.item_br.worldgen.SimpleChunk;
 import net.minecraft.core.BlockPos;
 
 public class Road2Chunk extends SimpleChunk<Road2Blocks>

@@ -1,6 +1,7 @@
-package io.silvicky.item_br.worldgen;
+package io.silvicky.item_br.worldgen.road2;
 
 import com.mojang.datafixers.util.Pair;
+import io.silvicky.item_br.worldgen.*;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.RandomSource;
@@ -12,7 +13,7 @@ import java.util.List;
 
 import static io.silvicky.item_br.worldgen.Graphic.*;
 import static io.silvicky.item_br.worldgen.RegionPos.regionSize;
-import static io.silvicky.item_br.worldgen.Road2Blocks.*;
+import static io.silvicky.item_br.worldgen.road2.Road2Blocks.*;
 import static io.silvicky.item_br.worldgen.RoadCustomRule.getNodeCoordination;
 import static java.lang.Math.*;
 
@@ -224,7 +225,7 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
     }
 
     @Override
-    void generate() {
+    protected void generate() {
         boolean[] coordination = getNodeCoordination(randomState, regionPos.x, regionPos.z);
         List<Integer> directions = new ArrayList<>();
         for (int i = 0; i < 4; i++) if (coordination[i]) directions.add(i);
@@ -370,7 +371,7 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
     }
 
     @Override
-    SimpleChunk<Road2Blocks> getNewChunk(ChunkPos chunkPos) {
+    protected SimpleChunk<Road2Blocks> getNewChunk(ChunkPos chunkPos) {
         return new Road2Chunk();
     }
 }

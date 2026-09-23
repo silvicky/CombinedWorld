@@ -1,6 +1,7 @@
 package io.silvicky.item_br.worldgen;
 
 import io.silvicky.item.worldgen.WorldGens;
+import io.silvicky.item_br.worldgen.road2.Road2CustomRule;
 
 public class BackroomsWorldGens
 {

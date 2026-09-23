@@ -1,5 +1,6 @@
-package io.silvicky.item_br.worldgen;
+package io.silvicky.item_br.worldgen.road2;
 
+import io.silvicky.item_br.worldgen.AbstractBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.ChunkAccess;

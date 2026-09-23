@@ -1,4 +1,4 @@
-package io.silvicky.item_br.worldgen;
+package io.silvicky.item_br.worldgen.road2;
 
 import com.mojang.serialization.MapCodec;
 import io.silvicky.item.worldgen.CustomRuleAdv;
