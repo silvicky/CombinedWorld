@@ -10,6 +10,7 @@ import net.minecraft.world.level.levelgen.RandomState;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiFunction;
 
 import static io.silvicky.item_br.worldgen.Graphic.*;
 import static io.silvicky.item_br.worldgen.RegionPos.regionSize;
@@ -43,7 +44,7 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
 
     private static final double bufferOutsideArc=3;
 
-    private RoadPattern trunkPattern(AbstractSegment<?> segment, int h)
+    private RoadPattern trunkPattern(AbstractSegment<?> segment, BiFunction<Integer,Integer,Integer> height)
     {
         Dash l=new Dash(segment);
         Dash r=new Dash(segment);
@@ -51,22 +52,22 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
         return new RoadPattern(
                 -2*roadWidth-5,
                 2*roadWidth+5,
-                (x,z)->setBlockState(new BlockPos(x,h,z), ROAD),
+                (x,z)->setBlockState(new BlockPos(x,height.apply(x,z),z), ROAD),
                 List.of(
-                        new Pair<>((double) -2*roadWidth-5,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE)),
-                        new Pair<>((double) -2*roadWidth-1,(x, z)->setBlockState(new BlockPos(x,h,z),EMERGENCY_EDGE)),
-                        new Pair<>((double) -roadWidth-1,(x, z)->setBlockState(new BlockPos(x,h,z),l.get(new Point2d(x,z))?DASH:ROAD)),
-                        new Pair<>(-1.0,(x,z)->setBlockState(new BlockPos(x,h,z),INTERNAL_EDGE)),
-                        new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,h,z),light.get(new Point2d(x,z))?GRASS_LIGHT:GRASS)),
-                        new Pair<>(1.0,(x,z)->setBlockState(new BlockPos(x,h,z),INTERNAL_EDGE)),
-                        new Pair<>((double) roadWidth+1,(x, z)->setBlockState(new BlockPos(x,h,z),r.get(new Point2d(x,z))?DASH:ROAD)),
-                        new Pair<>((double) 2*roadWidth+1,(x, z)->setBlockState(new BlockPos(x,h,z),EMERGENCY_EDGE)),
-                        new Pair<>((double) 2*roadWidth+5,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE))
+                        new Pair<>((double) -2*roadWidth-5,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),EDGE)),
+                        new Pair<>((double) -2*roadWidth-1,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),EMERGENCY_EDGE)),
+                        new Pair<>((double) -roadWidth-1,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),l.get(new Point2d(x,z))?DASH:ROAD)),
+                        new Pair<>(-1.0,(x,z)->setBlockState(new BlockPos(x,height.apply(x,z),z),INTERNAL_EDGE)),
+                        new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,height.apply(x,z),z),light.get(new Point2d(x,z))?GRASS_LIGHT:GRASS)),
+                        new Pair<>(1.0,(x,z)->setBlockState(new BlockPos(x,height.apply(x,z),z),INTERNAL_EDGE)),
+                        new Pair<>((double) roadWidth+1,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),r.get(new Point2d(x,z))?DASH:ROAD)),
+                        new Pair<>((double) 2*roadWidth+1,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),EMERGENCY_EDGE)),
+                        new Pair<>((double) 2*roadWidth+5,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),EDGE))
                 ),
                 List.of(
-                        new Pair<>(new Pair<>(-2*roadWidth-5.0,-2*roadWidth-1.0),(x,z)->setBlockState(new BlockPos(x,h,z),EMERGENCY_ROAD)),
-                        new Pair<>(new Pair<>(-1.0,1.0),(x,z)->setBlockState(new BlockPos(x,h,z),GRASS)),
-                        new Pair<>(new Pair<>(2*roadWidth+1.0,2*roadWidth+5.0),(x,z)->setBlockState(new BlockPos(x,h,z),EMERGENCY_ROAD))
+                        new Pair<>(new Pair<>(-2*roadWidth-5.0,-2*roadWidth-1.0),(x,z)->setBlockState(new BlockPos(x,height.apply(x,z),z),EMERGENCY_ROAD)),
+                        new Pair<>(new Pair<>(-1.0,1.0),(x,z)->setBlockState(new BlockPos(x,height.apply(x,z),z),GRASS)),
+                        new Pair<>(new Pair<>(2*roadWidth+1.0,2*roadWidth+5.0),(x,z)->setBlockState(new BlockPos(x,height.apply(x,z),z),EMERGENCY_ROAD))
                 )
         );
     }
@@ -110,88 +111,26 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
         );
     }
 
-    private RoadPattern slopedPattern(Line line, double h0, double h1)
+    private RoadPattern slopedPattern(BiFunction<Integer,Integer,Integer> height)
     {
         return new RoadPattern(
                 0,
                 roadWidth+4,
-                (x,z)->setBlockState(new BlockPos(x,getSlopeLine(new Point2(x, z), line, h0, h1-h0, linearBuffer),z), ROAD),
+                (x,z)->setBlockState(new BlockPos(x,height.apply(x,z),z), ROAD),
                 List.of(
-                        new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,getSlopeLine(new Point2(x, z), line, h0, h1-h0, linearBuffer),z),EDGE)),
-                        new Pair<>(4.0,(x,z)->setBlockState(new BlockPos(x,getSlopeLine(new Point2(x, z), line, h0, h1-h0, linearBuffer),z),EMERGENCY_EDGE)),
-                        new Pair<>((double) roadWidth+4,(x,z)->setBlockState(new BlockPos(x,getSlopeLine(new Point2(x, z), line, h0, h1-h0, linearBuffer),z),EDGE))
-                        ),
-                List.of(
-                        new Pair<>(new Pair<>(0.0,4.0),(x,z)->setBlockState(new BlockPos(x,getSlopeLine(new Point2(x, z), line, h0, h1-h0, linearBuffer),z),EMERGENCY_ROAD))
-                )
-        );
-    }
-
-    private RoadPattern slopedPattern(Arc segment, double h0, double h1)
-    {
-        Dash l=new Dash(segment);
-        Dash r=new Dash(segment);
-        Dash light=new Dash(segment,1,30);
-        return new RoadPattern(
-                -2*roadWidth-5,
-                2*roadWidth+5,
-                (x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), segment, h0, h1-h0, angleBuffer),z), ROAD),
-                List.of(
-                        new Pair<>((double) -2*roadWidth-5,(x, z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), segment, h0, h1-h0, angleBuffer),z),EDGE)),
-                        new Pair<>((double) -2*roadWidth-1,(x, z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), segment, h0, h1-h0, angleBuffer),z),EMERGENCY_EDGE)),
-                        new Pair<>((double) -roadWidth-1,(x, z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), segment, h0, h1-h0, angleBuffer),z),l.get(new Point2d(x,z))?DASH:ROAD)),
-                        new Pair<>(-1.0,(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), segment, h0, h1-h0, angleBuffer),z),INTERNAL_EDGE)),
-                        new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), segment, h0, h1-h0, angleBuffer),z),light.get(new Point2d(x,z))?GRASS_LIGHT:GRASS)),
-                        new Pair<>(1.0,(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), segment, h0, h1-h0, angleBuffer),z),INTERNAL_EDGE)),
-                        new Pair<>((double) roadWidth+1,(x, z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), segment, h0, h1-h0, angleBuffer),z),r.get(new Point2d(x,z))?DASH:ROAD)),
-                        new Pair<>((double) 2*roadWidth+1,(x, z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), segment, h0, h1-h0, angleBuffer),z),EMERGENCY_EDGE)),
-                        new Pair<>((double) 2*roadWidth+5,(x, z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), segment, h0, h1-h0, angleBuffer),z),EDGE))
+                        new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,height.apply(x,z),z),EDGE)),
+                        new Pair<>(4.0,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),EMERGENCY_EDGE)),
+                        new Pair<>(roadWidth+4.0,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),EDGE))
                 ),
                 List.of(
-                        new Pair<>(new Pair<>(-2*roadWidth-5.0,-2*roadWidth-1.0),(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), segment, h0, h1-h0, angleBuffer),z),EMERGENCY_ROAD)),
-                        new Pair<>(new Pair<>(-1.0,1.0),(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), segment, h0, h1-h0, angleBuffer),z),GRASS)),
-                        new Pair<>(new Pair<>(2*roadWidth+1.0,2*roadWidth+5.0),(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), segment, h0, h1-h0, angleBuffer),z),EMERGENCY_ROAD))
+                        new Pair<>(new Pair<>(0.0,4.0),(x,z)->setBlockState(new BlockPos(x,height.apply(x,z),z),EMERGENCY_ROAD))
                 )
         );
     }
 
-    private RoadPattern slopedPatternS(Arc arc, double h0, double h1)
-    {
-        return new RoadPattern(
-                0,
-                roadWidth+4,
-                (x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer),z), ROAD),
-                List.of(
-                        new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer),z),EDGE)),
-                        new Pair<>(4.0,(x, z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer),z),EMERGENCY_EDGE)),
-                        new Pair<>(roadWidth+4.0,(x, z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer),z),EDGE))
-                ),
-                List.of(
-                        new Pair<>(new Pair<>(0.0,4.0),(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer),z),EMERGENCY_ROAD))
-                )
-        );
-    }
+    private final RoadPattern sampleTrunkPattern = trunkPattern(new Line(0,0,0,0),(_,_)->0);
 
-    private RoadPattern slopedPattern(Arc arc, double h0, double h1, double bufferStart, double bufferEnd)
-    {
-        return new RoadPattern(
-                0,
-                roadWidth+4,
-                (x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, bufferStart, bufferEnd),z), ROAD),
-                List.of(
-                        new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, bufferStart, bufferEnd),z),EDGE)),
-                        new Pair<>(4.0,(x, z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, bufferStart, bufferEnd),z),EMERGENCY_EDGE)),
-                        new Pair<>(roadWidth+4.0,(x, z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, bufferStart, bufferEnd),z),EDGE))
-                ),
-                List.of(
-                        new Pair<>(new Pair<>(0.0,4.0),(x,z)->setBlockState(new BlockPos(x,getSlopeArc(new Point2(x, z), arc, h0, h1-h0, bufferStart, bufferEnd),z),EMERGENCY_ROAD))
-                )
-        );
-    }
-
-    private final RoadPattern sampleTrunkPattern = trunkPattern(new Line(0,0,0,0),0);
-
-    private final RoadPattern sampleSlopedPattern = slopedPattern(new Line(0,0,0,0),0,0);
+    private final RoadPattern sampleSlopedPattern = slopedPattern((_,_)->0);
 
     public Road2Cache(RandomState randomState, RegionPos regionPos)
     {
@@ -228,9 +167,9 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
         return regionPos.at(random.nextInt(bufferWidth,regionSize-bufferWidth),random.nextInt(bufferWidth,regionSize-bufferWidth));
     }
 
-    private void drawStraightRoad2T(Line line, int h)
+    private <T extends AbstractSegment<T>> void drawFlatTrunkRoad2(T segment, int h)
     {
-        drawSideRect(line, trunkPattern(line, h));
+        drawSideRect(segment, trunkPattern(segment, (_,_)->h));
     }
 
     private void drawStraightRoad2R(Line line, int h)
@@ -247,27 +186,22 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
 
     private void drawStraightRoad(Line line, double h0, double h1)
     {
-        drawSideRect(line, slopedPattern(line, h0, h1).flip());
-    }
-
-    private void drawCurvedRoad2T(Arc arc, int h)
-    {
-        drawSideRect(arc, trunkPattern(arc, h));
+        drawSideRect(line, slopedPattern((x,z)->getSlopeLine(new Point2(x, z), line, h0, h1-h0, linearBuffer)).flip());
     }
 
     private void drawCurvedRoad2(Arc arc, double h0, double h1)
     {
-        drawSideRect(arc, slopedPattern(arc, h0, h1));
+        drawSideRect(arc, trunkPattern(arc, (x,z)->getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer)));
     }
 
     private void drawCurvedRoad(Arc arc, double h0, double h1)
     {
-        drawSideRect(arc, slopedPatternS(arc, h0, h1));
+        drawSideRect(arc, slopedPattern((x,z)->getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer)));
     }
 
     private void drawCurvedRoad(Arc arc, double h0, double h1, double bufferStart, double bufferEnd, boolean flip)
     {
-        RoadPattern roadPattern=slopedPattern(arc, h0, h1, bufferStart, bufferEnd);
+        RoadPattern roadPattern=slopedPattern((x,z)->getSlopeArc(new Point2(x, z), arc, h0, h1-h0, bufferStart, bufferEnd));
         if(flip)roadPattern=roadPattern.flip();
         drawSideRect(arc, roadPattern);
     }
@@ -388,7 +322,7 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
         for (int i = 0; i < 2; i++) {
             //road at cross
             if (coordination[i] && coordination[i + 2]) {
-                drawStraightRoad2T(new Line(ports[i + 2], ports[i]), i * gapHeight);
+                drawFlatTrunkRoad2(new Line(ports[i + 2], ports[i]), i * gapHeight);
             }
             //connecting road
             if (coordination[i]) {
@@ -405,10 +339,10 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
                         arc0=new Arc(cs[0],r,joint.sub(cs[0]).atan2(),new Point2d(ports[i]).sub(cs[0]).atan2());
                         arc1=new Arc(cs[1],r,joint.sub(cs[1]).atan2(),new Point2d(portsN[i+2]).sub(cs[1]).atan2());
                     }
-                    drawCurvedRoad2T(arc0, i * gapHeight);
-                    drawCurvedRoad2T(arc1, i * gapHeight);
+                    drawFlatTrunkRoad2(arc0, i * gapHeight);
+                    drawFlatTrunkRoad2(arc1, i * gapHeight);
                 } catch (Exception e) {
-                    drawStraightRoad2T(new Line(ports[i], portsN[i + 2]), i * gapHeight);
+                    drawFlatTrunkRoad2(new Line(ports[i], portsN[i + 2]), i * gapHeight);
                 }
             }
         }
