@@ -32,7 +32,7 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
 
     private static final int largeCircleRadius=80;
 
-    private static final int roadWidth=5;
+    private static final double roadWidth=5;
 
     private static final int transitionCircleRadius=60;
 
@@ -54,20 +54,20 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
                 2*roadWidth+5,
                 (x,z)->setBlockState(new BlockPos(x,height.apply(x,z),z), ROAD),
                 List.of(
-                        new Pair<>((double) -2*roadWidth-5,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),EDGE)),
-                        new Pair<>((double) -2*roadWidth-1,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),EMERGENCY_EDGE)),
-                        new Pair<>((double) -roadWidth-1,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),l.get(new Point2d(x,z))?DASH:ROAD)),
+                        new Pair<>(-2*roadWidth-5,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),EDGE)),
+                        new Pair<>(-2*roadWidth-1,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),EMERGENCY_EDGE)),
+                        new Pair<>(-roadWidth -1,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),l.get(new Point2d(x,z))?DASH:ROAD)),
                         new Pair<>(-1.0,(x,z)->setBlockState(new BlockPos(x,height.apply(x,z),z),INTERNAL_EDGE)),
                         new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,height.apply(x,z),z),light.get(new Point2d(x,z))?GRASS_LIGHT:GRASS)),
                         new Pair<>(1.0,(x,z)->setBlockState(new BlockPos(x,height.apply(x,z),z),INTERNAL_EDGE)),
-                        new Pair<>((double) roadWidth+1,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),r.get(new Point2d(x,z))?DASH:ROAD)),
-                        new Pair<>((double) 2*roadWidth+1,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),EMERGENCY_EDGE)),
-                        new Pair<>((double) 2*roadWidth+5,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),EDGE))
+                        new Pair<>(roadWidth +1,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),r.get(new Point2d(x,z))?DASH:ROAD)),
+                        new Pair<>(2*roadWidth+1,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),EMERGENCY_EDGE)),
+                        new Pair<>(2*roadWidth+5,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),EDGE))
                 ),
                 List.of(
-                        new Pair<>(new Pair<>(-2*roadWidth-5.0,-2*roadWidth-1.0),(x,z)->setBlockState(new BlockPos(x,height.apply(x,z),z),EMERGENCY_ROAD)),
+                        new Pair<>(new Pair<>(-2*roadWidth-5,-2*roadWidth-1),(x,z)->setBlockState(new BlockPos(x,height.apply(x,z),z),EMERGENCY_ROAD)),
                         new Pair<>(new Pair<>(-1.0,1.0),(x,z)->setBlockState(new BlockPos(x,height.apply(x,z),z),GRASS)),
-                        new Pair<>(new Pair<>(2*roadWidth+1.0,2*roadWidth+5.0),(x,z)->setBlockState(new BlockPos(x,height.apply(x,z),z),EMERGENCY_ROAD))
+                        new Pair<>(new Pair<>(2*roadWidth+1,2*roadWidth+5),(x,z)->setBlockState(new BlockPos(x,height.apply(x,z),z),EMERGENCY_ROAD))
                 )
         );
     }
@@ -79,15 +79,15 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
                 roadWidth+4,
                 (x,z)->setBlockState(new BlockPos(x,h,z), ROAD),
                 List.of(
-                        new Pair<>((double) -roadWidth-4,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE)),
-                        new Pair<>((double) -roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),EMERGENCY_EDGE)),
+                        new Pair<>(-roadWidth -4,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE)),
+                        new Pair<>(-roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),EMERGENCY_EDGE)),
                         new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,h,z),INTERNAL_EDGE)),
-                        new Pair<>((double) roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),EMERGENCY_EDGE)),
-                        new Pair<>((double) roadWidth+4,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE))
+                        new Pair<>(roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),EMERGENCY_EDGE)),
+                        new Pair<>(roadWidth +4,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE))
                         ),
                 List.of(
-                        new Pair<>(new Pair<>(-roadWidth-4.0,(double)-roadWidth),(x,z)->setBlockState(new BlockPos(x,h,z),EMERGENCY_ROAD)),
-                        new Pair<>(new Pair<>((double) roadWidth,roadWidth+4.0),(x,z)->setBlockState(new BlockPos(x,h,z),EMERGENCY_ROAD))
+                        new Pair<>(new Pair<>(-roadWidth-4, -roadWidth),(x, z)->setBlockState(new BlockPos(x,h,z),EMERGENCY_ROAD)),
+                        new Pair<>(new Pair<>(roadWidth,roadWidth+4),(x, z)->setBlockState(new BlockPos(x,h,z),EMERGENCY_ROAD))
                 )
         );
     }
@@ -101,12 +101,12 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
                 (x,z)->setBlockState(new BlockPos(x,h,z), ROAD),
                 List.of(
                         new Pair<>(0.0,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE)),
-                        new Pair<>((double) roadWidth,(x,z)->setBlockState(new BlockPos(x,h,z),dash.get(new Point2d(x,z))?DASH:ROAD)),
-                        new Pair<>((double) 2*roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),EMERGENCY_EDGE)),
-                        new Pair<>((double) 2*roadWidth+4,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE))
+                        new Pair<>(roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),dash.get(new Point2d(x,z))?DASH:ROAD)),
+                        new Pair<>(2*roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),EMERGENCY_EDGE)),
+                        new Pair<>(2*roadWidth+4,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE))
                 ),
                 List.of(
-                        new Pair<>(new Pair<>((double)2*roadWidth,2*roadWidth+4.0),(x,z)->setBlockState(new BlockPos(x,h,z),EMERGENCY_ROAD))
+                        new Pair<>(new Pair<>(2*roadWidth,2*roadWidth+4),(x,z)->setBlockState(new BlockPos(x,h,z),EMERGENCY_ROAD))
                 )
         );
     }
