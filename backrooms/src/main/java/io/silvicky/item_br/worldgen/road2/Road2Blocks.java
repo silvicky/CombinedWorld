@@ -12,6 +12,8 @@ public enum Road2Blocks implements AbstractBlock<Road2Blocks> {
         c.setBlockState(b, Blocks.CONCRETE.white().defaultBlockState());
         c.setBlockState(b.above(), Blocks.COBBLESTONE.defaultBlockState());
     }),
+    EMERGENCY_ROAD((b,c)->c.setBlockState(b, Blocks.CONCRETE.gray().defaultBlockState())),
+    EMERGENCY_EDGE((b,c)->c.setBlockState(b, Blocks.CONCRETE.white().defaultBlockState())),
     ROAD((b,c)->c.setBlockState(b, Blocks.CONCRETE.black().defaultBlockState())),
     DASH((b,c)->c.setBlockState(b, Blocks.CONCRETE.white().defaultBlockState())),
     GRASS((b,c)->{
@@ -27,7 +29,10 @@ public enum Road2Blocks implements AbstractBlock<Road2Blocks> {
         c.setBlockState(b, Blocks.CONCRETE.white().defaultBlockState());
         c.setBlockState(b.above(), Blocks.COBBLESTONE.defaultBlockState());
     }),
-    WALL((b,c)->c.setBlockState(b, Blocks.CONCRETE.red().defaultBlockState()));
+    WALL((b,c)->{
+        c.setBlockState(b, Blocks.CONCRETE.red().defaultBlockState());
+        c.setBlockState(b.above(), Blocks.CONCRETE.red().defaultBlockState());
+    });
     public final BiConsumer<BlockPos, ChunkAccess> action;
 
     Road2Blocks(BiConsumer<BlockPos, ChunkAccess> action) {
