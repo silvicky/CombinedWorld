@@ -171,7 +171,9 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
         );
     }
 
-    private final RoadPattern samplePattern = mainPattern(new Line(0,0,0,0),0);
+    private final RoadPattern sampleTrunkPattern = trunkPattern(new Line(0,0,0,0),0);
+
+    private final RoadPattern sampleMainPattern = mainPattern(new Line(0,0,0,0),0);
 
     public Road2Cache(RandomState randomState, RegionPos regionPos)
     {
@@ -206,11 +208,6 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
     {
         RandomSource random=randomState.getOrCreateRandomFactory(key).at(regionPos.x,0,regionPos.z);
         return regionPos.at(random.nextInt(bufferWidth,regionSize-bufferWidth),random.nextInt(bufferWidth,regionSize-bufferWidth));
-    }
-
-    private void drawStraightRoad2(Line line, int h)
-    {
-        drawSideRect(line, mainPattern(line, h));
     }
 
     private void drawStraightRoad2T(Line line, int h)
@@ -268,8 +265,8 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
                 Point2 d1=ports[(i+1)%4].sub(center);
                 double sinOfAngle=abs(d0.cross(d1)/d0.len()/d1.len());
                 Point2d realCenter=new Point2d(center)
-                        .add(new Point2d(d0).scaleTo(samplePattern.max()/sinOfAngle))
-                        .add(new Point2d(d1).scaleTo(samplePattern.max()/sinOfAngle));
+                        .add(new Point2d(d0).scaleTo(sampleTrunkPattern.max()/sinOfAngle))
+                        .add(new Point2d(d1).scaleTo(sampleTrunkPattern.max()/sinOfAngle));
                 Arc cs = getInscribedCircle(realCenter, d0, d1, innerCircleRadius);
                 drawCurvedRoad(cs, roadWidth, gapHeight*finalI, gapHeight-gapHeight*finalI);
                 //TODO this is too ugly, use curve, also don't use points
@@ -288,19 +285,26 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
                 Point2 d0=ports[(defect + i + 2) % 4].sub(center);
                 Point2 d1=ports[(defect + i + 1) % 4].sub(center);
                 double sinOfAngle=abs(d0.cross(d1)/d0.len()/d1.len());
-                Point2d realCenter=new Point2d(center)
-                        .add(new Point2d(d0).scaleTo(samplePattern.max()/sinOfAngle))
-                        .add(new Point2d(d1).scaleTo(samplePattern.max()/sinOfAngle));
+                Point2d realCenter;
+                if(i==0) {
+                    realCenter = new Point2d(center)
+                            .add(new Point2d(d0).scaleTo(sampleTrunkPattern.max() / sinOfAngle))
+                            .add(new Point2d(d1).scaleTo(sampleMainPattern.max() / sinOfAngle));
+                } else {
+                    realCenter = new Point2d(center)
+                            .add(new Point2d(d0).scaleTo(sampleMainPattern.max() / sinOfAngle))
+                            .add(new Point2d(d1).scaleTo(sampleTrunkPattern.max() / sinOfAngle));
+                }
                 Arc cs = getInscribedCircle(realCenter, d0, d1, largeCircleRadius);
                 drawCurvedRoad(cs, roadWidth, gapHeight*finalI, gapHeight-gapHeight*finalI);
                 double dEnd=other.getProgress(cs.center());
                 if(i==0)
                 {
-                    drawStraightRoadS(new Line(other.a(), other.b() + samplePattern.min() + roadWidth, dStart, dEnd), (defect % 2) * gapHeight);
+                    drawStraightRoadS(new Line(other.a(), other.b() + sampleMainPattern.min() + roadWidth, dStart, dEnd), (defect % 2) * gapHeight);
                 }
                 else
                 {
-                    drawStraightRoadS(new Line(other.a(), other.b() + samplePattern.max() - roadWidth, dStart, dEnd), (defect % 2) * gapHeight);
+                    drawStraightRoadS(new Line(other.a(), other.b() + sampleMainPattern.max() - roadWidth, dStart, dEnd), (defect % 2) * gapHeight);
                 }
             }
             //big ones, see the func call below
@@ -311,7 +315,7 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
                 Point2 d1=ports[(defect + 1) % 4].sub(center);
                 double sinOfAngle=abs(d0.cross(d1)/d0.len()/d1.len());
                 Point2d realCenter=new Point2d(center)
-                        .add(new Point2d(d0).scaleTo(roadWidth/sinOfAngle));
+                        .add(new Point2d(d0).scaleTo((sampleTrunkPattern.max()-roadWidth)/sinOfAngle));
                 Arc cs2 = getInscribedCircle(realCenter, d0, d1, innerCircleRadius);
                 int finalI = defect % 2;
                 //missing straight line
@@ -329,7 +333,7 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
                 Point2 d1=ports[defect].sub(center);
                 double sinOfAngle=abs(d0.cross(d1)/d0.len()/d1.len());
                 Point2d realCenter=new Point2d(center)
-                        .add(new Point2d(d1).scaleTo(roadWidth/sinOfAngle));
+                        .add(new Point2d(d1).scaleTo((sampleTrunkPattern.max()-roadWidth)/sinOfAngle));
                 Arc cs2 = getInscribedCircle(realCenter, d0, d1, innerCircleRadius);
                 int finalI = defect % 2;
                 drawStraightRoad2R(new Line(other.a(),other.b(),dStart,other.getProgress(cs2.center())), finalI * gapHeight);
@@ -341,11 +345,7 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
             }
         } else if (directions.size() == 2) {
             //connect directly
-            if (directions.getLast() - directions.getFirst() == 2) {
-                //straight
-                int finalI = directions.getFirst();
-                drawStraightRoad2(new Line(ports[finalI + 2], ports[finalI]), finalI * gapHeight);
-            } else {
+            if (directions.getLast() - directions.getFirst() != 2) {
                 //curve with slope
                 int p0, p1;
                 //it is always p0->p1, CW
@@ -365,15 +365,15 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
         } else if (directions.size() == 1) {
             //dead end
             int p = directions.getFirst();
-            int y = (p % 2) * gapHeight + 1;
+            int y = (p % 2) * gapHeight + 1;//fixme
             Line line = new Line(ports[p],center);
-            drawLine(new Line(line.a()-PI/2,line.dStart(),-line.b()- samplePattern.min(),-line.b()-samplePattern.max()), (x, z) -> setBlockState(new BlockPos(x, y, z), WALL));
+            drawLine(new Line(line.a()-PI/2,line.dStart(),-line.b()- sampleTrunkPattern.min(),-line.b()- sampleTrunkPattern.max()), (x, z) -> setBlockState(new BlockPos(x, y, z), WALL));
         }
         //public parts
         for (int i = 0; i < 2; i++) {
             //road at cross
             if (coordination[i] && coordination[i + 2]) {
-                drawStraightRoad2(new Line(ports[i + 2], ports[i]), i * gapHeight);
+                drawStraightRoad2T(new Line(ports[i + 2], ports[i]), i * gapHeight);
             }
             //connecting road
             if (coordination[i]) {
