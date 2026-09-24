@@ -20,10 +20,14 @@ public enum Road2Blocks implements AbstractBlock<Road2Blocks> {
         c.setBlockState(b, Blocks.CONCRETE.black().defaultBlockState());
         c.setBlockState(b.above(), Blocks.GRASS_BLOCK.defaultBlockState());
     }),
-    GRASS_LIGHT((b,c)->{
+    HIDDEN_LIGHT((b, c)->{
         c.setBlockState(b, Blocks.CONCRETE.black().defaultBlockState());
-        c.setBlockState(b.above(), Blocks.GRASS_BLOCK.defaultBlockState());
-        c.setBlockState(b.above(2), Blocks.GLOWSTONE.defaultBlockState());//TODO
+        c.setBlockState(b.above(), Blocks.GLOWSTONE.defaultBlockState());
+    }),
+    TALL_LIGHT((b, c)->{
+        c.setBlockState(b, Blocks.CONCRETE.black().defaultBlockState());
+        for(int i=1;i<16;i++)c.setBlockState(b.above(i), Blocks.IRON_BLOCK.defaultBlockState());
+        c.setBlockState(b.above(16), Blocks.GLOWSTONE.defaultBlockState());//TODO can we access neighboring chunks?
     }),
     INTERNAL_EDGE((b,c)->{
         c.setBlockState(b, Blocks.CONCRETE.white().defaultBlockState());

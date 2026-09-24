@@ -44,7 +44,7 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
 
     private static final double bufferOutsideArc=3;
 
-    private RoadPattern trunkPattern(AbstractSegment<?> segment, BiFunction<Integer,Integer,Integer> height)
+    private RoadPattern trunkPattern(AbstractSegment<?> segment, BiFunction<Integer,Integer,Integer> height, Road2Blocks lightType)
     {
         Dash l=new Dash(segment);
         Dash r=new Dash(segment);
@@ -58,7 +58,7 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
                         new Pair<>(-2*roadWidth-1,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),EMERGENCY_EDGE)),
                         new Pair<>(-roadWidth -1,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),l.get(new Point2d(x,z))?DASH:ROAD)),
                         new Pair<>(-1.0,(x,z)->setBlockState(new BlockPos(x,height.apply(x,z),z),INTERNAL_EDGE)),
-                        new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,height.apply(x,z),z),light.get(new Point2d(x,z))?GRASS_LIGHT:GRASS)),
+                        new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,height.apply(x,z),z),light.get(new Point2d(x,z))? lightType :GRASS)),
                         new Pair<>(1.0,(x,z)->setBlockState(new BlockPos(x,height.apply(x,z),z),INTERNAL_EDGE)),
                         new Pair<>(roadWidth +1,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),r.get(new Point2d(x,z))?DASH:ROAD)),
                         new Pair<>(2*roadWidth+1,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),EMERGENCY_EDGE)),
@@ -128,7 +128,7 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
         );
     }
 
-    private final RoadPattern sampleTrunkPattern = trunkPattern(new Line(0,0,0,0),(_,_)->0);
+    private final RoadPattern sampleTrunkPattern = trunkPattern(new Line(0,0,0,0),(_,_)->0, TALL_LIGHT);
 
     private final RoadPattern sampleSlopedPattern = slopedPattern((_,_)->0);
 
@@ -167,9 +167,9 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
         return regionPos.at(random.nextInt(bufferWidth,regionSize-bufferWidth),random.nextInt(bufferWidth,regionSize-bufferWidth));
     }
 
-    private <T extends AbstractSegment<T>> void drawFlatTrunkRoad2(T segment, int h)
+    private <T extends AbstractSegment<T>> void drawFlatTrunkRoad2(T segment, int h, Road2Blocks lightType)
     {
-        drawSideRect(segment, trunkPattern(segment, (_,_)->h));
+        drawSideRect(segment, trunkPattern(segment, (_,_)->h,lightType));
     }
 
     private void drawStraightRoad2R(Line line, int h)
@@ -191,7 +191,7 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
 
     private void drawCurvedRoad2(Arc arc, double h0, double h1)
     {
-        drawSideRect(arc, trunkPattern(arc, (x,z)->getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer)));
+        drawSideRect(arc, trunkPattern(arc, (x,z)->getSlopeArc(new Point2(x, z), arc, h0, h1-h0, angleBuffer),TALL_LIGHT));
     }
 
     private void drawCurvedRoad(Arc arc, double h0, double h1)
@@ -322,7 +322,13 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
         for (int i = 0; i < 2; i++) {
             //road at cross
             if (coordination[i] && coordination[i + 2]) {
-                drawFlatTrunkRoad2(new Line(ports[i + 2], ports[i]), i * gapHeight);
+                Road2Blocks lightType;
+                if(i==0&&directions.size()>2) {
+                    lightType=HIDDEN_LIGHT;
+                } else {
+                    lightType=TALL_LIGHT;
+                }
+                drawFlatTrunkRoad2(new Line(ports[i + 2], ports[i]), i * gapHeight,lightType);
             }
             //connecting road
             if (coordination[i]) {
@@ -339,10 +345,10 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
                         arc0=new Arc(cs[0],r,joint.sub(cs[0]).atan2(),new Point2d(ports[i]).sub(cs[0]).atan2());
                         arc1=new Arc(cs[1],r,joint.sub(cs[1]).atan2(),new Point2d(portsN[i+2]).sub(cs[1]).atan2());
                     }
-                    drawFlatTrunkRoad2(arc0, i * gapHeight);
-                    drawFlatTrunkRoad2(arc1, i * gapHeight);
+                    drawFlatTrunkRoad2(arc0, i * gapHeight,TALL_LIGHT);
+                    drawFlatTrunkRoad2(arc1, i * gapHeight,TALL_LIGHT);
                 } catch (Exception e) {
-                    drawFlatTrunkRoad2(new Line(ports[i], portsN[i + 2]), i * gapHeight);
+                    drawFlatTrunkRoad2(new Line(ports[i], portsN[i + 2]), i * gapHeight,TALL_LIGHT);
                 }
             }
         }
