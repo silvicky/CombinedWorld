@@ -1,7 +1,12 @@
 package io.silvicky.item_br.worldgen;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.BiConsumer;
 
+import static io.silvicky.item_br.worldgen.Graphic.fill;
 import static java.lang.Math.*;
 
 /*
@@ -128,5 +133,24 @@ public record Line(double a, Point2 start, Point2 end, double b, double dStart, 
                 z=z1;
             }
         }
+    }
+
+    private static void drawRect(Line l0, Line l1, BiConsumer<Integer, Integer> consumer)
+    {
+        Map<Integer, List<Integer>> points=new HashMap<>();
+        BiConsumer<Integer,Integer> consumerBorder = (x,z)->points.computeIfAbsent(x,_->new ArrayList<>()).add(z);
+        l0.draw(consumerBorder);
+        l1.draw(consumerBorder);
+        new Line(l0.a()-PI/2,l0.dStart(),-l0.b(),-l1.b()).draw(consumerBorder);
+        new Line(l0.a()-PI/2,l0.dEnd(),-l0.b(),-l1.b()).draw(consumerBorder);
+        for(Map.Entry<Integer, List<Integer>> i:points.entrySet())
+        {
+            fill(i.getKey(), i.getValue(), consumer);
+        }
+    }
+
+    @Override
+    public void drawRectOf(double min, double max, BiConsumer<Integer, Integer> consumer) {
+        drawRect(move(min),move(max),consumer);
     }
 }

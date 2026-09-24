@@ -1,7 +1,12 @@
 package io.silvicky.item_br.worldgen;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.BiConsumer;
 
+import static io.silvicky.item_br.worldgen.Graphic.fill;
 import static java.lang.Math.*;
 
 public record Arc(Point2d center, Point2 start, Point2 end, double r, double aStart, double aEnd) implements AbstractSegment<Arc>
@@ -115,5 +120,48 @@ public record Arc(Point2d center, Point2 start, Point2 end, double r, double aSt
                 z=z1;
             }
         }
+    }
+
+    private static void drawFragmentedRing(Arc arc0, Arc arc1, BiConsumer<Integer, Integer> consumer) {
+        Map<Integer, List<Integer>> points = new HashMap<>();
+        arc0.draw((x, z) -> points.computeIfAbsent(x, _ -> new ArrayList<>()).add(z));
+        arc1.draw((x, z) -> points.computeIfAbsent(x, _ -> new ArrayList<>()).add(z));
+        new Line(arc0.aStart() - PI / 2,
+                arc0.center().dot(new Point2d(sin(arc0.aStart()), -cos(arc0.aStart()))),
+                arc0.center().dot(new Point2d(-cos(arc0.aStart()), -sin(arc0.aStart())))-arc0.r(),
+                arc0.center().dot(new Point2d(-cos(arc0.aStart()), -sin(arc0.aStart())))-arc1.r())
+                .draw((x, z) -> points.computeIfAbsent(x, _ -> new ArrayList<>()).add(z));
+        new Line(arc0.aEnd() - PI / 2,
+                arc0.center().dot(new Point2d(sin(arc0.aEnd()), -cos(arc0.aEnd()))),
+                arc0.center().dot(new Point2d(-cos(arc0.aEnd()), -sin(arc0.aEnd())))-arc0.r(),
+                arc0.center().dot(new Point2d(-cos(arc0.aEnd()), -sin(arc0.aEnd())))-arc1.r())
+                .draw((x, z) -> points.computeIfAbsent(x, _ -> new ArrayList<>()).add(z));
+        for (Map.Entry<Integer, List<Integer>> e : points.entrySet()) {
+            fill(e.getKey(), e.getValue(), consumer);
+        }
+    }
+
+    private static void drawRing(Arc arc0, Arc arc1, BiConsumer<Integer, Integer> consumer)
+    {
+        double border=0;
+        double lb=arc0.aStart();
+        double rb=arc0.aEnd();
+        while(border<lb)border+=PI;
+        while(border<=rb)
+        {
+            drawFragmentedRing(new Arc(arc0.center(),arc0.r(),lb,border),
+                    new Arc(arc1.center(),arc1.r(),lb,border),
+                    consumer);
+            lb=border;
+            border+=PI;
+        }
+        drawFragmentedRing(new Arc(arc0.center(),arc0.r(),lb,rb),
+                new Arc(arc1.center(),arc1.r(),lb,rb),
+                consumer);
+    }
+
+    @Override
+    public void drawRectOf(double min, double max, BiConsumer<Integer, Integer> consumer) {
+        drawRing(move(min),move(max),consumer);
     }
 }

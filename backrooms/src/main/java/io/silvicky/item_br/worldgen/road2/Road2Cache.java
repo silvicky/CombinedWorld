@@ -252,24 +252,24 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
 
     private void drawCurvedRoad2T(Arc arc, int h)
     {
-        drawSideRing(arc, trunkPattern(arc, h));
+        drawSideRect(arc, trunkPattern(arc, h));
     }
 
     private void drawCurvedRoad2(Arc arc, double h0, double h1)
     {
-        drawSideRing(arc, slopedPattern(arc, h0, h1));
+        drawSideRect(arc, slopedPattern(arc, h0, h1));
     }
 
     private void drawCurvedRoad(Arc arc, double h0, double h1)
     {
-        drawSideRing(arc, slopedPatternS(arc, h0, h1));
+        drawSideRect(arc, slopedPatternS(arc, h0, h1));
     }
 
     private void drawCurvedRoad(Arc arc, double h0, double h1, double bufferStart, double bufferEnd, boolean flip)
     {
         RoadPattern roadPattern=slopedPattern(arc, h0, h1, bufferStart, bufferEnd);
         if(flip)roadPattern=roadPattern.flip();
-        drawSideRing(arc, roadPattern);
+        drawSideRect(arc, roadPattern);
     }
 
     @Override

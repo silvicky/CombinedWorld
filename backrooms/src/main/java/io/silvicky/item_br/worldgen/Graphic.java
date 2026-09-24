@@ -9,7 +9,7 @@ import static java.lang.Math.*;
 
 public class Graphic
 {
-    private static void fill(int x, List<Integer> zs, BiConsumer<Integer, Integer> consumer)
+    public static void fill(int x, List<Integer> zs, BiConsumer<Integer, Integer> consumer)
     {
         if(zs.isEmpty()) return;
         int minZ= zs.getFirst();
@@ -22,126 +22,40 @@ public class Graphic
         for(int z=minZ; z<=maxZ; z++)consumer.accept(x, z);
     }
 
-    public static void drawRect(Line l0, Line l1, BiConsumer<Integer, Integer> consumer)
-    {
-        Map<Integer,List<Integer>> points=new HashMap<>();
-        BiConsumer<Integer,Integer> consumerBorder = (x,z)->points.computeIfAbsent(x,_->new ArrayList<>()).add(z);
-        l0.draw(consumerBorder);
-        l1.draw(consumerBorder);
-        new Line(l0.a()-PI/2,l0.dStart(),-l0.b(),-l1.b()).draw(consumerBorder);
-        new Line(l0.a()-PI/2,l0.dEnd(),-l0.b(),-l1.b()).draw(consumerBorder);
-        for(Map.Entry<Integer, List<Integer>> i:points.entrySet())
-        {
-            fill(i.getKey(), i.getValue(), consumer);
-        }
-    }
-
-    public static void drawSideRect(Line line, RoadPattern pattern)
+    public static <T extends AbstractSegment<T>> void drawSideRect(T segment, RoadPattern pattern)
     {
         //TODO use a timestamp in the future to avoid this
+        //todo still mismatch, also in lines, the problem seems to be that, some ending points are not accessible at all, and all should be rewritten
         Map<Point2, BiConsumer<Integer, Integer>> edges=new HashMap<>();
         Map<Point2, BiConsumer<Integer, Integer>> rects=new HashMap<>();
         for(Pair<Double, BiConsumer<Integer, Integer>> i: pattern.features())
         {
-            line.move(i.getFirst()).draw((x, z)-> edges.put(new Point2(x,z), i.getSecond()));
+            segment.move(i.getFirst()).draw((x, z)-> edges.put(new Point2(x,z), i.getSecond()));
         }
         for(Pair<Pair<Double,Double>, BiConsumer<Integer, Integer>> i: pattern.rectFeatures())
         {
-            drawRect(line.move(i.getFirst().getFirst()),
-                    line.move(i.getFirst().getSecond()),
+            segment.drawRectOf(i.getFirst().getFirst(),
+                    i.getFirst().getSecond(),
                     (x,z)->{
                         if(!edges.containsKey(new Point2(x,z)))rects.put(new Point2(x,z),i.getSecond());
                     });
         }
-        drawRect(line.move(pattern.min()),
-                line.move(pattern.max()),
+        segment.drawRectOf(pattern.min(),
+                pattern.max(),
                 (x,z)-> {
                     if(!edges.containsKey(new Point2(x,z))&&!rects.containsKey(new Point2(x,z)))pattern.road().accept(x, z);
                 });
         for(Pair<Pair<Double,Double>, BiConsumer<Integer, Integer>> i: pattern.rectFeatures())
         {
-            drawRect(line.move(i.getFirst().getFirst()),
-                    line.move(i.getFirst().getSecond()),
+            segment.drawRectOf(i.getFirst().getFirst(),
+                    i.getFirst().getSecond(),
                     (x,z)->{
                         if(!edges.containsKey(new Point2(x,z)))i.getSecond().accept(x, z);
                     });
         }
         for(Pair<Double, BiConsumer<Integer, Integer>> i: pattern.features())
         {
-            line.move(i.getFirst()).draw(i.getSecond());
-        }
-    }
-
-    private static void drawFragmentedRing(Arc arc0, Arc arc1, BiConsumer<Integer, Integer> consumer) {
-        Map<Integer, List<Integer>> points = new HashMap<>();
-        arc0.draw((x, z) -> points.computeIfAbsent(x, _ -> new ArrayList<>()).add(z));
-        arc1.draw((x, z) -> points.computeIfAbsent(x, _ -> new ArrayList<>()).add(z));
-        new Line(arc0.aStart() - PI / 2,
-                arc0.center().dot(new Point2d(sin(arc0.aStart()), -cos(arc0.aStart()))),
-                arc0.center().dot(new Point2d(-cos(arc0.aStart()), -sin(arc0.aStart())))-arc0.r(),
-                arc0.center().dot(new Point2d(-cos(arc0.aStart()), -sin(arc0.aStart())))-arc1.r())
-                .draw((x, z) -> points.computeIfAbsent(x, _ -> new ArrayList<>()).add(z));
-        new Line(arc0.aEnd() - PI / 2,
-                arc0.center().dot(new Point2d(sin(arc0.aEnd()), -cos(arc0.aEnd()))),
-                arc0.center().dot(new Point2d(-cos(arc0.aEnd()), -sin(arc0.aEnd())))-arc0.r(),
-                arc0.center().dot(new Point2d(-cos(arc0.aEnd()), -sin(arc0.aEnd())))-arc1.r())
-                .draw((x, z) -> points.computeIfAbsent(x, _ -> new ArrayList<>()).add(z));
-        for (Map.Entry<Integer, List<Integer>> e : points.entrySet()) {
-            fill(e.getKey(), e.getValue(), consumer);
-        }
-    }
-
-    public static void drawRing(Arc arc0, Arc arc1, BiConsumer<Integer, Integer> consumer)
-    {
-        double border=0;
-        double lb=arc0.aStart();
-        double rb=arc0.aEnd();
-        while(border<lb)border+=PI;
-        while(border<=rb)
-        {
-            drawFragmentedRing(new Arc(arc0.center(),arc0.r(),lb,border),
-                    new Arc(arc1.center(),arc1.r(),lb,border),
-                    consumer);
-            lb=border;
-            border+=PI;
-        }
-        drawFragmentedRing(new Arc(arc0.center(),arc0.r(),lb,rb),
-                new Arc(arc1.center(),arc1.r(),lb,rb),
-                consumer);
-    }
-
-    public static void drawSideRing(Arc arc, RoadPattern pattern)
-    {//todo still mismatch, also in lines, the problem seems to be that, some ending points are not accessible at all, and all should be rewritten
-        Map<Point2, BiConsumer<Integer, Integer>> edges=new HashMap<>();
-        Map<Point2, BiConsumer<Integer, Integer>> rects=new HashMap<>();
-        for(Pair<Double, BiConsumer<Integer, Integer>> i: pattern.features())
-        {
-            arc.move(i.getFirst()).draw((x, z)-> edges.put(new Point2(x,z), i.getSecond()));
-        }
-        for(Pair<Pair<Double,Double>, BiConsumer<Integer, Integer>> i: pattern.rectFeatures())
-        {
-            drawRing(arc.move(i.getFirst().getFirst()),
-                    arc.move(i.getFirst().getSecond()),
-                    (x,z)->{
-                if(!edges.containsKey(new Point2(x,z)))rects.put(new Point2(x,z),i.getSecond());
-            });
-        }
-        drawRing(arc.move(pattern.min()),
-                arc.move(pattern.max()),
-                (x,z)-> {
-            if(!edges.containsKey(new Point2(x,z))&&!rects.containsKey(new Point2(x,z)))pattern.road().accept(x, z);
-        });
-        for(Pair<Pair<Double,Double>, BiConsumer<Integer, Integer>> i: pattern.rectFeatures())
-        {
-            drawRing(arc.move(i.getFirst().getFirst()),
-                    arc.move(i.getFirst().getSecond()),
-                    (x,z)->{
-                if(!edges.containsKey(new Point2(x,z)))i.getSecond().accept(x, z);
-            });
-        }
-        for(Pair<Double, BiConsumer<Integer, Integer>> i: pattern.features())
-        {
-            arc.move(i.getFirst()).draw(i.getSecond());
+            segment.move(i.getFirst()).draw(i.getSecond());
         }
     }
 

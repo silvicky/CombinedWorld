@@ -16,4 +16,6 @@ public interface AbstractSegment<T> {
     T move(double offset);
 
     void draw(BiConsumer<Integer,Integer> consumer);
+
+    void drawRectOf(double min, double max, BiConsumer<Integer,Integer> consumer);
 }
