@@ -9,61 +9,6 @@ import static java.lang.Math.*;
 
 public class Graphic
 {
-    public static void drawLine(Line line, BiConsumer<Integer, Integer> consumer)
-    {
-        double dx = sin(line.a());
-        double dz = -cos(line.a());
-
-        Point2 mx=new Point2(dx>=0?1:-1,0);
-        Point2 mz=new Point2(0,dz>=0?1:-1);
-
-        Point2 advance, shift;
-
-        if(abs(dx)>=abs(dz))
-        {
-            advance=mx;
-            shift=mz;
-        }
-        else
-        {
-            advance=mz;
-            shift=mx;
-        }
-
-        Point2 realStart;
-        double realEnd;
-
-        if(line.dStart()<line.dEnd())
-        {
-            realStart=line.start();
-            realEnd=line.end().x*sin(line.a())-line.end().z*cos(line.a());
-        }
-        else {
-            realStart=line.end();
-            realEnd=line.start().x*sin(line.a())-line.start().z*cos(line.a());
-        }
-
-        int x=realStart.x;
-        int z=realStart.z;
-
-        while (true) {
-            consumer.accept(x, z);
-            double d=line.getProgress(new Point2d(x,z));
-            if(d>=realEnd)break;
-            x+=advance.x;
-            z+=advance.z;
-            double err=line.getDistance(new Point2d(x,z));
-            int x1=x+shift.x;
-            int z1=z+shift.z;
-            double err1=line.getDistance(new Point2d(x1,z1));
-            if(err1<err)
-            {
-                x=x1;
-                z=z1;
-            }
-        }
-    }
-
     private static void fill(int x, List<Integer> zs, BiConsumer<Integer, Integer> consumer)
     {
         if(zs.isEmpty()) return;
@@ -81,10 +26,10 @@ public class Graphic
     {
         Map<Integer,List<Integer>> points=new HashMap<>();
         BiConsumer<Integer,Integer> consumerBorder = (x,z)->points.computeIfAbsent(x,_->new ArrayList<>()).add(z);
-        drawLine(l0,consumerBorder);
-        drawLine(l1,consumerBorder);
-        drawLine(new Line(l0.a()-PI/2,l0.dStart(),-l0.b(),-l1.b()),consumerBorder);
-        drawLine(new Line(l0.a()-PI/2,l0.dEnd(),-l0.b(),-l1.b()),consumerBorder);
+        l0.draw(consumerBorder);
+        l1.draw(consumerBorder);
+        new Line(l0.a()-PI/2,l0.dStart(),-l0.b(),-l1.b()).draw(consumerBorder);
+        new Line(l0.a()-PI/2,l0.dEnd(),-l0.b(),-l1.b()).draw(consumerBorder);
         for(Map.Entry<Integer, List<Integer>> i:points.entrySet())
         {
             fill(i.getKey(), i.getValue(), consumer);
@@ -98,7 +43,7 @@ public class Graphic
         Map<Point2, BiConsumer<Integer, Integer>> rects=new HashMap<>();
         for(Pair<Double, BiConsumer<Integer, Integer>> i: pattern.features())
         {
-            drawLine(line.move(i.getFirst()),(x, z)-> edges.put(new Point2(x,z), i.getSecond()));
+            line.move(i.getFirst()).draw((x, z)-> edges.put(new Point2(x,z), i.getSecond()));
         }
         for(Pair<Pair<Double,Double>, BiConsumer<Integer, Integer>> i: pattern.rectFeatures())
         {
@@ -123,75 +68,24 @@ public class Graphic
         }
         for(Pair<Double, BiConsumer<Integer, Integer>> i: pattern.features())
         {
-            drawLine(line.move(i.getFirst()),i.getSecond());
-        }
-    }
-
-    public static void drawArc(Arc arc, BiConsumer<Integer, Integer> consumer)
-    {
-        Point2d center=arc.center();
-        Point2 p0=arc.start();
-        double aStart=new Point2d(arc.start()).sub(center).atan2();
-        double aEnd=new Point2d(arc.end()).sub(center).atan2();
-        if(aEnd<aStart)aEnd+=2*PI;
-        Point2[] move=
-                {
-                        new Point2(0,1),
-                        new Point2(-1,0),
-                        new Point2(0,-1),
-                        new Point2(1,0),
-                };
-        int x=p0.x;
-        int z=p0.z;
-        while (true) {
-            consumer.accept(x, z);
-            double a=new Point2d(x,z).sub(center).atan2();
-            if(a<aStart)a+=2*PI;
-            if(a>=aEnd)break;
-            Point2d dir=new Point2d(x,z).sub(center);
-            int quadrant=0;
-            if(dir.z<0)quadrant+=2;
-            if(dir.x*dir.z<0||(dir.z==0&&dir.x<0))quadrant+=1;
-            Point2 advance;
-            Point2 shift;
-            if((abs(dir.x)>abs(dir.z))^((quadrant&1)==0))
-            {
-                advance=move[(quadrant+1)%4];
-                shift =move[quadrant];
-            }
-            else
-            {
-                advance=move[quadrant];
-                shift =move[(quadrant+1)%4];
-            }
-            x+=advance.x;
-            z+=advance.z;
-            double err=arc.getDistance(new Point2d(x,z));
-            int x1=x+shift.x;
-            int z1=z+shift.z;
-            double err1=arc.getDistance(new Point2d(x1,z1));
-            if(err1<err)
-            {
-                x=x1;
-                z=z1;
-            }
+            line.move(i.getFirst()).draw(i.getSecond());
         }
     }
 
     private static void drawFragmentedRing(Arc arc0, Arc arc1, BiConsumer<Integer, Integer> consumer) {
         Map<Integer, List<Integer>> points = new HashMap<>();
-        drawArc(arc0, (x, z) -> points.computeIfAbsent(x, _ -> new ArrayList<>()).add(z));
-        drawArc(arc1, (x, z) -> points.computeIfAbsent(x, _ -> new ArrayList<>()).add(z));
-        drawLine(new Line(arc0.aStart() - PI / 2,
-                        arc0.center().dot(new Point2d(sin(arc0.aStart()), -cos(arc0.aStart()))),
-                        arc0.center().dot(new Point2d(-cos(arc0.aStart()), -sin(arc0.aStart())))-arc0.r(),
-                        arc0.center().dot(new Point2d(-cos(arc0.aStart()), -sin(arc0.aStart())))-arc1.r()),
-                (x, z) -> points.computeIfAbsent(x, _ -> new ArrayList<>()).add(z));
-        drawLine(new Line(arc0.aEnd() - PI / 2,
-                        arc0.center().dot(new Point2d(sin(arc0.aEnd()), -cos(arc0.aEnd()))),
-                        arc0.center().dot(new Point2d(-cos(arc0.aEnd()), -sin(arc0.aEnd())))-arc0.r(),
-                        arc0.center().dot(new Point2d(-cos(arc0.aEnd()), -sin(arc0.aEnd())))-arc1.r()),
-                (x, z) -> points.computeIfAbsent(x, _ -> new ArrayList<>()).add(z));
+        arc0.draw((x, z) -> points.computeIfAbsent(x, _ -> new ArrayList<>()).add(z));
+        arc1.draw((x, z) -> points.computeIfAbsent(x, _ -> new ArrayList<>()).add(z));
+        new Line(arc0.aStart() - PI / 2,
+                arc0.center().dot(new Point2d(sin(arc0.aStart()), -cos(arc0.aStart()))),
+                arc0.center().dot(new Point2d(-cos(arc0.aStart()), -sin(arc0.aStart())))-arc0.r(),
+                arc0.center().dot(new Point2d(-cos(arc0.aStart()), -sin(arc0.aStart())))-arc1.r())
+                .draw((x, z) -> points.computeIfAbsent(x, _ -> new ArrayList<>()).add(z));
+        new Line(arc0.aEnd() - PI / 2,
+                arc0.center().dot(new Point2d(sin(arc0.aEnd()), -cos(arc0.aEnd()))),
+                arc0.center().dot(new Point2d(-cos(arc0.aEnd()), -sin(arc0.aEnd())))-arc0.r(),
+                arc0.center().dot(new Point2d(-cos(arc0.aEnd()), -sin(arc0.aEnd())))-arc1.r())
+                .draw((x, z) -> points.computeIfAbsent(x, _ -> new ArrayList<>()).add(z));
         for (Map.Entry<Integer, List<Integer>> e : points.entrySet()) {
             fill(e.getKey(), e.getValue(), consumer);
         }
@@ -222,7 +116,7 @@ public class Graphic
         Map<Point2, BiConsumer<Integer, Integer>> rects=new HashMap<>();
         for(Pair<Double, BiConsumer<Integer, Integer>> i: pattern.features())
         {
-            drawArc(arc.move(i.getFirst()),(x, z)-> edges.put(new Point2(x,z), i.getSecond()));
+            arc.move(i.getFirst()).draw((x, z)-> edges.put(new Point2(x,z), i.getSecond()));
         }
         for(Pair<Pair<Double,Double>, BiConsumer<Integer, Integer>> i: pattern.rectFeatures())
         {
@@ -247,7 +141,7 @@ public class Graphic
         }
         for(Pair<Double, BiConsumer<Integer, Integer>> i: pattern.features())
         {
-            drawArc(arc.move(i.getFirst()),i.getSecond());
+            arc.move(i.getFirst()).draw(i.getSecond());
         }
     }
 

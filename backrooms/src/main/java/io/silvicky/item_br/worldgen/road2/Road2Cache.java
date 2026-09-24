@@ -382,7 +382,7 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
             int p = directions.getFirst();
             int y = (p % 2) * gapHeight;
             Line line = new Line(ports[p],center);
-            drawLine(new Line(line.a()-PI/2,line.dStart(),-line.b()- sampleTrunkPattern.min(),-line.b()- sampleTrunkPattern.max()), (x, z) -> setBlockState(new BlockPos(x, y, z), WALL));
+            new Line(line.a()-PI/2,line.dStart(),-line.b()- sampleTrunkPattern.min(),-line.b()- sampleTrunkPattern.max()).draw((x, z) -> setBlockState(new BlockPos(x, y, z), WALL));
         }
         //public parts
         for (int i = 0; i < 2; i++) {

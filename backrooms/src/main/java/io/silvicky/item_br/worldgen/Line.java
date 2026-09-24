@@ -1,5 +1,7 @@
 package io.silvicky.item_br.worldgen;
 
+import java.util.function.BiConsumer;
+
 import static java.lang.Math.*;
 
 /*
@@ -71,5 +73,60 @@ public record Line(double a, Point2 start, Point2 end, double b, double dStart, 
     @Override
     public Line move(double offset) {
         return new Line(a,b+offset,dStart,dEnd);
+    }
+
+    @Override
+    public void draw(BiConsumer<Integer, Integer> consumer) {
+        double dx = sin(a);
+        double dz = -cos(a);
+
+        Point2 mx=new Point2(dx>=0?1:-1,0);
+        Point2 mz=new Point2(0,dz>=0?1:-1);
+
+        Point2 advance, shift;
+
+        if(abs(dx)>=abs(dz))
+        {
+            advance=mx;
+            shift=mz;
+        }
+        else
+        {
+            advance=mz;
+            shift=mx;
+        }
+
+        Point2 realStart;
+        double realEnd;
+
+        if(dStart<dEnd)
+        {
+            realStart=start;
+            realEnd=end.x*sin(a)-end.z*cos(a);
+        }
+        else {
+            realStart=end;
+            realEnd=start.x*sin(a)-start.z*cos(a);
+        }
+
+        int x=realStart.x;
+        int z=realStart.z;
+
+        while (true) {
+            consumer.accept(x, z);
+            double d=getProgress(new Point2d(x,z));
+            if(d>=realEnd)break;
+            x+=advance.x;
+            z+=advance.z;
+            double err=getDistance(new Point2d(x,z));
+            int x1=x+shift.x;
+            int z1=z+shift.z;
+            double err1=getDistance(new Point2d(x1,z1));
+            if(err1<err)
+            {
+                x=x1;
+                z=z1;
+            }
+        }
     }
 }
