@@ -9,6 +9,8 @@ import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.RandomState;
 import org.jspecify.annotations.NonNull;
 
+import java.util.concurrent.CompletableFuture;
+
 public class CustomWorldGen extends AbstractCustomWorldGen
 {
     public static final MapCodec<CustomWorldGen> CODEC = RecordCodecBuilder.mapCodec(
@@ -35,8 +37,9 @@ public class CustomWorldGen extends AbstractCustomWorldGen
     }
 
     @Override
-    protected void gen(@NonNull ChunkAccess chunk, @NonNull RandomState randomState)
+    protected CompletableFuture<ChunkAccess> gen(@NonNull ChunkAccess chunk, @NonNull RandomState randomState)
     {
         worldGen.gen(chunk, randomState);
+        return CompletableFuture.completedFuture(chunk);
     }
 }

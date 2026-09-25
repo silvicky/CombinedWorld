@@ -5,12 +5,14 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.levelgen.RandomState;
 import org.jspecify.annotations.NonNull;
 
+import java.util.concurrent.CompletableFuture;
+
 /**
  * Advanced rule, new instance for each world and allows nearly everything in config
  */
 public interface CustomRuleAdv
 {
-    void gen(@NonNull ChunkAccess chunk, @NonNull RandomState randomState);
+    CompletableFuture<ChunkAccess> gen(@NonNull ChunkAccess chunk, @NonNull RandomState randomState);
 
     MapCodec<? extends CustomRuleAdv> codec();
 }

@@ -36,7 +36,7 @@ public abstract class AbstractCustomWorldGen extends ChunkGenerator
     @Override
     protected abstract @NonNull MapCodec<? extends ChunkGenerator> codec();
 
-    protected abstract void gen(@NonNull ChunkAccess chunk, @NonNull RandomState randomState);
+    protected abstract CompletableFuture<ChunkAccess> gen(@NonNull ChunkAccess chunk, @NonNull RandomState randomState);
 
     @Override
     public void spawnOriginalMobs(@NonNull WorldGenRegion worldGenRegion)
@@ -53,8 +53,7 @@ public abstract class AbstractCustomWorldGen extends ChunkGenerator
     @Override
     public @NonNull CompletableFuture<ChunkAccess> buildTerrain(@NonNull ChunkAccess centerChunk, @NonNull Blender blender, @NonNull RandomState randomState, @NonNull StructureManager structureManager, @NonNull BiomeManager biomeManager, @Nullable WorldGenRegion carverBiomeRegion, @NonNull Set<Holder<Biome>> possibleBiomes)
     {
-        gen(centerChunk, randomState);
-        return CompletableFuture.completedFuture(centerChunk);
+        return gen(centerChunk, randomState);
     }
 
     @Override

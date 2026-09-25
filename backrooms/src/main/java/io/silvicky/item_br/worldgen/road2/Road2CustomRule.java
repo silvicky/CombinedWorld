@@ -7,6 +7,8 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.levelgen.RandomState;
 import org.jspecify.annotations.NonNull;
 
+import java.util.concurrent.CompletableFuture;
+
 public class Road2CustomRule implements CustomRuleAdv
 {
     public static final MapCodec<Road2CustomRule> CODEC= MapCodec.unit(Road2CustomRule::new);
@@ -16,13 +18,13 @@ public class Road2CustomRule implements CustomRuleAdv
     private Road2CacheManager cache=null;
 
     @Override
-    public void gen(@NonNull ChunkAccess chunk, @NonNull RandomState randomState)
+    public CompletableFuture<ChunkAccess> gen(@NonNull ChunkAccess chunk, @NonNull RandomState randomState)
     {
         if(cache==null)
         {
             cache=new Road2CacheManager(randomState);
         }
-        cache.generate(chunk);
+        return cache.generate(chunk);
     }
 
     @Override
