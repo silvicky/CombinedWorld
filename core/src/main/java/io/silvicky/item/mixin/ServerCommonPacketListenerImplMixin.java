@@ -12,6 +12,7 @@ import net.minecraft.network.protocol.game.*;
 import net.minecraft.server.network.ServerCommonPacketListenerImpl;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.world.entity.PositionPath;
+import net.minecraft.world.entity.PositionStep;
 import net.minecraft.world.entity.Relative;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.phys.Vec3;
@@ -121,7 +122,7 @@ public class ServerCommonPacketListenerImplMixin
             }
             if (packet instanceof ClientboundLevelParticlesPacket particleS2CPacket)
             {
-                Vec3 pos = new Vec3(particleS2CPacket.x, 0, particleS2CPacket.z);
+                Vec3 pos = vecTransformer.s2cTransform(new Vec3(particleS2CPacket.x, 0, particleS2CPacket.z));
                 particleS2CPacket.x = pos.x;
                 particleS2CPacket.z = pos.z;
                 return;
@@ -169,7 +170,7 @@ public class ServerCommonPacketListenerImplMixin
             }
             if (packet instanceof ClientboundEntityPositionSyncPacket clientboundEntityPositionSyncPacket)
             {
-                clientboundEntityPositionSyncPacket.position = new PositionPath.Linear(vecTransformer.s2cTransform(clientboundEntityPositionSyncPacket.position().endPosition()));
+                clientboundEntityPositionSyncPacket.position = transformPositionPath(clientboundEntityPositionSyncPacket.position(), vecTransformer);
                 return;
             }
             if (packet instanceof ClientboundDamageEventPacket clientboundDamageEventPacket)
@@ -206,5 +207,31 @@ public class ServerCommonPacketListenerImplMixin
             System.out.println("Packet discarded: "+packet);
             ci.cancel();
         }
+    }
+
+    /**
+     * Position paths can contain multiple interpolation points. Transforming only
+     * {@link PositionPath#endPosition()} collapses a stepped path into a line and
+     * makes the client interpolate through untransformed coordinates.
+     */
+    @Unique
+    private static PositionPath transformPositionPath(PositionPath path, VecTransformer vecTransformer) throws ChunkUnusedException
+    {
+        if (path instanceof PositionPath.Linear)
+        {
+            return new PositionPath.Linear(vecTransformer.s2cTransform(path.endPosition()));
+        }
+
+        if (path instanceof PositionPath.Stepped stepped)
+        {
+            List<PositionStep> transformedSteps = new ArrayList<>(stepped.steps().size());
+            for (PositionStep step : stepped.steps())
+            {
+                transformedSteps.add(new PositionStep(vecTransformer.s2cTransform(step.position()), step.tickOffset()));
+            }
+            return PositionPath.stepped(transformedSteps);
+        }
+
+        throw new IllegalStateException("Unknown PositionPath implementation: " + path.getClass());
     }
 }

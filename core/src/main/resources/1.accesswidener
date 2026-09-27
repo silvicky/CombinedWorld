@@ -88,6 +88,12 @@ accessible field net/minecraft/network/protocol/game/ClientboundMoveVehiclePacke
 mutable field net/minecraft/network/protocol/game/ClientboundMoveVehiclePacket movingTo Lnet/minecraft/core/PositionAndRotation;
 accessible field net/minecraft/network/protocol/game/ServerboundMoveVehiclePacket movingTo Lnet/minecraft/core/PositionAndRotation;
 mutable field net/minecraft/network/protocol/game/ServerboundMoveVehiclePacket movingTo Lnet/minecraft/core/PositionAndRotation;
+accessible field net/minecraft/network/protocol/game/ServerboundAcceptTeleportationPacket x D
+mutable field net/minecraft/network/protocol/game/ServerboundAcceptTeleportationPacket x D
+accessible field net/minecraft/network/protocol/game/ServerboundAcceptTeleportationPacket y D
+mutable field net/minecraft/network/protocol/game/ServerboundAcceptTeleportationPacket y D
+accessible field net/minecraft/network/protocol/game/ServerboundAcceptTeleportationPacket z D
+mutable field net/minecraft/network/protocol/game/ServerboundAcceptTeleportationPacket z D
 accessible field net/minecraft/network/protocol/game/ClientboundEntityPositionSyncPacket position Lnet/minecraft/world/entity/PositionPath;
 mutable field net/minecraft/network/protocol/game/ClientboundEntityPositionSyncPacket position Lnet/minecraft/world/entity/PositionPath;
 accessible field net/minecraft/network/protocol/game/ClientboundBlockUpdatePacket pos Lnet/minecraft/core/BlockPos;
