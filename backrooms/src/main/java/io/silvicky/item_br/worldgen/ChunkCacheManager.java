@@ -49,7 +49,7 @@ public abstract class ChunkCacheManager<B extends AbstractBlock<B>, C extends Ch
                 .toList();
 
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                .thenApply(_ -> {
+                .thenApplyAsync(_ -> {
                     K rawChunk = newChunk();
                     for (int i = 0; i < sources.size(); i++) {
                         C cache = futures.get(i).join();

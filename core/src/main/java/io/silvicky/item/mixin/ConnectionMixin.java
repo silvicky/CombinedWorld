@@ -56,6 +56,18 @@ public abstract class ConnectionMixin
             vehicleMoveC2SPacket.movingTo=new PositionAndRotation.Immutable(vecTransformer.c2sTransform(pr.position()),pr.yRot(), pr.xRot());
             return;
         }
+        if (packet instanceof ServerboundAcceptTeleportationPacket acceptTeleportationC2SPacket)
+        {
+            // 26.3 includes the client-side position in the teleport acknowledgement.
+            // The server validates it in server coordinates, so undo the view transform.
+            Vec3 pos = vecTransformer.c2sTransform(
+                    new Vec3(acceptTeleportationC2SPacket.x, acceptTeleportationC2SPacket.y, acceptTeleportationC2SPacket.z)
+            );
+            acceptTeleportationC2SPacket.x = pos.x;
+            acceptTeleportationC2SPacket.y = pos.y;
+            acceptTeleportationC2SPacket.z = pos.z;
+            return;
+        }
         if(packet instanceof ServerboundInteractPacket playerInteractEntityC2SPacket)
         {
             playerInteractEntityC2SPacket.location =vecTransformer.c2sTransform(playerInteractEntityC2SPacket.location);
