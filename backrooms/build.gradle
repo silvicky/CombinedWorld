@@ -40,7 +40,7 @@ dependencies {
     implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
     implementation 'com.github.Querz:NBT:6.1'
     // Source: https://mvnrepository.com/artifact/com.github.ben-manes.caffeine/caffeine
-    implementation("com.github.ben-manes.caffeine:caffeine:3.3.0")
+    include implementation("com.github.ben-manes.caffeine:caffeine:3.3.0")
     api project(":core")
 
 
