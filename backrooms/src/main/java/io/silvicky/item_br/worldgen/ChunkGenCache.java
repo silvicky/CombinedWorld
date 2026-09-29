@@ -25,10 +25,22 @@ public abstract class ChunkGenCache<T extends AbstractBlock<T>>
         return chunks.get(chunkPos);
     }
 
+    /**
+     * Approximate retained size of this region's block data, for cache-memory reporting.
+     */
+    public long retainedBytes(){
+        long total=0;
+        for (SimpleChunk<T> chunk : chunks.values()) total += chunk.retainedBytes();
+        return total;
+    }
+
     public void setBlockState(BlockPos pos, T state)
     {
         ChunkPos chunkPos=ChunkPos.containing(pos);
-        SimpleChunk<T> simpleChunk=chunks.computeIfAbsent(chunkPos,_->getNewChunk(chunkPos));
+        //get before computeIfAbsent: this runs once per block written, and compute() takes a bin lock
+        //even when the entry is already there.
+        SimpleChunk<T> simpleChunk=chunks.get(chunkPos);
+        if(simpleChunk==null)simpleChunk=chunks.computeIfAbsent(chunkPos,_->getNewChunk(chunkPos));
         simpleChunk.setBlockState(pos, state);
     }
 

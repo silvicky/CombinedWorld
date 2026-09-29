@@ -2,8 +2,6 @@ package io.silvicky.item_br.worldgen;
 
 import net.minecraft.core.BlockPos;
 
-import java.util.Objects;
-
 import static java.lang.Math.round;
 import static java.lang.Math.sqrt;
 
@@ -87,6 +85,8 @@ public class Point2
     @Override
     public int hashCode()
     {
-        return Objects.hash(x, z);
+        //Not Objects.hash(x, z): that boxes into a fresh Object[] on every call, and this is on the
+        //per-block path of every region render.
+        return 31 * x + z;
     }
 }

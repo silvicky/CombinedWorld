@@ -47,4 +47,9 @@ public enum Road2Blocks implements AbstractBlock<Road2Blocks> {
     public void apply(BlockPos blockPos, ChunkAccess chunkAccess) {
         action.accept(blockPos, chunkAccess);
     }
+
+    @Override
+    public int id() {
+        return ordinal();
+    }
 }

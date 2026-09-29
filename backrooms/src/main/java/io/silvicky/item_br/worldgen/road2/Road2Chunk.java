@@ -1,14 +1,24 @@
 package io.silvicky.item_br.worldgen.road2;
 
 import io.silvicky.item_br.worldgen.SimpleChunk;
-import net.minecraft.core.BlockPos;
 
 public class Road2Chunk extends SimpleChunk<Road2Blocks>
 {
-    @Override
-    public void setBlockState(BlockPos pos, Road2Blocks state)
+    private static final Road2Blocks[] VALUES=Road2Blocks.values();
+
+    static
     {
-        Road2Blocks cur=getBlockState(pos);
-        if(cur==null||state.compareTo(cur)>0)super.setBlockState(pos, state);
+        //SimpleChunk stores ordinals+1 and reads them back through this array, so the two have to agree.
+        for (int i = 0; i < VALUES.length; i++) {
+            if (VALUES[i].id()!=i) {
+                throw new IllegalStateException("Road2Blocks id() must match declaration order, but "
+                        +VALUES[i]+".id()="+VALUES[i].id()+" at index "+i);
+            }
+        }
+    }
+
+    public Road2Chunk()
+    {
+        super(VALUES);
     }
 }
