@@ -44,8 +44,9 @@ public abstract class ChunkMapMixin
     @Redirect(method = "getPlayers", at= @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ChunkMap;isChunkOnTrackedBorder(Lnet/minecraft/server/level/ServerPlayer;II)Z",ordinal = 0))
     private boolean inject1(ChunkMap instance, ServerPlayer serverPlayer, int i, int j)
     {
-        //[S] i,j are the chunk coordinates vanilla is iterating the *client's view* in, so this is C-field
-        //and the helper converts them before using them against server state.
+        //[C] i,j are the chunk coordinates vanilla is iterating the *client's view* in, so this is C-field,
+        //not S. The helper converts them before using them against server state, which is the correct
+        //direction - an earlier version of this comment claimed [S] and contradicted the line below it.
         //
         //Bails out immediately for the identity remap. getPlayers calls this once per chunk in the view, per
         //player, per tracking update, so with the nop transformer - the default for an unconfigured

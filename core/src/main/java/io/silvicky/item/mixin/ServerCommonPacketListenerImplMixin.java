@@ -28,6 +28,17 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.lang.reflect.Field;
 import java.util.*;
 
+/**
+ * The server-to-client boundary.
+ *
+ * <p>This is the one place where server world coordinates legitimately become client view coordinates: every
+ * position in an outbound packet is {@code [S]} on the way in and {@code [S>C]} on the way out. The mirror of
+ * {@code ConnectionMixin}, and the only other legal conversion site. See
+ * {@link io.silvicky.item.backrooms.CoordinateSpace} for the marker legend.
+ *
+ * <p>Note the two boundaries are the only two places in the mod that are allowed to convert at all. Anything
+ * that transforms a position on the server thread, after a packet has been decoded, is a double transform.
+ */
 @Mixin(ServerCommonPacketListenerImpl.class)
 public class ServerCommonPacketListenerImplMixin
 {

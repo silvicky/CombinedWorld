@@ -28,6 +28,11 @@ public abstract class LevelMixin
         }
         EntitySectionStorage<T> sectionStorage =((LevelEntityGetterAdapter<T>)instance).sectionStorage;
         VecTransformer transformer=VecTransformer.getInstance(player);
+        //[S] aABB is the searching entity's own world-space box. The whole intersection test is then done
+        //in C-field: aABB2 is the query box moved to the client's view, the section loop walks C-field
+        //coordinates, and each SectionPos is mapped back with c2sTransform before touching sectionStorage
+        //(which is keyed S-field). aABB4 is the candidate entity's box, likewise moved into C-field, so the
+        //two boxes being intersected are in the same field.
         try
         {
             AABB aABB2 = aABB.move(transformer.s2cTransform(aABB.getBottomCenter()).subtract(aABB.getBottomCenter()));

@@ -47,6 +47,14 @@ public class XorTransformer extends VecTransformer
     }
     private void addLoadingTicket()
     {
-        for(ChunkPos pos:getS2c().keySet())player.level().getChunkSource().addTicketWithRadius(TicketType.ENDER_PEARL, pos, 2);
+        //Same mapping as getS2c(), without materialising it. addLoadingTicket() runs from tick() for every
+        //player every tick, and getS2c() would build and then copy two (2*viewDistance+5)^2 maps per call.
+        ChunkPos center=player.chunkPosition();
+        ChunkPos cc=s2cTransform(center);
+        for(int x=-viewDistance-2;x<=viewDistance+2;x++)
+            for(int z=-viewDistance-2;z<=viewDistance+2;z++)
+            {
+                player.level().getChunkSource().addTicketWithRadius(TicketType.ENDER_PEARL,c2sTransform(new ChunkPos(cc.x()+x,cc.z()+z)),2);
+            }
     }
 }
