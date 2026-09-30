@@ -5,50 +5,35 @@ import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
 public abstract class PositionedHelper
 {
-    public static boolean isWithinDistance(ChunkTrackingView.Positioned view, ChunkPos s, boolean bl)
+    /**
+     * The remap for a tracking view, or {@link ChunkRemap#IDENTITY} when none is in effect - either the
+     * identity transformer is in use, or {@code applyChunkTrackingView} has not populated the view yet.
+     * An identity remap always means "use vanilla", never "no chunks".
+     */
+    public static ChunkRemap remapOf(ChunkTrackingView view)
     {
-        try
-        {
-            Map<ChunkPos,ChunkPos> s2c=((PositionedAccess)(Object)view).item_storage$getS2cMap();
-            ChunkPos c = s2c.get(s);
-            ChunkPos lastC=s2c.get(view.center());
-            return ChunkTrackingView.isWithinDistance(c.x(), c.z(), view.viewDistance(), lastC.x(), lastC.z(), bl);
-        }
-        catch (NullPointerException e){return false;}
-    }
-
-    private static Map<ChunkPos,ChunkPos> listChunkTrackingViewContent(ChunkTrackingView.Positioned view)
-    {
-        Map<ChunkPos,ChunkPos> src= ((PositionedAccess)(ChunkTrackingView)view).item_storage$getS2cMap();
-        Map<ChunkPos,ChunkPos> ret=new HashMap<>();
-        for(Map.Entry<ChunkPos,ChunkPos> entry:src.entrySet())if(isWithinDistance(view, entry.getKey(), true))ret.put(entry.getKey(),entry.getValue());
-        return Map.copyOf(ret);
+        return view instanceof PositionedAccess access?access.item_storage$getRemap():ChunkRemap.IDENTITY;
     }
 
     public static void forEachKey(ChunkTrackingView view, Consumer<ChunkPos> consumer)
     {
-        if(view instanceof ChunkTrackingView.Positioned positioned)
+        ChunkRemap remap=remapOf(view);
+        if(!remap.needsEnumeration()||!(view instanceof ChunkTrackingView.Positioned positioned))
         {
-            for (ChunkPos pos : listChunkTrackingViewContent(positioned).keySet())
-            {
-                consumer.accept(pos);
-            }
+            view.forEach(consumer);
+            return;
         }
-        else view.forEach(consumer);
+        remap.forEach(positioned,consumer);
     }
 
-    public static void differenceInChunkTrackingView(ChunkTrackingView.Positioned chunkTrackingView, ChunkTrackingView.Positioned chunkTrackingView2, Consumer<ChunkPos> consumer, Consumer<ChunkPos> consumer2)
+    public static void differenceInChunkTrackingView(ChunkTrackingView.Positioned view, ChunkTrackingView.Positioned other, Consumer<ChunkPos> added, Consumer<ChunkPos> removed)
     {
-        Map<ChunkPos,ChunkPos> list=listChunkTrackingViewContent(chunkTrackingView);
-        Map<ChunkPos,ChunkPos> list2=listChunkTrackingViewContent(chunkTrackingView2);
-        for(ChunkPos i:list.keySet())if(!(list2.containsKey(i)&&list2.get(i).equals(list.get(i))))consumer2.accept(i);
-        for(ChunkPos i:list2.keySet())if(!(list.containsKey(i)&&list.get(i).equals(list2.get(i))))consumer.accept(i);
+        remapOf(view).difference(view,other,added,removed);
     }
 
     public static boolean isChunkTracked(ServerPlayer serverPlayer, int i, int j) {
@@ -56,22 +41,36 @@ public abstract class PositionedHelper
     }
 
     public static boolean isChunkOnTrackedBorder(ServerPlayer serverPlayer, int i, int j) {
-        if (isChunkTracked(serverPlayer, i, j))
+        if (!isChunkTracked(serverPlayer, i, j))
         {
-            try
+            return false;
+        }
+        ChunkRemap remap=remapOf(serverPlayer.getChunkTrackingView());
+        if (!remap.needsEnumeration())
+        {
+            //Vanilla semantics, verified against ChunkMap#isChunkOnTrackedBorder: we are on the border
+            //when any of the eight neighbours is not tracked. A constant offset preserves the distance
+            //between chunks, so this is also the right answer for a translation.
+            for (int dx=-1;dx<=1;dx++)for (int dz=-1;dz<=1;dz++)
             {
-                Map<ChunkPos,ChunkPos> s2c=((PositionedAccess) serverPlayer.getChunkTrackingView()).item_storage$getS2cMap();
-                ChunkPos pos = s2c.get(new ChunkPos(i, j));
-                for(ChunkPos pos1:s2c.keySet())
+                if (dx==0&&dz==0)continue;
+                if (!isChunkTracked(serverPlayer, i+dx, j+dz))return true;
+            }
+            return false;
+        }
+        try
+        {
+            Map<ChunkPos,ChunkPos> s2c=remap.map();
+            ChunkPos pos = s2c.get(new ChunkPos(i, j));
+            for(ChunkPos pos1:s2c.keySet())
+            {
+                if (Util.chunkPosDistance(pos,s2c.get(pos1))==1 && !isChunkTracked(serverPlayer, pos1.x(), pos1.z()))
                 {
-                    if (Util.chunkPosDistance(pos,s2c.get(pos1))==1 && !isChunkTracked(serverPlayer, pos1.x(), pos1.z()))
-                    {
-                        return true;
-                    }
+                    return true;
                 }
             }
-            catch (Exception ignored){}
         }
+        catch (Exception ignored){}
         return false;
     }
 }

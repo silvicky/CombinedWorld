@@ -3,9 +3,17 @@ package io.silvicky.item.backrooms;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 
-import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * The identity transformer: every position maps to itself.
+ *
+ * <p>It is also the fallback for an unconfigured dimension and for a failed reflection, so this is the
+ * overwhelmingly common case. It returns a null {@link #getS2c()}, which {@link #getRemap()} turns into
+ * {@link ChunkRemap#IDENTITY} and makes every chunk-tracking injection in this mod a no-op, leaving vanilla
+ * to run its own tracking view. That matters because the remap path is not free: it allocates an
+ * {@code (2*viewDistance+5)^2} entry map per tracking-view update and walks it on every containment query.
+ */
 public class NopTransformer extends VecTransformer
 {
     public NopTransformer(ServerPlayer player)
@@ -14,18 +22,9 @@ public class NopTransformer extends VecTransformer
     }
 
     @Override
-    public Map<ChunkPos, ChunkPos> getS2c()
+    public Map<ChunkPos,ChunkPos> getS2c()
     {
-        //TODO ??
-        ChunkPos center=player.chunkPosition();
-        Map<ChunkPos,ChunkPos> s2c=new HashMap<>();
-        for(int x=-viewDistance-2;x<=viewDistance+2;x++)
-            for(int z=-viewDistance-2;z<=viewDistance+2;z++)
-            {
-                ChunkPos c1=new ChunkPos(center.x()+x,center.z()+z);
-                s2c.put(c1,c1);
-            }
-        return Map.copyOf(s2c);
+        return null;
     }
 
     @Override

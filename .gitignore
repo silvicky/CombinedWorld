@@ -5,6 +5,18 @@ build/
 out/
 classes/
 
+# dev-run output. The run/ trees hold the local Minecraft instances, their logs and their config;
+# none of it is source, and logs/ in particular is written to on every launch.
+logs/
+run/logs/
+run/config/
+run/crash-reports/
+run/debug/
+run/mods/
+run/saves/
+run/worlds/
+run/screenshots/
+
 # eclipse
 
 *.launch
