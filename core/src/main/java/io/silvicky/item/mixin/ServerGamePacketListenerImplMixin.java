@@ -44,16 +44,43 @@ public abstract class ServerGamePacketListenerImplMixin
     @Shadow
     private double lastGoodZ;
 
-    @Redirect(method = "handleUseItemOn", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/phys/Vec3;subtract(Lnet/minecraft/world/phys/Vec3;)Lnet/minecraft/world/phys/Vec3;"))
-    private Vec3 inject1(Vec3 instance, Vec3 vec)
-    {
-        try
-        {
-            VecTransformer vecTransformer = VecTransformer.getInstance(player);
-            return vecTransformer.s2cTransform(instance).subtract(vecTransformer.s2cTransform(vec));
-        }
-        catch (ChunkUnusedException e){return VecTransformer.INF;}
-    }
+    /*
+     * NOTE, deliberately not attached to any member - this records a redirect that was REMOVED.
+     *
+     * Left in S on purpose: this is a consistency check, not a reach check.
+     *
+     * <p>{@code handleUseItemOn} asks two questions. The first is reach, and that is judged in C by
+     * {@code PlayerMixin}'s hooks on {@code isWithinBlockInteractionRange} - the same rule that breaking a block
+     * uses, so a bucket and a pickaxe are treated identically. This one is the second question:
+     *
+     * <pre>
+     *   Vec3 distance = location.subtract(Vec3.atCenterOf(pos));
+     *   if (|distance.x| &lt; 1 &amp;&amp; |distance.y| &lt; 1 &amp;&amp; |distance.z| &lt; 1) ...
+     * </pre>
+     *
+     * <p>which asks whether the client claimed to hit a point that is actually on that block's face. Both
+     * operands belong to the same block, so this is a question about the server's own consistency and has
+     * nothing to do with how far away anything is. It belongs in S.
+     *
+     * <p><b>Converting it was a bug, and it made using an item strictly harsher than breaking a block.</b> A
+     * block's centre and a point on its face can sit in different pages: the block at {@code x=15} is in page 0
+     * and its centre at {@code 15.5} with it, but its east face is at {@code x=16.0}, which is page 1. Convert
+     * both and the offsets no longer cancel - the difference becomes the distance between two unrelated pages,
+     * tens to hundreds of blocks - and the interaction is refused. Roughly one block in eight has an east or
+     * north face on a page boundary.
+     *
+     * <p>It also failed closed. On a pruned page {@code ConnectionMixin} leaves the position in C, so this then
+     * converted a C coordinate as if it were an S one, and the {@code ChunkUnusedException} arm returned
+     * {@link VecTransformer#INF} - about 1.7 billion blocks, which fails the test and silently drops the click.
+     *
+     * <p>There is deliberately no redirect here any more. Removing it makes the check byte-for-byte vanilla's,
+     * which is the correct outcome: reach is decided in one place, in C, by the same code whether the player is
+     * breaking a block, using a bucket, or hitting a mob.
+     *
+     * The redirect that used to sit here was ServerGamePacketListenerImplMixin#inject1.
+     */
+
+
     @ModifyVariable(method = "handlePlayerPositionChange", at = @At(value = "STORE",ordinal = 0),name="movedDist")
     private double inject3(double value,
                            @Local(name = "targetX")double d,

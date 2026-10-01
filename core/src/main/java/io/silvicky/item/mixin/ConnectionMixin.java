@@ -51,10 +51,24 @@ public abstract class ConnectionMixin
             //in between, those two conversions disagree and the player is told a different block changed
             //than the one they hit - the block they broke comes straight back.
             vecTransformer.pinAt(Vec3.atCenterOf(playerInteractBlockC2SPacket.hitResult().blockPos));
-            playerInteractBlockC2SPacket.hitResult().blockPos=
-                    c2sOrKeep(vecTransformer,playerInteractBlockC2SPacket.hitResult().blockPos);
+            BlockPos raw=playerInteractBlockC2SPacket.hitResult().blockPos;
+            Vec3 rawLocation=playerInteractBlockC2SPacket.hitResult().location;
+            //How far inside its own block the client clicked. This is what identifies the face, and it is the
+            //one part of the hit that a page cannot change: a page is a whole-chunk translation, so a click at
+            //(0.45, 0.45, 0.96) of a block is at (0.45, 0.45, 0.96) of it in every page.
+            //
+            //It has to be carried across rather than converted, because blockPos and location are not two
+            //independent coordinates. BlockHitResult's codec decodes the second as blockPos PLUS this offset,
+            //and vanilla relies on that when it validates a click: it only accepts a location within one block
+            //of the block's centre. Converting the two separately breaks that agreement exactly when a click
+            //crosses a page boundary - the block converts through the page the block is on and the point
+            //through the page the point is on - and vanilla then rejects the click as too far away, having
+            //measured a page-sized gap that only ever existed because of the two conversions.
+            Vec3 insideBlock=rawLocation.subtract(Vec3.atLowerCornerOf(raw));
+            BlockPos landed=c2sOrKeep(vecTransformer,raw);
+            playerInteractBlockC2SPacket.hitResult().blockPos=landed;
             playerInteractBlockC2SPacket.hitResult().location=
-                    c2sOrKeep(vecTransformer,playerInteractBlockC2SPacket.hitResult().location);
+                    Vec3.atLowerCornerOf(landed).add(insideBlock);
             return;
         }
         if (packet instanceof ServerboundMovePlayerPacket playerMoveC2SPacket)

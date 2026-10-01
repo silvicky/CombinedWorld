@@ -12,8 +12,10 @@ import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(Player.class)
 public class PlayerMixin
@@ -21,9 +23,11 @@ public class PlayerMixin
     @Redirect(method = "isWithinBlockInteractionRange",at= @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/player/Player;getEyePosition()Lnet/minecraft/world/phys/Vec3;"))
     public Vec3 inject1(Player instance)
     {
+        //The client's own player reaches this too. Stand down and let vanilla measure in its own space.
+        if(!(instance instanceof ServerPlayer serverPlayer))return instance.getEyePosition();
         try
         {
-            return VecTransformer.getInstance((ServerPlayer) instance).s2cTransform(instance.getEyePosition());
+            return VecTransformer.getInstance(serverPlayer).s2cTransform(instance.getEyePosition());
         }
         catch (ChunkUnusedException e){return VecTransformer.INF;}
     }
@@ -31,9 +35,10 @@ public class PlayerMixin
     public BlockPos inject2(BlockPos pos)
     {
         Player instance = (Player) (Object) this;
+        if(!(instance instanceof ServerPlayer serverPlayer))return pos;
         try
         {
-            return VecTransformer.getInstance((ServerPlayer) instance).s2cTransform(pos);
+            return VecTransformer.getInstance(serverPlayer).s2cTransform(pos);
         }
         catch (ChunkUnusedException e)
         {

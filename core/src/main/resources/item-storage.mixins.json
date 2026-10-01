@@ -4,6 +4,7 @@
   "compatibilityLevel": "JAVA_25",
   "mixins": [
     "BaseFireBlockMixin",
+    "BucketItemMixin",
     "BlockCollisionsMixin",
     "BlockPlaceContextMixin",
     "ChunkHolderMixin",
@@ -15,6 +16,7 @@
     "ConnectionMixin",
     "EndPortalBlockMixin",
     "EntityMixin",
+    "ItemMixin",
     "LayerLightSectionStorageMixin",
     "LevelMixin",
     "LevelStorageAccessMixin",
