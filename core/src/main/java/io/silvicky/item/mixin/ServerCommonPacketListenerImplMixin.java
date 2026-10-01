@@ -3,6 +3,7 @@ package io.silvicky.item.mixin;
 import io.netty.channel.ChannelFutureListener;
 import io.silvicky.item.backrooms.ChunkUnusedException;
 import io.silvicky.item.backrooms.EntityPositionRemapper;
+import io.silvicky.item.backrooms.EntityRemapAccess;
 import io.silvicky.item.backrooms.VecTransformer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.PositionAndRotation;
@@ -30,7 +31,7 @@ import java.lang.reflect.Field;
 import java.util.*;
 
 @Mixin(ServerCommonPacketListenerImpl.class)
-public class ServerCommonPacketListenerImplMixin
+public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
 {
     @Shadow
     @Final
@@ -50,6 +51,10 @@ public class ServerCommonPacketListenerImplMixin
      */
     @Unique
     private final EntityPositionRemapper item_storage$entityRemapper=new EntityPositionRemapper();
+    @Override
+    public EntityPositionRemapper item_storage$entityRemapper(){return item_storage$entityRemapper;}
+    @Override
+    public void item_storage$resetEntityRemapper(){item_storage$entityRemapper.reset();}
     /**
      * Set while a replacement entity packet is being sent, so the re-entry does not convert it again.
      *

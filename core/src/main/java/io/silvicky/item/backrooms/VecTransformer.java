@@ -62,6 +62,23 @@ public abstract class VecTransformer
     {
         instances.put(player, getInstanceByDimension(player));
     }
+    /**
+     * Forgets a player's transformer, and any per-connection state that went with it.
+     *
+     * <p>Needed wherever a player <em>object</em> is replaced, not merely moved. {@code instances} is keyed
+     * by player, so a dead player keeps its entry - and keeps the whole chunk map with it - forever, unless
+     * something removes it. See {@link #instances} for why the key cannot be weak.
+     *
+     * <p>This is called on disconnect and on respawn. Respawn is the subtler of the two: {@code PlayerList}
+     * builds a <em>new</em> {@code ServerPlayer} for the respawn and hands it the dead player's connection,
+     * so without this the connection resolves through the dead player's entry and every packet hook reads
+     * the outgoing world's transformer.
+     */
+    public static void remove(ServerPlayer player)
+    {
+        if(player==null)return;
+        instances.remove(player);
+    }
     /** The player's current transformer without building one, for diagnostics only. */
     public static VecTransformer peekInstance(ServerPlayer player)
     {

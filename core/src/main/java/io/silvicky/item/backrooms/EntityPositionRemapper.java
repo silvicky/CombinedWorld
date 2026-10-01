@@ -90,6 +90,18 @@ public final class EntityPositionRemapper
         for (int id : entityIds) last.remove(id);
     }
 
+    /**
+     * Forgets every entity.
+     *
+     * <p>For when the client is about to forget all of them anyway - a respawn, which empties the entity list
+     * and rebuilds it. Worth doing even though ids are not immediately reused: a surviving entry would be read
+     * as proof that an offset still holds, for an entity that has nothing to do with it.
+     */
+    public void reset()
+    {
+        last.clear();
+    }
+
     public void forget(int entityId)
     {
         last.remove(entityId);
