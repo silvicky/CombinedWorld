@@ -1004,16 +1004,21 @@ The void loop that followed was not that at all 闂?see 闂?.7.1.
     available offsets. Entity reach is 3 blocks, which is tighter still, and mobs are small enough to sit
     inside a single page, so they are the case most often affected. See §2.6.4.
 
-    This may be intended for a collage world and it may be unplayable. That is a design question, not a
-    defect, and the answer has not been decided. The seam machinery from §2.6.1 could be applied to
-    reach, but reach has no trajectory to discount, so doing so would be a *decision* to measure reach
-    against a hypothetical un-shuffled world, rather than a consequence of the convention. Not done.
+    **Decided: intended.** Reach is judged in C, so a reach crossing a page boundary costs what it costs, and
+    that is the convention rather than a defect - see §1.3. The alternative was available and was not taken:
+    the seam machinery from §2.6.1 would let reach be measured against a hypothetical un-shuffled world, but
+    reach has no trajectory to discount, so that would be a new *decision* layered on top of the convention
+    rather than a consequence of it. Recorded here so it is not re-litigated as a bug.
 
 13. **Two leaks, both pre-existing, neither fixed.** See 闂?.10.
 
     - **`VecTransformer.instances` grows forever.** No entry is ever removed, and the mod registers no
       disconnect hook. A weak key could not fix it either, because each transformer strongly references its own
       player. Every player who ever joins is pinned, with their chunk map.
+      **Fixed.** `VecTransformer.remove` is called on disconnect and on respawn. It stopped being only a leak
+      when respawn began removing entries, because an entry outliving its player can hand back the wrong
+      *type* to whoever reuses the connection - which is exactly how a nether death kept the random
+      transformer alive in the overworld. A leak that changes behaviour cannot be deferred.
     - **Loading tickets are only ever added.** `XorTransformer.addLoadingTicket` and
       `RandomTransformer.addLoadingTicket` call `addTicketWithRadius` with no matching removal. Combined with
       闂?.5 闂?a fresh transformer on *every* teleport, each re-adding its whole table 闂?a player who teleports
@@ -1022,15 +1027,19 @@ The void loop that followed was not that at all 闂?see 闂?.7.1.
 14. **The chunk-tracking `ChunkRemap` is now load-bearing for correctness, not just speed.** It was
     verified equivalent to the old per-chunk map over 80 combinations (`MappingEquivalence`), but since the
     view re-derives its remap from it whenever the map changes (闂?.7.1), a bug in `ChunkRemap` is now a
-    correctness bug rather than a performance one. It deserves a real playtest.
+    correctness bug rather than a performance one.
+    **Accepted as fine, with one caveat worth remembering.** That test shows the *new* code agrees with the
+    *old* code, which is not the same as either being right - equivalence cannot catch a bug both share. It
+    also exercises ordinary inputs, not awkward ones: an unmapped page, a page at the edge of the pool, a
+    re-roll landing mid-crossing. Those are exactly the cases where a `ChunkRemap` bug would surface as a void
+    or a stale view, so that is where to look first if either ever returns.
 
 ### Set aside
 
-- **Entity mapping** — *"never working properly since I cannot understand some protocol classes"*. Positions
-  and offsets are now translated, see 
-§
-2.6.5. What is still open is the velocity case:
-  ClientboundSetEntityMotionPacket is left in S on purpose, because a page offset is a whole number of
-  pages and a velocity does not survive one. That is a decision to revisit, not an oversight.
+- **Entity mapping** — *"never working properly since I cannot understand some protocol classes"*. **Done.**
+  Positions and offsets are both translated now: §2.6.4 for reach, §2.6.5 for the
+  wire. What is left untranslated is `ClientboundSetEntityMotionPacket`, and that is **decided, not outstanding**: a page
+  offset is a whole number of pages, so a velocity does not survive one, and guessing would make client-side
+  prediction disagree with the server. Recorded so it is not mistaken for a gap.
 - **Collision** 闂?considered solved, but known to be hard, because the player can cross a page while a query
   is running.
