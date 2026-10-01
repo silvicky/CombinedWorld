@@ -1,14 +1,14 @@
 package io.silvicky.item.mixin;
 
-import io.silvicky.item.backrooms.TransformAudit;
+import io.silvicky.item.backrooms.ChunkUnusedException;
 import io.silvicky.item.backrooms.VecTransformer;
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.PositionAndRotation;
 import net.minecraft.network.Connection;
-import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.network.PacketListener;
+import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.*;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
@@ -22,20 +22,11 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.WeakHashMap;
 
-/**
- * The client-to-server boundary.
- *
- * <p>This is the one place in the mod where client view coordinates legitimately become server world
- * coordinates. Every packet handled here is {@code [C]}, and everything the packet is rewritten to is
- * {@code [S]}. Any transform attempted further downstream is a double transform - see
- * {@link io.silvicky.item.backrooms.CoordinateSpace} for the marker legend.
- */
 @Mixin(Connection.class)
 public abstract class ConnectionMixin
 {
     @Unique
     private static Set<Packet<?>> modified= Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
-
     @Inject(method = "genericsFtw",at=@At("HEAD"))
     private static <T extends PacketListener> void inject1(Packet<T> packet, PacketListener listener, CallbackInfo ci)
     {
@@ -44,103 +35,89 @@ public abstract class ConnectionMixin
         VecTransformer vecTransformer=VecTransformer.getInstance(impl.getPlayer());
         if (modified.contains(packet)) return;
         modified.add(packet);
+        //c2sTransform throws ChunkUnusedException for a page the player cannot currently see, because the
+        //visibility rule prunes the pages behind them and a pruned page must STAY pruned. Every field below
+        //goes through c2sOrKeep, which leaves the field untouched in that case.
+        //
+        //That is the fix for the "invisible but still walkable and breakable" report. This hook used to make
+        //c2sTransform mint a fresh mapping for any position it had not seen, so a pruned page was silently
+        //re-created the moment anything referred to it - and the player ended up inside real, solid terrain
+        //the client had never been sent. Leaving the coordinate alone is safe: the vanilla handler then
+        //judges that packet against a position the player really did send.
         if (packet instanceof ServerboundUseItemOnPacket playerInteractBlockC2SPacket)
         {
-            //[C>S]
-            TransformAudit.site("c2s/UseItemOn");
-            try
-            {
-                playerInteractBlockC2SPacket.hitResult().blockPos= vecTransformer.c2sTransform(playerInteractBlockC2SPacket.hitResult().blockPos);
-                playerInteractBlockC2SPacket.hitResult().location =vecTransformer.c2sTransform(playerInteractBlockC2SPacket.hitResult().location);
-            }
-            finally { TransformAudit.endSite(); }
+            //Pin BEFORE converting. This interaction is about to be converted from the player's map to a
+            //real position, and the outcome is converted back when it is broadcast. If the chunk is re-rolled
+            //in between, those two conversions disagree and the player is told a different block changed
+            //than the one they hit - the block they broke comes straight back.
+            vecTransformer.pinAt(Vec3.atCenterOf(playerInteractBlockC2SPacket.hitResult().blockPos));
+            playerInteractBlockC2SPacket.hitResult().blockPos=
+                    c2sOrKeep(vecTransformer,playerInteractBlockC2SPacket.hitResult().blockPos);
+            playerInteractBlockC2SPacket.hitResult().location=
+                    c2sOrKeep(vecTransformer,playerInteractBlockC2SPacket.hitResult().location);
             return;
         }
         if (packet instanceof ServerboundMovePlayerPacket playerMoveC2SPacket)
         {
             if (playerMoveC2SPacket.hasPosition())
             {
-                //[C>S]
-                double rawX=playerMoveC2SPacket.x, rawZ=playerMoveC2SPacket.z;
-                TransformAudit.site("c2s/MovePlayer");
-                Vec3 pos;
-                try
-                {
-                    pos=vecTransformer.c2sTransform(new Vec3(rawX,0,rawZ));
-                }
-                finally { TransformAudit.endSite(); }
-                playerMoveC2SPacket.x = pos.x;
-                playerMoveC2SPacket.z = pos.z;
-                //Record both ends so TransformAudit can tell, on the server thread, whether a later site is
-                //being handed coordinates that are already S-field.
-                TransformAudit.recordMove(impl.getPlayer(),rawX,rawZ,pos.x,pos.z);
+                Vec3 converted=c2sOrKeep(vecTransformer,
+                        new Vec3(playerMoveC2SPacket.x,0,playerMoveC2SPacket.z));
+                playerMoveC2SPacket.x = converted.x;
+                playerMoveC2SPacket.z = converted.z;
             }
             return;
         }
         if (packet instanceof ServerboundMoveVehiclePacket vehicleMoveC2SPacket)
         {
-            //[C>S]
             PositionAndRotation pr=vehicleMoveC2SPacket.movingTo();
-            TransformAudit.site("c2s/MoveVehicle");
-            try
-            {
-                vehicleMoveC2SPacket.movingTo=new PositionAndRotation.Immutable(vecTransformer.c2sTransform(pr.position()),pr.yRot(), pr.xRot());
-            }
-            finally { TransformAudit.endSite(); }
+            Vec3 converted=c2sOrKeep(vecTransformer,pr.position());
+            vehicleMoveC2SPacket.movingTo=new PositionAndRotation.Immutable(converted,pr.yRot(), pr.xRot());
             return;
         }
         if (packet instanceof ServerboundAcceptTeleportationPacket acceptTeleportationC2SPacket)
         {
-            //[C>S]
             // 26.3 includes the client-side position in the teleport acknowledgement.
             // The server validates it in server coordinates, so undo the view transform.
-            TransformAudit.site("c2s/AcceptTeleport");
-            Vec3 pos;
-            try
-            {
-                pos = vecTransformer.c2sTransform(
-                        new Vec3(acceptTeleportationC2SPacket.x, acceptTeleportationC2SPacket.y, acceptTeleportationC2SPacket.z)
-                );
-            }
-            finally { TransformAudit.endSite(); }
-            acceptTeleportationC2SPacket.x = pos.x;
-            acceptTeleportationC2SPacket.y = pos.y;
-            acceptTeleportationC2SPacket.z = pos.z;
+            Vec3 converted=c2sOrKeep(vecTransformer,new Vec3(acceptTeleportationC2SPacket.x,
+                    acceptTeleportationC2SPacket.y, acceptTeleportationC2SPacket.z));
+            acceptTeleportationC2SPacket.x = converted.x;
+            acceptTeleportationC2SPacket.y = converted.y;
+            acceptTeleportationC2SPacket.z = converted.z;
             return;
         }
         if(packet instanceof ServerboundInteractPacket playerInteractEntityC2SPacket)
         {
-            //[C>S]
-            TransformAudit.site("c2s/Interact");
-            try
-            {
-                playerInteractEntityC2SPacket.location =vecTransformer.c2sTransform(playerInteractEntityC2SPacket.location);
-            }
-            finally { TransformAudit.endSite(); }
+            playerInteractEntityC2SPacket.location=
+                    c2sOrKeep(vecTransformer,playerInteractEntityC2SPacket.location);
             return;
         }
         if(packet instanceof ServerboundSetStructureBlockPacket){return;}//TODO there are 2 pos!
-        TransformAudit.site("c2s/reflect:" + packet.getClass().getSimpleName());
-        try
+        for (Field field : packet.getClass().getDeclaredFields())
         {
-            for (Field field : packet.getClass().getDeclaredFields())
+            if (BlockPos.class.isAssignableFrom(field.getType()))
             {
-                if (BlockPos.class.isAssignableFrom(field.getType()))
+                field.setAccessible(true);
+                try
                 {
-                    //[C>S]
-                    field.setAccessible(true);
-                    try
-                    {
-                        BlockPos pos = (BlockPos) field.get(packet);
-                        field.set(packet,vecTransformer.c2sTransform(pos));
-                    }
-                    catch (IllegalAccessException e)
-                    {
-                        throw new RuntimeException(e);
-                    }
+                    field.set(packet,c2sOrKeep(vecTransformer,(BlockPos) field.get(packet)));
+                }
+                catch (IllegalAccessException e)
+                {
+                    throw new RuntimeException(e);
                 }
             }
         }
-        finally { TransformAudit.endSite(); }
+    }
+    /** Converts a client position to a server position, or hands it back unchanged if its page is pruned. */
+    private static BlockPos c2sOrKeep(VecTransformer transformer,BlockPos clientPos)
+    {
+        try{return transformer.c2sTransform(clientPos);}
+        catch (ChunkUnusedException e){return clientPos;}
+    }
+    private static Vec3 c2sOrKeep(VecTransformer transformer,Vec3 clientPos)
+    {
+        try{return transformer.c2sTransform(clientPos);}
+        catch (ChunkUnusedException e){return clientPos;}
     }
 }

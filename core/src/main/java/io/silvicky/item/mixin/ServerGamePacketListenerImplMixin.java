@@ -1,46 +1,39 @@
 package io.silvicky.item.mixin;
 
 import com.llamalad7.mixinextras.sugar.Local;
-import io.silvicky.item.backrooms.TransformAudit;
+import io.silvicky.item.backrooms.ChunkUnusedException;
 import io.silvicky.item.backrooms.VecTransformer;
+import io.silvicky.item.common.Util;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.Relative;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.Set;
 
-/**
- * Movement and interaction handling for players.
- *
- * <p>Every position reaching a handler in this class came off a packet that {@code ConnectionMixin} already
- * converted to server coordinates, so the positions here are {@code [S]}. See
- * {@link io.silvicky.item.backrooms.CoordinateSpace} for the marker legend.
- *
- * <p>That fact is now measured rather than assumed. {@link TransformAudit} compared the inputs of every site
- * below against the value {@code ConnectionMixin} had already converted, plus the player's own server-side
- * position, and found all of them S-field. Four sites that were transforming those values a second time
- * ({@code handleUseItemOn/reach}, both {@code movedDist} stores, and the movement-statistics redirect) have
- * been reduced to vanilla's own computation.
- *
- * <p>Two sites are deliberately left transforming, because there the inputs are in <em>different</em> fields
- * and the transform is what makes them comparable - see {@code isEntityCollidingWithAnythingNew}. A site
- * being handed S-field input is only a bug when its counterpart is S-field too.
- */
 @Mixin(ServerGamePacketListenerImpl.class)
 public abstract class ServerGamePacketListenerImplMixin
 {
 
     @Shadow public ServerPlayer player;
+
+    @Shadow private double firstGoodX;
+
+    @Shadow private double firstGoodY;
+
+    @Shadow private double firstGoodZ;
+
 
     @Shadow
     private double lastGoodX;
@@ -51,36 +44,15 @@ public abstract class ServerGamePacketListenerImplMixin
     @Shadow
     private double lastGoodZ;
 
-    /**
-     * The single translation that every operand of the current collision comparison is moved by, set from
-     * the player box in inject7 and reused verbatim by inject8.
-     *
-     * <p>A field on the connection rather than a local, because the two hooks are separate calls with no
-     * shared scope. It must be exactly one offset: if the box and the shapes used different ones, the AND
-     * test would compare two positions displaced relative to each other by the difference, which is what
-     * produced invisible walls.
-     *
-     * <p>Null means "no offset available", which is also the safe fallback - the whole comparison then runs
-     * untransformed, exactly as vanilla would. It is distinct from a genuine zero offset, which is a real
-     * (identity) mapping and would be applied. Every path out of inject7 assigns this, including the
-     * non-player and unmapped-chunk ones, so inject8 can never read a value left over from an earlier query.
-     */
-    @Unique
-    private Vec3 item_storage$collisionOffset;
-
     @Redirect(method = "handleUseItemOn", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/phys/Vec3;subtract(Lnet/minecraft/world/phys/Vec3;)Lnet/minecraft/world/phys/Vec3;"))
     private Vec3 inject1(Vec3 instance, Vec3 vec)
     {
-        //[S] No transform. Both operands are S-field: ConnectionMixin already converted this packet's
-        //hitResult to server coordinates, and the eye position is the server's own state. Subtracting two
-        //points after mapping them is only equal to the server-space distance when the transform is a global
-        //isometry - true for NOP and LINEAR, false for XOR and RANDOM, which are piecewise or arbitrary.
-        //
-        //This is also the only remaining user of VecTransformer.INF. That fallback is unreachable in
-        //practice (the audit reports 0 unmapped lookups) but it is wrong if ever reached: INF is a position
-        //vector being returned where a reach *distance* is expected, so the reach test would compare against
-        //1e9 and pass for any block on the server.
-        return instance.subtract(vec);
+        try
+        {
+            VecTransformer vecTransformer = VecTransformer.getInstance(player);
+            return vecTransformer.s2cTransform(instance).subtract(vecTransformer.s2cTransform(vec));
+        }
+        catch (ChunkUnusedException e){return VecTransformer.INF;}
     }
     @ModifyVariable(method = "handlePlayerPositionChange", at = @At(value = "STORE",ordinal = 0),name="movedDist")
     private double inject3(double value,
@@ -88,20 +60,71 @@ public abstract class ServerGamePacketListenerImplMixin
                            @Local(name = "targetY")double e,
                            @Local(name = "targetZ")double h)
     {
-        //[S] No transform, and this is the confirmed cause of the movement symptoms.
-        //
-        //targetX/Y/Z and firstGoodX/Y/Z are both the server's own record of where the player is, so vanilla's
-        //movedDist is already correct. The old code mapped both points into the client's view and subtracted
-        //them there, which is only equal to the server-space distance when the transform is a global
-        //isometry. For RANDOM it is an arbitrary per-chunk offset, so the difference between the two mapped
-        //points could be orders of magnitude larger than the real movement - vanilla then logs "moved
-        //wrongly" and snaps the player back to the server position. In the void that puts them below the
-        //world again, re-triggering onBelowWorld and the noclip teleport, which is the infinite
-        //teleportation loop.
-        //
-        //Measured: 375/375 samples of (targetX, targetZ) equalled the value ConnectionMixin had already
-        //converted, confirming these are S-field and were being converted a second time.
-        return value;
+        //Measured in the player's own map, except across a shuffle seam where no C-space measurement
+        //exists. See VecTransformer.playerMove for why, and for why skipping the seam used to
+        //teleport the player every tick.
+        Vec3 target=new Vec3(d, e, h);
+        reportDisagreement(target);
+        return VecTransformer.getInstance(player)
+                             .movementDistanceSq(new Vec3(firstGoodX, firstGoodY, firstGoodZ), target);
+    }
+    /**
+     * Records a move packet that the server does not agree with, which is the thing that actually makes
+     * the two sides fight.
+     *
+     * <p>The server holds one position for the player and the client reports another. If the two disagree
+     * by more than a block or two, vanilla will correct the player, the correction is a teleport, and the
+     * client walks off again - which is what a playtest log showed happening dozens of times in a row. This
+     * prints the whole disagreement: where the client said it was, converted into server coordinates, where
+     * the server thinks it is, and what each map says that distance is. That is enough to tell which side
+     * is wrong without having to guess.
+     */
+    private void reportDisagreement(Vec3 target)
+    {
+        Vec3 here=player.position();
+        Vec3 diff=target.subtract(here);
+        if(diff.lengthSqr()<=64.0)return;
+        VecTransformer transformer=VecTransformer.getInstance(player);
+        Vec3 targetC=transformer.safeClient(target);
+        Vec3 hereC=transformer.safeClient(here);
+        Util.LOGGER.info(
+                "[remap-move] {} | packet says S {} but server holds S {} | dS=({},{}) | C {} vs C {}"
+                        + " | dC=({}) | verdict={}",
+                player.getGameProfile().name(),
+                fmt(target), fmt(here), round(diff.x), round(diff.z),
+                targetC==null?"<unmapped>":fmt(targetC), hereC==null?"<unmapped>":fmt(hereC),
+                targetC==null||hereC==null?"?":round(targetC.subtract(hereC).length()),
+                verdict(diff, targetC, hereC));
+    }
+    /**
+     * Plain-language reading of a disagreement.
+     *
+     * <p>Note the direction of the test, because the obvious reading of it is backwards. A SMALL
+     * {@code dC} is the healthy case: the two positions are close together on the player's own map, which
+     * is the frame the game is judged in. A LARGE {@code dS} alongside it is the shuffle doing its job -
+     * two chunks that are far apart on the real map and close together on the player's, or the reverse.
+     * That is not a fault and needs no action.
+     *
+     * <p>A LARGE {@code dC} is the fault. It means the two positions are far apart in the very frame the
+     * game is judged in, so the client and the server genuinely do not agree about where the player is.
+     * That is the round trip breaking, and it is what makes the two sides fight.
+     */
+    private String verdict(Vec3 sDiff, Vec3 targetC, Vec3 hereC)
+    {
+        if(targetC==null||hereC==null)return "UNMAPPED, cannot compare in C";
+        double c=targetC.subtract(hereC).length();
+        double s=Math.sqrt(sDiff.lengthSqr());
+        if(c<=8.0)
+            return "OK - they agree in C; the S gap of "+round(s)+" is the shuffle";
+        return "BROKEN - they are "+round(c)+" blocks apart in C, the round trip is not closing";
+    }
+    private static String fmt(Vec3 v)
+    {
+        return "("+round(v.x)+", "+round(v.y)+", "+round(v.z)+")";
+    }
+    private static String round(double v)
+    {
+        return String.valueOf(Math.round(v*100.0)/100.0);
     }
     @ModifyVariable(method = "handlePlayerPositionChange", at = @At(value = "STORE",ordinal = 1),name = "movedDist")
     private double inject4(double value,
@@ -109,20 +132,51 @@ public abstract class ServerGamePacketListenerImplMixin
                            @Local(name = "targetY")double e,
                            @Local(name = "targetZ")double h)
     {
-        //[S] No transform, same reason as inject3. targetX/Y/Z is the converted packet target and
-        //player.position() is the server's own state; both S-field, so vanilla's second movedDist is
-        //already right. Note this variant zeroes the Y component when |dy| < 0.5, which is vanilla's own
-        //rule for "ignore tiny vertical drift" - re-deriving that by hand is another way to drift out of
-        //sync with vanilla. Measured: 375/375 samples S-field.
-        return value;
+        return VecTransformer.getInstance(player)
+                             .movementDistanceSq(player.position(), new Vec3(d, e, h));
     }
     @Inject(method = "teleport(Lnet/minecraft/world/entity/PositionMoveRotation;Ljava/util/Set;)V",at= @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerPlayer;teleportSetPosition(Lnet/minecraft/world/entity/PositionMoveRotation;Ljava/util/Set;)V",shift = At.Shift.AFTER))
     private void inject5(PositionMoveRotation positionMoveRotation, Set<Relative> set, CallbackInfo ci)
     {
-        //Not a transform: a dimension change has to rebuild the player's transformer, and the cache only
-        //refreshes on teleport. A stale instance is not a harmless optimisation - a fresh LinearTransformer
-        //draws new random offsets and a fresh RandomTransformer starts with an empty chunk map.
+        //An absolute teleport puts the player at a named place, so the world has to honour both maps: the
+        //player moves in S to that place, and in C to whatever position that place has. If the place is
+        //already on the player's map, that is the position - and the current shuffle is KEPT. Only a place
+        //with no position yet needs one initialised.
+        //
+        //This hook sees the teleport the server issues to correct a player back to where it thinks they
+        //should be, and the one void recovery issues. Both land on somewhere already mapped, so neither
+        //is a fresh arrival and neither should redraw the world. Drawing one anyway is what made a single
+        //bad frame escalate: the correction landed on a mapped chunk, the shuffle was redrawn, the player's
+        //neighbourhood was replaced with ungenerated or empty space, they fell, and it repeated. A playtest
+        //log showed six redraws in two seconds with the player never moving.
+        VecTransformer transformer=VecTransformer.peekInstance(player);
+        if(transformer==null)return;
+        ChunkPos destination=ChunkPos.containing(BlockPos.containing(player.position()));
+        if(transformer.isMapped(destination))
+        {
+            //Already on the map, so the shuffle is kept - but the player may still have moved a long way,
+            // since the placement pool is several pages wide. A join is the obvious case: they spawn wherever
+            //they spawn, which can be far from where this transformer was built, and nothing would rebuild
+            //the view around them because they did not cross a border. That is how a player arrives inside a
+            //hole. So recentre unconditionally, and it is a no-op when they have not actually moved.
+            transformer.recentre();
+            Util.LOGGER.info("[remap] {} | teleport -> {} is already on the map, shuffle kept",
+                    player.getGameProfile().name(),destination);
+            return;
+        }
+        if(transformer.ensureMapped(destination))
+        {
+            transformer.recentre();
+            Util.LOGGER.info("[remap] {} | teleport -> {} had no position, initialised one, shuffle kept",
+                    player.getGameProfile().name(),destination);
+            return;
+        }
+        //The pool is full and a position could not be made. A new shuffle is the last resort, not the
+        //default - see CONVENTION.md 2.4.1 on why quietly reusing an occupied slot is not an option.
+        VecTransformer previous=transformer;
         VecTransformer.refreshInstance(player);
+        Util.LOGGER.info("[remap] {} | teleport -> {} could not be placed, fell back to a new shuffle (was {})",
+                player.getGameProfile().name(),destination,previous.getClass().getSimpleName());
     }
     @ModifyArg(method = "handlePlayerPositionChange", at= @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerPlayer;move(Lnet/minecraft/world/entity/MoverType;Lnet/minecraft/world/phys/Vec3;)V"),index = 1)
     private Vec3 inject6(Vec3 par2,
@@ -130,67 +184,62 @@ public abstract class ServerGamePacketListenerImplMixin
                          @Local(name = "targetY")double e,
                          @Local(name = "targetZ")double h)
     {
-        //[S] No transform. ConnectionMixin already rewrote ServerboundMovePlayerPacket's x/z into server
-        //coordinates, so the delta vanilla computes here is already correct.
-        return par2;
-    }
-    @ModifyArg(method = "isEntityCollidingWithAnythingNew", at= @At(value = "INVOKE", target = "Lnet/minecraft/world/phys/shapes/Shapes;create(Lnet/minecraft/world/phys/AABB;)Lnet/minecraft/world/phys/shapes/VoxelShape;"))
-    private AABB inject7(AABB value, @Local(argsOnly = true) Entity entity)
-    {
-        //[S>C] Required - and the offset it records must be the ONLY one used for this comparison.
-        //
-        //Both operands are S-field: the shapes in `collisions` come from getPreMoveCollisions, whose
-        //BlockCollisions resolves each client-view coordinate to a server position, so the shapes come back
-        //in server coordinates, and the entity's own AABB is server coordinates too. Moving both into the
-        //client's view is right; moving each by ITS OWN offset is the bug.
-        //
-        //The previous version computed O_box = s2c(box) - box here, and inject8 independently computed
-        //O_wall = s2c(wall) - wall for every shape. The AND test then compared (P + O_box) against
-        //(wallPos + O_wall), so the wall was displaced relative to the player by (O_wall - O_box) - thousands
-        //of blocks under a per-chunk random map. The wall simply landed somewhere else, which is an invisible
-        //wall. The audit line "server_state=953" is the player's own position being fed through this site.
-        //
-        //So the offset is derived once, here, and inject8 reuses it verbatim. Every operand then moves by the
-        //same vector, which is a rigid translation: relative geometry is preserved exactly, so the test
-        //answers the same question vanilla does, just in a translated frame. Being a single translation, it
-        //is also correct when the box straddles a chunk boundary - the earlier straddle guard was both
-        //unnecessary and checking the wrong thing, since a wall one block away is in a different chunk
-        //regardless of whether the box itself straddles.
-        if(!(entity instanceof ServerPlayer player1)){ this.item_storage$collisionOffset=null; return value; }
-        Vec3 centre=value.getBottomCenter();
         try
         {
-            Vec3 mapped=VecTransformer.getInstance(player1).s2cTransform(centre);
-            this.item_storage$collisionOffset=mapped.subtract(centre);
+            //This is the movement the player is actually given, so it has to come from the same place the
+            //anti-cheat measures. Taking the raw C difference here instead would hand the player a movement
+            //of up to a hundred-odd blocks every time they crossed a chunk border, because the shuffle jump
+            //would be applied as if they had walked it.
+            return VecTransformer.getInstance(player).playerMove(new Vec3(lastGoodX,lastGoodY,lastGoodZ),
+                                                              new Vec3(d,e,h));
+        }
+        catch (Exception ex)
+        {
+            return par2;
+        }
+    }
+    @ModifyArg(method = "isEntityCollidingWithAnythingNew", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/phys/shapes/Shapes;create(Lnet/minecraft/world/phys/AABB;)Lnet/minecraft/world/phys/shapes/VoxelShape;"))
+    private AABB inject7(AABB value, @Local(argsOnly = true) Entity entity)
+    {
+        if(!(entity instanceof ServerPlayer player1))return value;
+        try
+        {
+            Vec3 v = VecTransformer.getInstance(player1).s2cTransform(value.getBottomCenter());
+            return value.move(v.subtract(value.getBottomCenter()));
         }
         catch (Exception exception)
         {
-            //No mapping for the player's own chunk. Leaving this null rather than zero is deliberate: inject8
-            //must then also leave the shapes alone, so the whole comparison runs untransformed. A zero offset
-            //would do that too, but null cannot be confused with a genuine "mapped to the same place".
-            this.item_storage$collisionOffset=null;
+            return value;
         }
-        TransformAudit.classify("isEntityCollidingWithAnythingNew/aabb",player1,centre.x,centre.z);
-        if(this.item_storage$collisionOffset==null)return value;
-        return value.move(this.item_storage$collisionOffset);
     }
-    @ModifyArg(method = "isEntityCollidingWithAnythingNew", at= @At(value = "INVOKE", target = "Lnet/minecraft/world/phys/shapes/Shapes;joinIsNotEmpty(Lnet/minecraft/world/phys/shapes/VoxelShape;Lnet/minecraft/world/phys/shapes/VoxelShape;Lnet/minecraft/world/phys/shapes/BooleanOp;)Z"),index = 0)
+    @ModifyArg(method = "isEntityCollidingWithAnythingNew", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/phys/shapes/Shapes;joinIsNotEmpty(Lnet/minecraft/world/phys/shapes/VoxelShape;Lnet/minecraft/world/phys/shapes/VoxelShape;Lnet/minecraft/world/phys/shapes/BooleanOp;)Z"),index = 0)
     private VoxelShape inject8(VoxelShape value, @Local(argsOnly = true) Entity entity)
     {
-        //[S>C] Required, and this is the half that was wrong. The shape moves by the offset inject7 recorded
-        //for the player's box - NOT by its own. See inject7 for why: two different offsets make the AND test
-        //compare a player against a wall displaced by the difference between them.
         if(!(entity instanceof ServerPlayer player1))return value;
-        Vec3 offset=this.item_storage$collisionOffset;
-        if(offset==null)return value;
-        return value.move(offset);
+        try
+        {
+            Vec3 v = VecTransformer.getInstance(player1).s2cTransform(value.bounds().getBottomCenter());
+            return value.move(v.subtract(value.bounds().getBottomCenter()));
+        }
+        catch (Exception exception)
+        {
+            return value;
+        }
     }
     @Redirect(method = "handlePlayerPositionChange", at= @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerPlayer;checkMovementStatistics(DDD)V"))
     private void inject9(ServerPlayer instance, double dx, double dy, double dz, @Local(name = "startX")double startX, @Local(name = "startY")double startY, @Local(name = "startZ")double startZ)
     {
-        //[S] No transform, same reason as inject3. instance.position() and startX/Y/Z are both the server's
-        //own state. dx/dy/dz is already vanilla's own difference, so it is simply forwarded. Measured:
-        //375/375 samples S-field.
-        instance.checkMovementStatistics(dx,dy,dz);
+        try
+        {
+            //Same seam-corrected movement as inject6, for the same reason: this feeds the fly-speed and
+            //walk-speed counters, and a shuffle jump would otherwise be recorded as the player sprinting.
+            Vec3 move=VecTransformer.getInstance(player).playerMove(new Vec3(startX,startY,startZ),
+                                                                  instance.position());
+            instance.checkMovementStatistics(move.x,move.y,move.z);
+        }
+        catch (Exception ex)
+        {
+            instance.checkMovementStatistics(dx,dy,dz);
+        }
     }
 }

@@ -2,6 +2,7 @@ package io.silvicky.item.mixin;
 
 import io.netty.channel.ChannelFutureListener;
 import io.silvicky.item.backrooms.ChunkUnusedException;
+import io.silvicky.item.backrooms.EntityPositionRemapper;
 import io.silvicky.item.backrooms.VecTransformer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.PositionAndRotation;
@@ -28,17 +29,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.lang.reflect.Field;
 import java.util.*;
 
-/**
- * The server-to-client boundary.
- *
- * <p>This is the one place where server world coordinates legitimately become client view coordinates: every
- * position in an outbound packet is {@code [S]} on the way in and {@code [S>C]} on the way out. The mirror of
- * {@code ConnectionMixin}, and the only other legal conversion site. See
- * {@link io.silvicky.item.backrooms.CoordinateSpace} for the marker legend.
- *
- * <p>Note the two boundaries are the only two places in the mod that are allowed to convert at all. Anything
- * that transforms a position on the server thread, after a packet has been decoded, is a double transform.
- */
 @Mixin(ServerCommonPacketListenerImpl.class)
 public class ServerCommonPacketListenerImplMixin
 {
@@ -47,14 +37,82 @@ public class ServerCommonPacketListenerImplMixin
     protected Connection connection;
     @Unique
     private static Set<Packet<?>> modified= Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
+    /**
+     * Per-connection, because it is per-player: what each client has been told about each entity.
+     *
+     * <p>Entity packets mostly carry an <i>offset</i> rather than a position, and an offset cannot be
+     * converted without knowing the position it is relative to - which is a position this client holds and
+     * the packet does not state. So the base has to be remembered per player. It cannot be shared between
+     * players, because two players have different maps and therefore different bases.
+     *
+     * <p>See {@link EntityPositionRemapper} for why an offset is usually correct as-is and only has to be
+     * replaced when the entity crosses a page boundary.
+     */
+    @Unique
+    private final EntityPositionRemapper item_storage$entityRemapper=new EntityPositionRemapper();
+    /**
+     * Set while a replacement entity packet is being sent, so the re-entry does not convert it again.
+     *
+     * <p>An instance field, not a static one, so it cannot be tripped by another player's send on another
+     * thread. A static flag here would be a race between two players.
+     */
+    @Unique
+    private boolean replacing;
 
     @Inject(method = "send(Lnet/minecraft/network/protocol/Packet;Lio/netty/channel/ChannelFutureListener;)V",at=@At("HEAD"), cancellable = true)
     public void inject1(Packet<?> packet, @Nullable ChannelFutureListener channelFutureListener, CallbackInfo ci)
     {
         if(connection.getReceiving() == PacketFlow.CLIENTBOUND)return;
+        //Our own replacement, on its way out. It was built from a packet that had already been converted.
+        if(replacing)return;
         ServerCommonPacketListenerImpl instance=(ServerCommonPacketListenerImpl) (Object)this;
         if(!(instance instanceof ServerGamePacketListenerImpl gamePacketListener))return;
         VecTransformer vecTransformer=VecTransformer.getInstance(gamePacketListener.getPlayer());
+        //Entity packets are handled before the `modified` cache and are exempt from it.
+        //
+        //That cache exists because the handlers below EDIT the packet in place, and a broadcast packet is one
+        //object handed to every tracking player in turn - so without a guard the second player would be sent
+        //the first player's already-converted copy. The cache is the wrong shape for entity packets, because
+        //converting them is not a property of the packet but of the player it is going to. Two players have
+        //two different maps, two different offsets, and two different remembered bases, so the same packet
+        //object legitimately has two different correct answers. Caching by object identity would hand both
+        //players the first one's answer. So entity packets skip the cache and are converted per player.
+        if (isEntityPacket(packet))
+        {
+            try
+            {
+                Packet<?> translated=item_storage$entityRemapper
+                                             .translate(packet,vecTransformer,
+                                                        gamePacketListener.getPlayer().level());
+                if(translated==null)
+                {
+                    //Its page is not in this player's map, so there is nowhere to put it. Dropping is right:
+                    //the alternative is sending it at a position the player has never been shown.
+                    ci.cancel();
+                    return;
+                }
+                //Same object back means no change was needed - the common case, an offset packet inside one
+                //page - and the original can simply go out.
+                if(translated==packet)return;
+                //Otherwise a replacement was built. It is a new object, so it re-enters this method; the flag
+                //stops that from recursing.
+                ci.cancel();
+                replacing=true;
+                try
+                {
+                    instance.send(translated,channelFutureListener);
+                }
+                finally
+                {
+                    replacing=false;
+                }
+            }
+            catch (ChunkUnusedException e)
+            {
+                ci.cancel();
+            }
+            return;
+        }
         if (modified.contains(packet)) return;
         modified.add(packet);
         try
@@ -138,14 +196,6 @@ public class ServerCommonPacketListenerImplMixin
                 particleS2CPacket.z = pos.z;
                 return;
             }
-            if (packet instanceof ClientboundTeleportEntityPacket clientboundTeleportEntityPacket)
-            {
-                if (!clientboundTeleportEntityPacket.relatives().contains(Relative.X))
-                {
-                    clientboundTeleportEntityPacket.change().position = vecTransformer.s2cTransform(clientboundTeleportEntityPacket.change().position);
-                }
-                return;
-            }
             if (packet instanceof ClientboundSectionBlocksUpdatePacket clientboundSectionBlocksUpdatePacket)
             {
                 clientboundSectionBlocksUpdatePacket.sectionPos = vecTransformer.s2cTransform(clientboundSectionBlocksUpdatePacket.sectionPos);
@@ -166,12 +216,6 @@ public class ServerCommonPacketListenerImplMixin
                 clientboundPlayerLookAtPacket.z = pos.z;
                 return;
             }
-            if (packet instanceof ClientboundMoveVehiclePacket clientboundMoveVehiclePacket)
-            {
-                PositionAndRotation pr=clientboundMoveVehiclePacket.movingTo();
-                clientboundMoveVehiclePacket.movingTo = new PositionAndRotation.Immutable(vecTransformer.s2cTransform(pr.position()), pr.yRot(), pr.xRot());
-                return;
-            }
             if (packet instanceof ClientboundLevelChunkWithLightPacket clientboundLevelChunkWithLightPacket)
             {
                 ChunkPos pos = vecTransformer.s2cTransform(new ChunkPos(clientboundLevelChunkWithLightPacket.x, clientboundLevelChunkWithLightPacket.z));
@@ -179,22 +223,11 @@ public class ServerCommonPacketListenerImplMixin
                 clientboundLevelChunkWithLightPacket.z = pos.z();
                 return;
             }
-            if (packet instanceof ClientboundEntityPositionSyncPacket clientboundEntityPositionSyncPacket)
-            {
-                clientboundEntityPositionSyncPacket.position = transformPositionPath(clientboundEntityPositionSyncPacket.position(), vecTransformer);
-                return;
-            }
             if (packet instanceof ClientboundDamageEventPacket clientboundDamageEventPacket)
             {
                 if (clientboundDamageEventPacket.sourcePosition.isPresent())
                     clientboundDamageEventPacket.sourcePosition = Optional.of(vecTransformer.s2cTransform(clientboundDamageEventPacket.sourcePosition.get()));
                 return;
-            }
-            if (packet instanceof ClientboundAddEntityPacket clientboundAddEntityPacket)
-            {
-                Vec3 pos = vecTransformer.s2cTransform(new Vec3(clientboundAddEntityPacket.getX(), 0, clientboundAddEntityPacket.getZ()));
-                clientboundAddEntityPacket.x = pos.x;
-                clientboundAddEntityPacket.z = pos.z;
             }
             for (Field field : packet.getClass().getDeclaredFields())
             {
@@ -221,28 +254,24 @@ public class ServerCommonPacketListenerImplMixin
     }
 
     /**
-     * Position paths can contain multiple interpolation points. Transforming only
-     * {@link PositionPath#endPosition()} collapses a stepped path into a line and
-     * makes the client interpolate through untransformed coordinates.
+     * Whether this packet places an entity, and so has to go through {@link EntityPositionRemapper}.
+     *
+     * <p>Deliberately an explicit list rather than a broad {@code instanceof} on some interface. Several
+     * entity packets carry no position at all - {@code ClientboundMoveEntityPacket.Rot} is rotation only,
+     * {@code SetEntityMotionPacket} is velocity, {@code SetEntityLinkPacket} and {@code RemoveEntitiesPacket}
+     * are ids - and sending those through the remapper would only risk touching something that has no
+     * position to move. Being wrong in the other direction, a packet that does carry a position but is not
+     * listed, would go out untranslated, so the list is worth keeping honest.
      */
     @Unique
-    private static PositionPath transformPositionPath(PositionPath path, VecTransformer vecTransformer) throws ChunkUnusedException
+    private static boolean isEntityPacket(Packet<?> packet)
     {
-        if (path instanceof PositionPath.Linear)
-        {
-            return new PositionPath.Linear(vecTransformer.s2cTransform(path.endPosition()));
-        }
-
-        if (path instanceof PositionPath.Stepped stepped)
-        {
-            List<PositionStep> transformedSteps = new ArrayList<>(stepped.steps().size());
-            for (PositionStep step : stepped.steps())
-            {
-                transformedSteps.add(new PositionStep(vecTransformer.s2cTransform(step.position()), step.tickOffset()));
-            }
-            return PositionPath.stepped(transformedSteps);
-        }
-
-        throw new IllegalStateException("Unknown PositionPath implementation: " + path.getClass());
+        return packet instanceof ClientboundMoveEntityPacket
+                ||packet instanceof ClientboundEntityPositionSyncPacket
+                ||packet instanceof ClientboundTeleportEntityPacket
+                ||packet instanceof ClientboundAddEntityPacket
+                ||packet instanceof ClientboundMoveVehiclePacket
+                ||packet instanceof ClientboundMoveMinecartPacket
+                ||packet instanceof ClientboundRemoveEntitiesPacket;
     }
 }

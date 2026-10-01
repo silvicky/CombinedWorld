@@ -22,9 +22,6 @@ public interface CollisionGetterMixin
         try
         {
             VecTransformer transformer=VecTransformer.getInstance(player1);
-            //[S>C] Both operands are S-field. Converting both and then taking the distance is what makes
-            //this correct: vanilla's distToCenterSqr is a difference of squares, so measuring in either
-            //field gives the same answer, but measuring one operand in each field does not.
             return transformer.s2cTransform(instance).distToCenterSqr(transformer.s2cTransform((Vec3) position));
         }
         catch (Exception e)

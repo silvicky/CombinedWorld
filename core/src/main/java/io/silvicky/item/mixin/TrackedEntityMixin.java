@@ -22,10 +22,6 @@ public class TrackedEntityMixin
     @ModifyVariable(method = "updatePlayer", at = @At("STORE"), name = "deltaToPlayer")
     private Vec3 inject1(Vec3 vec3, @Local(argsOnly = true)ServerPlayer player)
     {
-        //[S>C] The delta is put on the wire, so it must be expressed in the client's view field. Both
-        //operands are S-field (entity.position() and player.position() are the server's own state), so
-        //converting each and subtracting is the correct direction - not a double transform. What the
-        //overwritten local held does not matter, because the whole value is replaced.
         try
         {
             Vec3 entityPos = entity.position();

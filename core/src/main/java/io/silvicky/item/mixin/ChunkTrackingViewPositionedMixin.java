@@ -3,6 +3,7 @@ package io.silvicky.item.mixin;
 import io.silvicky.item.backrooms.ChunkRemap;
 import io.silvicky.item.backrooms.PositionedHelper;
 import io.silvicky.item.backrooms.PositionedAccess;
+import io.silvicky.item.backrooms.VecTransformer;
 import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
@@ -22,6 +23,11 @@ public class ChunkTrackingViewPositionedMixin implements PositionedAccess
     private ServerPlayer item_storage$player;
     @Unique
     private ChunkRemap item_storage$remap=ChunkRemap.IDENTITY;
+    /** Which transformer {@link #item_storage$remap} was built from, and at what version. */
+    @Unique
+    private VecTransformer item_storage$remapSource;
+    @Unique
+    private long item_storage$remapVersion=-1;
 
     @Inject(method = "contains",at=@At("HEAD"), cancellable = true)
     private void inject1(int i, int j, boolean bl, CallbackInfoReturnable<Boolean> cir)
@@ -57,14 +63,26 @@ public class ChunkTrackingViewPositionedMixin implements PositionedAccess
     }
 
     @Override
-    public void item_storage$setRemap(ChunkRemap remap)
-    {
-        this.item_storage$remap=remap==null?ChunkRemap.IDENTITY:remap;
-    }
-
-    @Override
     public ChunkRemap item_storage$getRemap()
     {
-        return this.item_storage$remap;
+        //Identity until the view has been given a player, which is what lets a nop dimension run vanilla's
+        //tracking untouched.
+        if(item_storage$player==null)return ChunkRemap.IDENTITY;
+        //peekInstance, not getInstance: this runs on every containment query, and a containment query must
+        //never be the thing that builds a transformer.
+        VecTransformer transformer=VecTransformer.peekInstance(item_storage$player);
+        if(transformer==null)return ChunkRemap.IDENTITY;
+        //A cache hit is two reference/int comparisons. The identity test matters as much as the version
+        //one: after a reshuffle the player gets a brand new transformer whose version starts at zero, so a
+        //new instance can easily carry the same number as the old one and only the reference tells them
+        //apart. Without this the view keeps serving the previous shuffle's chunk set forever.
+        if(transformer!=item_storage$remapSource||transformer.mapVersion()!=item_storage$remapVersion)
+        {
+            item_storage$remapSource=transformer;
+            item_storage$remapVersion=transformer.mapVersion();
+            ChunkRemap fresh=transformer.getRemap();
+            item_storage$remap=fresh==null?ChunkRemap.IDENTITY:fresh;
+        }
+        return item_storage$remap;
     }
 }

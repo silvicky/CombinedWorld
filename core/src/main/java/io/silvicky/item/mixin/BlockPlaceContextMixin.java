@@ -21,8 +21,6 @@ public class BlockPlaceContextMixin
         try
         {
             VecTransformer transformer=VecTransformer.getInstance(serverPlayer);
-            //[S] instance is the clicked block position, already converted from C by ConnectionMixin. The
-            //round trip is an identity, so this reduces to instance.relative(direction).
             return transformer.c2sTransform(transformer.s2cTransform(instance).relative(direction));
         }
         catch (Exception e)

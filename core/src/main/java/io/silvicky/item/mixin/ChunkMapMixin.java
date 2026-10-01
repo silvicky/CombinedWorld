@@ -44,9 +44,9 @@ public abstract class ChunkMapMixin
     @Redirect(method = "getPlayers", at= @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ChunkMap;isChunkOnTrackedBorder(Lnet/minecraft/server/level/ServerPlayer;II)Z",ordinal = 0))
     private boolean inject1(ChunkMap instance, ServerPlayer serverPlayer, int i, int j)
     {
-        //[C] i,j are the chunk coordinates vanilla is iterating the *client's view* in, so this is C-field,
-        //not S. The helper converts them before using them against server state, which is the correct
-        //direction - an earlier version of this comment claimed [S] and contradicted the line below it.
+        //i,j are the chunk coordinates vanilla is iterating the *player's view* in, so they are positions on
+        //the player's map. The helper converts them to server positions before using them against server
+        //state, which is the correct direction.
         //
         //Bails out immediately for the identity remap. getPlayers calls this once per chunk in the view, per
         //player, per tracking update, so with the nop transformer - the default for an unconfigured
@@ -64,13 +64,15 @@ public abstract class ChunkMapMixin
     private void inject2(ServerPlayer serverPlayer, ChunkTrackingView chunkTrackingView, CallbackInfo ci)
     {
         if(!(chunkTrackingView instanceof PositionedAccess access))return;
-        //IDENTITY leaves the view with the identity remap so that contains/forEach/difference all fall
-        //through to vanilla. A TRANSLATION is carried as two ints, avoiding the
-        //(2*viewDistance+5)^2 entry map the old path built on every tracking-view update.
-        ChunkRemap remap=VecTransformer.getInstance(serverPlayer).getRemap();
-        if(remap.isIdentity())return;
+        //Hand over the player and nothing else. The view derives its own remap from the player's current
+        //transformer, re-deriving whenever that transformer's map changes - see PositionedAccess#getRemap.
+        //
+        //Pushing a snapshot here instead is what caused the void: this hook only runs when vanilla rebuilds
+        //the view, which it does solely when the player's real chunk or the view distance changes. A
+        //reshuffle replaces the entire map while leaving the real chunk alone, so the view kept serving the
+        //previous shuffle's chunk set, the server tried to send server chunks the live map had forgotten, and
+        //those packets were discarded - leaving the client in unloaded space.
         access.item_storage$setPlayer(serverPlayer);
-        access.item_storage$setRemap(remap);
     }
     @Inject(method = "updateChunkTracking",at=@At("HEAD"))
     private void inject3(ServerPlayer serverPlayer, CallbackInfo ci)

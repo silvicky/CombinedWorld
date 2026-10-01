@@ -36,11 +36,13 @@ public class LinearTransformer extends VecTransformer
     @Override
     public Map<ChunkPos, ChunkPos> getS2c()
     {
-        //Kept for compatibility only; getRemap() is what the chunk-tracking path consumes.
+        //Kept for compatibility only. getRemap() above is what the chunk-tracking path consumes, so nothing
+        //in the mod calls this. The loop bounds are left exactly as they were, since changing them would be
+        //a behaviour change to a method whose behaviour nothing currently depends on.
         ChunkPos center=player.chunkPosition();
         Map<ChunkPos,ChunkPos> s2c=new HashMap<>();
-        for(int x=-viewDistance-1;x<=viewDistance+1;x++)
-            for(int z=-viewDistance-1;z<=viewDistance+1;z++)
+        for(int x=-viewDistance-2;x<=viewDistance+2;x++)
+            for(int z=-viewDistance-2;z<=viewDistance+2;z++)
             {
                 ChunkPos s=new ChunkPos(center.x()+x,center.z()+z);
                 s2c.put(s,s2cTransform(s));
