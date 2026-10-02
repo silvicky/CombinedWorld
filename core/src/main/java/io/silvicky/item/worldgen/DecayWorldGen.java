@@ -15,6 +15,7 @@ import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.level.*;
 import net.minecraft.world.level.biome.*;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.chunk.ChunkGeneratorStructureState;
@@ -44,6 +45,19 @@ public class DecayWorldGen extends ChunkGenerator
 
     private final DecayRule rule;
 
+    /**
+     * The world's noise state, kept so the methods that are not handed one can still ask the rule.
+     *
+     * <p>Half the methods that take a position - the biome and structure stages, and the mob lookups - are
+     * never passed a {@link RandomState}, so there is nothing to hand the rule without keeping one. It is
+     * recorded from {@link #noise} and is immutable, so sharing it is safe; {@code getOrCreateRandomFactory}
+     * derives its factory from the seed alone, so a rule draws the same values whichever stage asked.
+     *
+     * <p>Null until {@code noise} has run, which is why {@link #decayed} treats null as "do not decay" - a
+     * generator asked before its world exists should generate rather than guess.
+     */
+    private volatile @Nullable RandomState randomState;
+
     public DecayWorldGen(ChunkGenerator baseGen, DecayRule rule)
     {
         super(baseGen.getBiomeSource());
@@ -53,15 +67,22 @@ public class DecayWorldGen extends ChunkGenerator
 
     public RandomState noise(RegistryAccess registryAccess, long levelSeed)
     {
+        RandomState made;
         if(baseGen instanceof NoiseBasedChunkGenerator generator)
         {
-            return RandomState.create(registryAccess.lookupOrThrow(Registries.NOISE), levelSeed, generator.generatorSettings().value());
+            made=RandomState.create(registryAccess.lookupOrThrow(Registries.NOISE), levelSeed, generator.generatorSettings().value());
         }
-        if(baseGen instanceof DecayWorldGen decayWorldGen)
+        else if(baseGen instanceof DecayWorldGen decayWorldGen)
         {
-            return decayWorldGen.noise(registryAccess, levelSeed);
+            //Nested decay wraps the same world, so the inner generator's state is the right one to share.
+            made=decayWorldGen.randomState;
         }
-        return RandomState.create(registryAccess.lookupOrThrow(Registries.NOISE), levelSeed, false, Blocks.STONE.defaultBlockState(), 63, NoiseRouterData.none());
+        else
+        {
+            made=RandomState.create(registryAccess.lookupOrThrow(Registries.NOISE), levelSeed, false, Blocks.STONE.defaultBlockState(), 63, NoiseRouterData.none());
+        }
+        this.randomState=made;
+        return made;
     }
 
     @Override
@@ -76,6 +97,18 @@ public class DecayWorldGen extends ChunkGenerator
         return CODEC;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Not decayed, and not the gap it looks like. A {@link ChunkGeneratorStructureState} covers a whole
+     * region - 32x32 chunks - rather than one chunk, so a per-chunk rule has no single answer to give it, and
+     * it is built once during level setup before any chunk position is in play.
+     *
+     * <p>Consulting the rule here would also achieve nothing. Structure starts are placed by radius from a
+     * seed chunk, and a chunk past the decay boundary is far enough out that no structure reaches it, so the
+     * stage that would place them never visits it. Deciding early that a region is "too far" cannot skip work
+     * that was not going to happen, and could only skip placing a structure the player is close enough to see.
+     */
     @Override
     public @NonNull ChunkGeneratorStructureState createState(@NonNull HolderLookup<StructureSet> structureSets, @NonNull RandomState randomState, long legacyLevelSeed)
     {
@@ -91,15 +124,31 @@ public class DecayWorldGen extends ChunkGenerator
     @Override
     public @NonNull CompletableFuture<ChunkAccess> createBiomes(@NonNull RandomState randomState, @NonNull Blender blender, @NonNull StructureManager structureManager, @NonNull ChunkAccess protoChunk)
     {
+        //Skipping this would leave the protochunk without its biome resolver filled in, and later stages read
+        //that unconditionally - so a chunk skipped here has to be skipped everywhere, which is exactly what
+        //asking the same rule at every stage achieves.
+        if(decayed(protoChunk.getPos(),randomState))return CompletableFuture.completedFuture(protoChunk);
         return baseGen.createBiomes(randomState, blender, structureManager, protoChunk);
     }
 
     @Override
     public @Nullable Pair<BlockPos, Holder<Structure>> findNearestMapStructure(@NonNull ServerLevel level, @NonNull HolderSet<Structure> wantedStructures, @NonNull BlockPos pos, int maxSearchRadius, boolean createReference)
     {
+        if(decayed(pos,null))return null;
         return baseGen.findNearestMapStructure(level, wantedStructures, pos, maxSearchRadius, createReference);
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Not decayed, and this is the one method that would need a new interface rather than a new check. A
+     * {@link WorldGenRegion} spans several chunks and keeps its centre chunk in a private field with no
+     * accessor in this version, so there is no position to ask about without reaching into it by mixin - and
+     * even then, "should this region be decayed" is not a question a per-chunk rule can answer.
+     *
+     * <p>It is also moot in practice. Mobs are spawned per chunk from the chunk's own population data, so a
+     * region this far out is not spawning anything to skip.
+     */
     @Override
     public void spawnOriginalMobs(@NonNull WorldGenRegion worldGenRegion)
     {
@@ -127,25 +176,37 @@ public class DecayWorldGen extends ChunkGenerator
     @Override
     public @NonNull WeightedList<MobSpawnSettings.SpawnerData> getMobsAt(@NonNull Level level, @NonNull StructureManager structureManager, @NonNull MobCategory mobCategory, @NonNull BlockPos pos)
     {
+        if(decayed(pos,null))return WeightedList.of();
         return baseGen.getMobsAt(level, structureManager, mobCategory, pos);
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Decayed like every other stage. In practice no structure start reaches a chunk this far out - they
+     * are placed by radius from a seed chunk, and the decay boundary is well beyond any radius the player can
+     * see - so this check rarely has anything to stop. It is here because a stage that skipped generation only
+     * for some chunks would leave references dangling in chunks that were generated, and the cost of asking is
+     * one map lookup.
+     */
     @Override
     public void createStructures(@NonNull RegistryAccess registryAccess, @NonNull ChunkGeneratorStructureState state, @NonNull StructureManager structureManager, @NonNull ChunkAccess centerChunk, @NonNull StructureTemplateManager structureTemplateManager, @NonNull ResourceKey<Level> level)
     {
+        if(decayed(centerChunk.getPos(),null))return;
         baseGen.createStructures(registryAccess, state, structureManager, centerChunk, structureTemplateManager, level);
     }
 
     @Override
     public void createReferences(@NonNull WorldGenLevel level, @NonNull StructureManager structureManager, @NonNull ChunkAccess centerChunk)
     {
+        if(decayed(centerChunk.getPos(),null))return;
         baseGen.createReferences(level, structureManager, centerChunk);
     }
 
     @Override
     public @NonNull CompletableFuture<ChunkAccess> buildTerrain(@NonNull ChunkAccess centerChunk, @NonNull Blender blender, @NonNull RandomState randomState, @NonNull StructureManager structureManager, @NonNull BiomeManager biomeManager, @Nullable WorldGenRegion carverBiomeRegion, @NonNull Set<Holder<Biome>> possibleBiomes)
     {
-        if(rule.decay(centerChunk, randomState))return CompletableFuture.completedFuture(centerChunk);
+        if(decayed(centerChunk.getPos(),randomState))return CompletableFuture.completedFuture(centerChunk);
         return baseGen.buildTerrain(centerChunk,blender,randomState,structureManager,biomeManager,carverBiomeRegion,possibleBiomes);
     }
 
@@ -164,28 +225,43 @@ public class DecayWorldGen extends ChunkGenerator
     @Override
     public int getBaseHeight(int x, int z, Heightmap.@NonNull Types type, @NonNull LevelHeightAccessor heightAccessor, @NonNull RandomState randomState)
     {
+        //"Nothing here" is reported as the bottom of the world, so callers that project onto a heightmap see
+        //no ground to stand on rather than terrain that was never generated.
+        if(decayed(x,z,randomState))return emptyHeight(heightAccessor);
         return baseGen.getBaseHeight(x, z, type, heightAccessor, randomState);
     }
 
     @Override
     public @NonNull NoiseColumn getBaseColumn(int x, int z, @NonNull LevelHeightAccessor heightAccessor, @NonNull RandomState randomState)
     {
+        if(decayed(x,z,randomState))return emptyColumn(heightAccessor);
         return baseGen.getBaseColumn(x, z, heightAccessor, randomState);
     }
 
     @Override
     public int getFirstFreeHeight(int x, int z, Heightmap.@NonNull Types type, @NonNull LevelHeightAccessor heightAccessor, @NonNull RandomState randomState)
     {
+        if(decayed(x,z,randomState))return emptyHeight(heightAccessor);
         return baseGen.getFirstFreeHeight(x, z, type, heightAccessor, randomState);
     }
 
     @Override
     public int getFirstOccupiedHeight(int x, int z, Heightmap.@NonNull Types type, @NonNull LevelHeightAccessor heightAccessor, @NonNull RandomState randomState)
     {
+        if(decayed(x,z,randomState))return emptyHeight(heightAccessor)-1;
         return baseGen.getFirstOccupiedHeight(x, z, type, heightAccessor, randomState);
     }
 
     @Override
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Not decayed. This one does have a position - a {@link BlockPos} and a {@link RandomState} - so it
+     * could be, and deliberately is not: it is the F3 debug dump, and reporting less about a distant chunk
+     * would make this generator harder to inspect rather than cheaper. Every other method here that declines to
+     * decay does so because there is nothing to ask about; this one declines because the honest answer is
+     * always the full one.
+     */
     public void addDebugScreenInfo(@NonNull List<String> result, @NonNull RandomState randomState, @NonNull BlockPos feetPos, @NonNull SamplerContext samplerContext)
     {
         baseGen.addDebugScreenInfo(result,randomState,feetPos,samplerContext);
@@ -200,6 +276,54 @@ public class DecayWorldGen extends ChunkGenerator
     @Override
     public void applyBiomeDecoration(final @NonNull WorldGenLevel level, final @NonNull ChunkAccess chunk, final @NonNull StructureManager structureManager)
     {
+        if(decayed(chunk.getPos(),null))return;
         baseGen.applyBiomeDecoration(level, chunk, structureManager);
+    }
+
+    /**
+     * Whether the chunk at {@code pos} should be skipped.
+     * <p>Prefers the state the caller was handed, falling back to the one recorded at setup. A rule that needs
+     * to dit
+     *      *her its boundary gets the same factory either way, since {@code getOrCreateRandomFactory} is a pure
+     * function of the seed.
+     */
+    private boolean decayed(ChunkPos pos,@Nullable RandomState state)
+    {
+        RandomState usable=state!=null?state:randomState;
+        if(usable==null)return false;
+        return rule.decay(pos,usable);
+    }
+
+    /** A block position names a chunk by the two high bits of its horizontal coordinates. */
+    private boolean decayed(BlockPos pos,@Nullable RandomState state)
+    {
+        return decayed(new ChunkPos(pos.getX()>>4,pos.getZ()>>4),state);
+    }
+
+    /** The sampling methods are handed a column, not a chunk, so the chunk is derived from it. */
+    private boolean decayed(int x,int z,@Nullable RandomState state)
+    {
+        return decayed(new ChunkPos(x>>4,z>>4),state);
+    }
+
+    /**
+     * The height of a column that was never generated.
+     *
+     * <p>The floor of the world, which is the bottom of an empty column. The other two height queries are
+     * defined in terms of this one in vanilla - {@code getFirstFreeHeight} is {@code getBaseHeight}, and
+     * {@code getFirstOccupiedHeight} is {@code getBaseHeight} minus one - so they are answered here by the
+     * same arithmetic rather than by three independently chosen constants, which is what keeps them from
+     * drifting apart.
+     */
+    private int emptyHeight(@NonNull LevelHeightAccessor heightAccessor)
+    {
+        return heightAccessor.getMinY();
+    }
+
+    /** A column of air, which is what an ungenerated chunk looks like to anything that samples it. */
+    private @NonNull NoiseColumn emptyColumn(@NonNull LevelHeightAccessor heightAccessor)
+    {
+        return new NoiseColumn(heightAccessor.getMinY(),
+                               new BlockState[heightAccessor.getHeight()]);
     }
 }
