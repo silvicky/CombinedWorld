@@ -1,6 +1,7 @@
 package io.silvicky.item.mixin;
 
 import com.llamalad7.mixinextras.sugar.Local;
+import io.silvicky.item.StateSaver;
 import io.silvicky.item.backrooms.ChunkRemap;
 import io.silvicky.item.backrooms.PositionedHelper;
 import io.silvicky.item.backrooms.VecTransformer;
@@ -11,6 +12,7 @@ import net.minecraft.core.RegistryAccess;
 import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Mth;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkGenerator;
@@ -23,6 +25,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(ChunkMap.class)
 public abstract class ChunkMapMixin
@@ -83,5 +86,38 @@ public abstract class ChunkMapMixin
     private RandomState inject5(HolderGetter<NormalNoise> noises, long seed, boolean useLegacyRandom, BlockState defaultBlock, int seaLevel, NoiseRouter noiseRouter, @Local(argsOnly = true)ChunkGenerator generator, @Local RegistryAccess registryAccess)
     {
         return WorldGenUtil.getNoise(registryAccess, seed, generator);
+    }
+
+    /**
+     * The stored view distance is the server's cap, substituted at the moment it is asked for.
+     *
+     * <p><b>Why here.</b> This is the only place the effective view distance is decided, and it decides it the
+     * way we want anyway:
+     *
+     * <pre>
+     *   return Mth.clamp(player.requestedViewDistance(), 2, this.serverViewDistance);
+     * </pre>
+     *
+     * <p>Vanilla already takes the smaller of what the client asked for and what the server allows. That clamp
+     * is kept, with only its upper bound replaced, so a client asking for less than the stored value still gets
+     * less - the override is a ceiling, never a floor. A dimension with no stored value is left entirely to
+     * vanilla.
+     *
+     * <p><b>Why a read rather than a write.</b> The command only records a value; nothing here has to be
+     * re-applied for it to take effect, because this runs on every tracking update - {@code updateChunkTracking}
+     * and {@code updatePlayer} both call it. An earlier version redirected the distance while a
+     * {@code ServerLevel} was being constructed and blocked the later global setter from changing it, which
+     * meant a stored value only ever took effect on the restart after it was set: the level was already built by
+     * the time any command could run, and nothing rebuilt it.
+     *
+     * <p>{@code getPlayerViewDistance} is final, so it cannot be overwritten, but injection is unaffected by
+     * that and it is already opened up in the access widener.
+     */
+    @Inject(method = "getPlayerViewDistance",at=@At("HEAD"),cancellable = true)
+    private void inject6(ServerPlayer player, CallbackInfoReturnable<Integer> cir)
+    {
+        Integer stored=StateSaver.getServerState(player.level().getServer()).ext.view.get(player.level().dimension.identifier());
+        if(stored==null)return;
+        cir.setReturnValue(Mth.clamp(player.requestedViewDistance(),2,stored));
     }
 }
