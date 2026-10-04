@@ -24,38 +24,24 @@ public class Graphic
 
     public static <T extends AbstractSegment<T>> void drawSideRect(T segment, RoadPattern pattern)
     {
-        //TODO use a timestamp in the future to avoid this
         //todo still mismatch, also in lines, the problem seems to be that, some ending points are not accessible at all, and all should be rewritten
-        Map<Point2, BiConsumer<Integer, Integer>> edges=new HashMap<>();
-        Map<Point2, BiConsumer<Integer, Integer>> rects=new HashMap<>();
+        Map<Point2, BiConsumer<Integer, Integer>> buffer=new LinkedHashMap<>();
         for(Pair<Double, BiConsumer<Integer, Integer>> i: pattern.features())
         {
-            segment.move(i.getFirst()).draw((x, z)-> edges.put(new Point2(x,z), i.getSecond()));
+            segment.move(i.getFirst()).draw((x,z)-> buffer.putIfAbsent(new Point2(x,z),i.getSecond()));
         }
         for(Pair<Pair<Double,Double>, BiConsumer<Integer, Integer>> i: pattern.rectFeatures())
         {
             segment.drawRectOf(i.getFirst().getFirst(),
                     i.getFirst().getSecond(),
-                    (x,z)->{
-                        if(!edges.containsKey(new Point2(x,z)))rects.put(new Point2(x,z),i.getSecond());
-                    });
+                    (x,z)->buffer.putIfAbsent(new Point2(x,z),i.getSecond()));
         }
         segment.drawRectOf(pattern.min(),
                 pattern.max(),
-                (x,z)-> {
-                    if(!edges.containsKey(new Point2(x,z))&&!rects.containsKey(new Point2(x,z)))pattern.road().accept(x, z);
-                });
-        for(Pair<Pair<Double,Double>, BiConsumer<Integer, Integer>> i: pattern.rectFeatures())
+                (x,z)-> buffer.putIfAbsent(new Point2(x,z),pattern.road()));
+        for(Map.Entry<Point2, BiConsumer<Integer, Integer>> i: buffer.entrySet())
         {
-            segment.drawRectOf(i.getFirst().getFirst(),
-                    i.getFirst().getSecond(),
-                    (x,z)->{
-                        if(!edges.containsKey(new Point2(x,z)))i.getSecond().accept(x, z);
-                    });
-        }
-        for(Pair<Double, BiConsumer<Integer, Integer>> i: pattern.features())
-        {
-            segment.move(i.getFirst()).draw(i.getSecond());
+            i.getValue().accept(i.getKey().x, i.getKey().z);
         }
     }
 

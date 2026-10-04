@@ -44,6 +44,8 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
 
     private static final double bufferOutsideArc=3;
 
+    //Integration of dash lines must be preserved for correct iteration, so they are put before anything
+
     private RoadPattern trunkPattern(AbstractSegment<?> segment, BiFunction<Integer,Integer,Integer> height, Road2Blocks lightType)
     {
         Dash l=new Dash(segment);
@@ -54,13 +56,14 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
                 2*roadWidth+5,
                 (x,z)->setBlockState(new BlockPos(x,height.apply(x,z),z), ROAD),
                 List.of(
+                        new Pair<>(-roadWidth -1,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),l.get(new Point2d(x,z))?DASH:ROAD)),
+                        new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,height.apply(x,z),z),light.get(new Point2d(x,z))? lightType :GRASS)),
+                        new Pair<>(roadWidth +1,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),r.get(new Point2d(x,z))?DASH:ROAD)),
+
                         new Pair<>(-2*roadWidth-5,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),EDGE)),
                         new Pair<>(-2*roadWidth-1,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),EMERGENCY_EDGE)),
-                        new Pair<>(-roadWidth -1,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),l.get(new Point2d(x,z))?DASH:ROAD)),
                         new Pair<>(-1.0,(x,z)->setBlockState(new BlockPos(x,height.apply(x,z),z),INTERNAL_EDGE)),
-                        new Pair<>(0.0,(x,z)->setBlockState(new BlockPos(x,height.apply(x,z),z),light.get(new Point2d(x,z))? lightType :GRASS)),
                         new Pair<>(1.0,(x,z)->setBlockState(new BlockPos(x,height.apply(x,z),z),INTERNAL_EDGE)),
-                        new Pair<>(roadWidth +1,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),r.get(new Point2d(x,z))?DASH:ROAD)),
                         new Pair<>(2*roadWidth+1,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),EMERGENCY_EDGE)),
                         new Pair<>(2*roadWidth+5,(x, z)->setBlockState(new BlockPos(x,height.apply(x,z),z),EDGE))
                 ),
@@ -100,8 +103,9 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
                 2*roadWidth+4,
                 (x,z)->setBlockState(new BlockPos(x,h,z), ROAD),
                 List.of(
-                        new Pair<>(0.0,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE)),
                         new Pair<>(roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),dash.get(new Point2d(x,z))?DASH:ROAD)),
+
+                        new Pair<>(0.0,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE)),
                         new Pair<>(2*roadWidth,(x, z)->setBlockState(new BlockPos(x,h,z),EMERGENCY_EDGE)),
                         new Pair<>(2*roadWidth+4,(x, z)->setBlockState(new BlockPos(x,h,z),EDGE))
                 ),
