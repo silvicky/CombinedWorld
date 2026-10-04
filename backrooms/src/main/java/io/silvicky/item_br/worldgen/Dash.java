@@ -21,7 +21,7 @@ public class Dash
         int dashCount=(int) segment.length()/(dashLength+dashSpacing);
         if(dashCount<=0)return;
         double dashRealLength= segment.length()/dashCount;
-        if(dashRealLength<=dashSpacing)return;
+        if(dashRealLength<=dashLength)return;
         double cur;
         if(initialStatus) {
             cur = (double) dashLength / 2;

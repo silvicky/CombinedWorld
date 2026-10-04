@@ -50,7 +50,7 @@ public class Road2Cache extends ChunkGenCache<Road2Blocks>
     {
         Dash l=new Dash(segment);
         Dash r=new Dash(segment);
-        Dash light=new Dash(segment,1,30,false);
+        Dash light=new Dash(segment,0,30,false);
         return new RoadPattern(
                 -2*roadWidth-5,
                 2*roadWidth+5,
