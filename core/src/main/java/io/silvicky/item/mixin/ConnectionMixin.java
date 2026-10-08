@@ -2,6 +2,7 @@ package io.silvicky.item.mixin;
 
 import io.silvicky.item.backrooms.ChunkUnusedException;
 import io.silvicky.item.backrooms.VecTransformer;
+import io.silvicky.item.common.Util;
 import net.minecraft.core.PositionAndRotation;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.PacketFlow;
@@ -107,6 +108,52 @@ public abstract class ConnectionMixin
             return;
         }
         if(packet instanceof ServerboundSetStructureBlockPacket){return;}//TODO there are 2 pos!
+        if(packet instanceof ServerboundPlayerActionPacket playerActionPacket)
+        {
+            //Same contract as the use-item-on branch above: the destroy click is converted C->S here, the
+            //outcome is converted back when it is broadcast, and a page re-roll in between flips the visible
+            //state back even though the server dropped the block. Freeze the page before converting.
+            //If the page is already pruned from this player's view, the interaction must be rejected outright;
+            //falling back to the raw C-position (what c2sOrKeep does) breaks a *different* block and the
+            //update packet for that wrong block then gets dropped because its chunk is also unmapped.
+            switch (playerActionPacket.getAction())
+            {
+                case START_DESTROY_BLOCK:
+                case CHANGE_DESTROY_DIRECTION:
+                case ABORT_DESTROY_BLOCK:
+                case STOP_DESTROY_BLOCK:
+                    vecTransformer.pinAt(Vec3.atCenterOf(playerActionPacket.getPos()));
+                    try
+                    {
+                        for (Field field : packet.getClass().getDeclaredFields())
+                        {
+                            if (BlockPos.class.isAssignableFrom(field.getType()))
+                            {
+                                field.setAccessible(true);
+                                field.set(packet, vecTransformer.c2sTransform((BlockPos) field.get(packet)));
+                            }
+                        }
+                    }
+                    catch (ChunkUnusedException e)
+                    {
+                        //The block the player clicked is in a page this player cannot currently see. Reject the
+                        //action cleanly; the client will resync on the next chunk update.
+                        Util.LOGGER.warn("[remap-break] {} tried to break block at {}, but the page is not in their view; rejecting action",
+                                impl.getPlayer().getGameProfile().name(), playerActionPacket.getPos());
+                        ci.cancel();
+                        return;
+                    }
+                    catch (IllegalAccessException e)
+                    {
+                        throw new RuntimeException(e);
+                    }
+                    return;
+                default:
+                    break;
+            }
+            //Non-destroy actions (drop, swap, stab…) don't target a specific block for state change.
+            //Fall through to the generic BlockPos loop below.
+        }
         for (Field field : packet.getClass().getDeclaredFields())
         {
             if (BlockPos.class.isAssignableFrom(field.getType()))

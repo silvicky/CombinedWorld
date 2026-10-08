@@ -44,8 +44,16 @@ public class EntityVisibilityManager
     }
     public static boolean isVisible(ServerPlayer player, ClientboundAddEntityPacket packet)
     {
+        return isVisible(player,packet.getType(),packet.getUUID());
+    }
+    /**
+     * The same rule for packets that do not carry an {@link EntityType} of their own, such as the waypoint
+     * packet: the marker packet only names a UUID, so the source entity has to be looked up to learn its
+     * type.
+     */
+    public static boolean isVisible(ServerPlayer player, EntityType<?> entityType, java.util.UUID uuid)
+    {
         int level=getServerState(player.level().getServer()).entityVisibility.getOrDefault(player.level().dimension().identifier(),0);
-        EntityType<?> entityType=packet.getType();
         Entity entity=entityType.create(player.level(), EntitySpawnReason.COMMAND);
         if(entityType.equals(EntityTypes.PLAYER))
         {
@@ -55,7 +63,7 @@ public class EntityVisibilityManager
                 {
                     String namespace=player.level().dimension().identifier().getNamespace();
                     MinecraftServer server=player.level().getServer();
-                    return getPlayerVisibility(server,namespace,player.getStringUUID())==getPlayerVisibility(server,namespace,packet.getUUID().toString());
+                    return getPlayerVisibility(server,namespace,player.getStringUUID())==getPlayerVisibility(server,namespace,uuid.toString());
                 }
                 case 2 ->
                 {
