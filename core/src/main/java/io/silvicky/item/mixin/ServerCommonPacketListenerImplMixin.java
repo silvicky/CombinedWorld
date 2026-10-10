@@ -6,7 +6,8 @@ import io.silvicky.item.backrooms.EntityPositionRemapper;
 import io.silvicky.item.backrooms.EntityRemapAccess;
 import io.silvicky.item.backrooms.EntityVisibilityManager;
 import io.silvicky.item.backrooms.VecTransformer;
-import io.silvicky.item.common.Util;
+import it.unimi.dsi.fastutil.shorts.ShortOpenHashSet;
+import it.unimi.dsi.fastutil.shorts.ShortSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.PositionAndRotation;
 import net.minecraft.core.SectionPos;
@@ -22,6 +23,8 @@ import net.minecraft.world.entity.PositionPath;
 import net.minecraft.world.entity.PositionStep;
 import net.minecraft.world.entity.Relative;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.waypoints.TrackedWaypoint;
 import org.jspecify.annotations.Nullable;
@@ -247,82 +250,380 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
             }
             return;
         }
+        //Block update / section update packets are shared across players but need per-player conversion.
+        //Move them BEFORE the `modified` cache, otherwise the first player's conversion is cached and
+        //all other players receive the wrong coordinates (the same bug entity packets would have without
+        //their special handling). These packets have no setters, so they must be rebuilt per player.
+        if (packet instanceof ClientboundBlockUpdatePacket blockUpdate)
+        {
+            try
+            {
+                BlockPos pos = blockUpdate.getPos();
+                BlockPos converted = vecTransformer.s2cTransform(pos);
+                if (!pos.equals(converted))
+                {
+                    ClientboundBlockUpdatePacket replacement = new ClientboundBlockUpdatePacket(converted, blockUpdate.getBlockState());
+                    ci.cancel();
+                    replacing = true;
+                    try { instance.send(replacement, channelFutureListener); }
+                    finally { replacing = false; }
+                }
+            }
+            catch (ChunkUnusedException e)
+            {
+                //Target chunk not in this player's view - drop the packet silently.
+                ci.cancel();
+            }
+            return;
+        }
+        if (packet instanceof ClientboundSectionBlocksUpdatePacket sectionUpdate)
+        {
+            //One object, broadcast to every tracking player - ChunkHolder builds it once per section and
+            //hands the same reference to each recipient. So it may not be edited in place: the next player
+            //would convert the converted position a second time, and editing it back afterwards would race
+            //netty, which serialises on its own thread after send() has already returned. Rebuild it.
+            try
+            {
+                Field posField = ClientboundSectionBlocksUpdatePacket.class.getDeclaredField("positions");
+                posField.setAccessible(true);
+                short[] positions = (short[]) posField.get(sectionUpdate);
+
+                Field secField = ClientboundSectionBlocksUpdatePacket.class.getDeclaredField("sectionPos");
+                secField.setAccessible(true);
+                SectionPos original = (SectionPos) secField.get(sectionUpdate);
+                SectionPos converted = vecTransformer.s2cTransform(original);
+                if (original.equals(converted)) return;
+
+                //The states live in the section the packet was built from, and the public constructor reads
+                //them from there, so the same section has to be handed over with the new position.
+                LevelChunk chunk = gamePacketListener.getPlayer().level()
+                        .getChunk(original.chunk().x(), original.chunk().z());
+                if (chunk == null)
+                {
+                    ci.cancel();
+                    return;
+                }
+                LevelChunkSection section = chunk.getSection(
+                        chunk.getSectionIndexFromSectionY(original.getY()));
+
+                ShortSet changes = new ShortOpenHashSet(positions.length);
+                for (short packed : positions) changes.add(packed);
+
+                ClientboundSectionBlocksUpdatePacket replacement =
+                        new ClientboundSectionBlocksUpdatePacket(converted, changes, section);
+                ci.cancel();
+                replacing = true;
+                try { instance.send(replacement, channelFutureListener); }
+                finally { replacing = false; }
+            }
+            catch (ChunkUnusedException e)
+            {
+                ci.cancel();
+            }
+            catch (Exception e)
+            {
+                throw new RuntimeException(e);
+            }
+            return;
+        }
+        //Level event packets (fluid flow, explosions, sounds) carry a BlockPos and are broadcast.
+        //Move before cache so each player gets their own conversion.
+        if (packet instanceof ClientboundLevelEventPacket levelEvent)
+        {
+            try
+            {
+                BlockPos pos = levelEvent.getPos();
+                BlockPos converted = vecTransformer.s2cTransform(pos);
+                if (!pos.equals(converted))
+                {
+                    ClientboundLevelEventPacket replacement = new ClientboundLevelEventPacket(
+                            levelEvent.getType(), converted, levelEvent.getData(), levelEvent.isGlobalEvent());
+                    ci.cancel();
+                    replacing = true;
+                    try { instance.send(replacement, channelFutureListener); }
+                    finally { replacing = false; }
+                }
+            }
+            catch (ChunkUnusedException e)
+            {
+                ci.cancel();
+            }
+            return;
+        }
+        //Bundle packets can contain multiple block updates / level events.
+        //Must be before cache so each sub-packet gets per-player conversion.
+        if (packet instanceof ClientboundBundlePacket bundleS2CPacket)
+        {
+            //We need to convert each sub-packet. Since they're shared objects, we rebuild the bundle
+            //with converted sub-packets.
+            java.util.List<Packet<ClientGamePacketListener>> convertedSubPackets = new java.util.ArrayList<>();
+            boolean anyChanged = false;
+            for (Packet<?> packet1 : bundleS2CPacket.subPackets())
+            {
+                Packet<ClientGamePacketListener> toSend = (Packet<ClientGamePacketListener>) packet1;
+                //If it's a packet type we know needs conversion, convert it
+                if (packet1 instanceof ClientboundBlockUpdatePacket bu)
+                {
+                    try
+                    {
+                        BlockPos pos = bu.getPos();
+                        BlockPos converted = vecTransformer.s2cTransform(pos);
+                        if (!pos.equals(converted))
+                        {
+                            toSend = new ClientboundBlockUpdatePacket(converted, bu.getBlockState());
+                            anyChanged = true;
+                        }
+                    }
+                    catch (ChunkUnusedException ignored) { toSend = null; }
+                }
+                else if (packet1 instanceof ClientboundSectionBlocksUpdatePacket sbu)
+                {
+                    //Cannot rebuild this one from outside - its other fields are private and it has no
+                    //public constructor taking a position. Drop it from the bundle rather than leave it
+                    //converted: section updates are an optimisation, and the individual block updates that
+                    //precede them carry the same change. See the note on the shared section packet above.
+                    try
+                    {
+                        Field secField = ClientboundSectionBlocksUpdatePacket.class.getDeclaredField("sectionPos");
+                        secField.setAccessible(true);
+                        vecTransformer.s2cTransform((SectionPos) secField.get(sbu));
+                        anyChanged = true;
+                        toSend = null;
+                    }
+                    catch (ChunkUnusedException ignored) { toSend = null; }
+                    catch (Exception ignored) {}
+                }
+                else if (packet1 instanceof ClientboundLevelEventPacket le)
+                {
+                    try
+                    {
+                        BlockPos pos = le.getPos();
+                        BlockPos converted = vecTransformer.s2cTransform(pos);
+                        if (!pos.equals(converted))
+                        {
+                            toSend = new ClientboundLevelEventPacket(
+                                    le.getType(), converted, le.getData(), le.isGlobalEvent());
+                            anyChanged = true;
+                        }
+                    }
+                    catch (ChunkUnusedException ignored) { toSend = null; }
+                }
+                if (toSend != null) convertedSubPackets.add(toSend);
+            }
+            if (anyChanged)
+            {
+                ClientboundBundlePacket replacement = new ClientboundBundlePacket((Iterable) convertedSubPackets);
+                ci.cancel();
+                replacing = true;
+                try { instance.send(replacement, channelFutureListener); }
+                finally { replacing = false; }
+            }
+            return;
+        }
+        //======================================================================
+        //Broadcast packets with position data — MUST be before `modified` cache.
+        //These packets are the SAME OBJECT sent to multiple tracking players.
+        //REBUILD each packet per player (new instance), do NOT mutate in place.
+        //======================================================================
+        if(packet instanceof ClientboundExplodePacket clientboundExplodePacket)
+        {
+            try
+            {
+                Vec3 center = clientboundExplodePacket.center();
+                Vec3 converted = vecTransformer.s2cTransform(center);
+                if (!center.equals(converted))
+                {
+                    ClientboundExplodePacket replacement = new ClientboundExplodePacket(
+                            converted, clientboundExplodePacket.radius(), clientboundExplodePacket.blockCount(),
+                            clientboundExplodePacket.playerKnockback(), clientboundExplodePacket.explosionParticle(),
+                            clientboundExplodePacket.explosionSound(), clientboundExplodePacket.blockParticles(),
+                            clientboundExplodePacket.playSound());
+                    ci.cancel();
+                    replacing = true;
+                    try { instance.send(replacement, channelFutureListener); }
+                    finally { replacing = false; }
+                }
+            }
+            catch (ChunkUnusedException e){ci.cancel();}
+            return;
+        }
+        if (packet instanceof ClientboundLightUpdatePacket lightUpdateS2CPacket)
+        {
+            try
+            {
+                ChunkPos chunkPos = new ChunkPos(lightUpdateS2CPacket.x(), lightUpdateS2CPacket.z());
+                ChunkPos converted = vecTransformer.s2cTransform(chunkPos);
+                if (!chunkPos.equals(converted))
+                {
+                    //Rebuild with converted chunk position, preserving lightData
+                    ClientboundLightUpdatePacket replacement = new ClientboundLightUpdatePacket(
+                            converted.x(), converted.z(), lightUpdateS2CPacket.lightData());
+                    ci.cancel();
+                    replacing = true;
+                    try { instance.send(replacement, channelFutureListener); }
+                    finally { replacing = false; }
+                }
+            }
+            catch (ChunkUnusedException e){ci.cancel();}
+            return;
+        }
+        if (packet instanceof ClientboundChunksBiomesPacket chunkBiomesPacket)
+        {
+            try
+            {
+                java.util.List<ClientboundChunksBiomesPacket.ChunkBiomeData> convertedData = new java.util.ArrayList<>();
+                boolean anyChanged = false;
+                for (ClientboundChunksBiomesPacket.ChunkBiomeData data : chunkBiomesPacket.chunkBiomeData())
+                {
+                    ChunkPos converted = vecTransformer.s2cTransform(data.pos());
+                    if (!data.pos().equals(converted))
+                    {
+                        convertedData.add(new ClientboundChunksBiomesPacket.ChunkBiomeData(converted, data.buffer()));
+                        anyChanged = true;
+                    }
+                    else
+                    {
+                        convertedData.add(data);
+                    }
+                }
+                if (anyChanged)
+                {
+                    ClientboundChunksBiomesPacket replacement = new ClientboundChunksBiomesPacket(convertedData);
+                    ci.cancel();
+                    replacing = true;
+                    try { instance.send(replacement, channelFutureListener); }
+                    finally { replacing = false; }
+                }
+            }
+            catch (ChunkUnusedException e){ci.cancel();}
+            return;
+        }
+        if (packet instanceof ClientboundDebugChunkValuePacket debugPacket)
+        {
+            try
+            {
+                ChunkPos chunkPos = debugPacket.chunkPos();
+                ChunkPos converted = vecTransformer.s2cTransform(chunkPos);
+                if (!chunkPos.equals(converted))
+                {
+                    ClientboundDebugChunkValuePacket replacement = new ClientboundDebugChunkValuePacket(
+                            converted, debugPacket.update());
+                    ci.cancel();
+                    replacing = true;
+                    try { instance.send(replacement, channelFutureListener); }
+                    finally { replacing = false; }
+                }
+            }
+            catch (ChunkUnusedException e){ci.cancel();}
+            return;
+        }
+        if (packet instanceof ClientboundLevelParticlesPacket particlePacket)
+        {
+            try
+            {
+                Vec3 pos = new Vec3(particlePacket.x(), 0, particlePacket.z());
+                Vec3 converted = vecTransformer.s2cTransform(pos);
+                if (!pos.equals(converted))
+                {
+                    ClientboundLevelParticlesPacket replacement = new ClientboundLevelParticlesPacket(
+                            particlePacket.particle(), particlePacket.overrideLimiter(), particlePacket.alwaysShow(),
+                            converted.x, particlePacket.y(), converted.z,
+                            particlePacket.xDist(), particlePacket.yDist(), particlePacket.zDist(),
+                            particlePacket.xMaxSpeed(), particlePacket.yMaxSpeed(), particlePacket.zMaxSpeed(),
+                            particlePacket.count(), particlePacket.randomizationType());
+                    ci.cancel();
+                    replacing = true;
+                    try { instance.send(replacement, channelFutureListener); }
+                    finally { replacing = false; }
+                }
+            }
+            catch (ChunkUnusedException e){ci.cancel();}
+            return;
+        }
+        if (packet instanceof ClientboundPlayerLookAtPacket lookAtPacket)
+        {
+            try
+            {
+                //Position-based look-at (not entity-based). Fields are private, use reflection.
+                Field atEntityField = ClientboundPlayerLookAtPacket.class.getDeclaredField("atEntity");
+                atEntityField.setAccessible(true);
+                boolean atEntity = atEntityField.getBoolean(lookAtPacket);
+                if (!atEntity)
+                {
+                    Field xField = ClientboundPlayerLookAtPacket.class.getDeclaredField("x");
+                    Field zField = ClientboundPlayerLookAtPacket.class.getDeclaredField("z");
+                    xField.setAccessible(true);
+                    zField.setAccessible(true);
+                    double x = xField.getDouble(lookAtPacket);
+                    double z = zField.getDouble(lookAtPacket);
+                    Vec3 pos = new Vec3(x, 0, z);
+                    Vec3 converted = vecTransformer.s2cTransform(pos);
+                    if (!pos.equals(converted))
+                    {
+                        //Rebuild with converted position, preserving fromAnchor
+                        ClientboundPlayerLookAtPacket replacement = new ClientboundPlayerLookAtPacket(
+                                lookAtPacket.getFromAnchor(), converted.x, converted.y, converted.z);
+                        ci.cancel();
+                        replacing = true;
+                        try { instance.send(replacement, channelFutureListener); }
+                        finally { replacing = false; }
+                    }
+                }
+            }
+            catch (ChunkUnusedException e){ci.cancel();}
+            catch (Exception e){throw new RuntimeException(e);}
+            return;
+        }
+        if (packet instanceof ClientboundDamageEventPacket damagePacket)
+        {
+            try
+            {
+                if (damagePacket.sourcePosition().isPresent())
+                {
+                    Vec3 pos = damagePacket.sourcePosition().get();
+                    Vec3 converted = vecTransformer.s2cTransform(pos);
+                    if (!pos.equals(converted))
+                    {
+                        ClientboundDamageEventPacket replacement = new ClientboundDamageEventPacket(
+                                damagePacket.entityId(), damagePacket.sourceType(), damagePacket.sourceCauseId(),
+                                damagePacket.sourceDirectId(), Optional.of(converted));
+                        ci.cancel();
+                        replacing = true;
+                        try { instance.send(replacement, channelFutureListener); }
+                        finally { replacing = false; }
+                    }
+                }
+            }
+            catch (ChunkUnusedException e){ci.cancel();}
+            return;
+        }
         if (modified.contains(packet)) return;
         modified.add(packet);
         try
         {
-            if (packet instanceof ClientboundBundlePacket bundleS2CPacket)
-            {
-                for (Packet<?> packet1 : bundleS2CPacket.subPackets())
-                {
-                    for (Field field : packet1.getClass().getDeclaredFields())
-                    {
-                        if (BlockPos.class.isAssignableFrom(field.getType()))
-                        {
-                            field.setAccessible(true);
-                            try
-                            {
-                                BlockPos pos = (BlockPos) field.get(packet1);
-                                field.set(packet1, vecTransformer.s2cTransform(pos));
-                            }
-                            catch (IllegalAccessException e)
-                            {
-                                throw new RuntimeException(e);
-                            }
-                        }
-                    }
-                }
-                return;
-            }
             if (packet instanceof ClientboundForgetLevelChunkPacket)
             {
                 //this is processed elsewhere
                 return;
             }
-            if(packet instanceof ClientboundExplodePacket clientboundExplodePacket)
-            {
-                clientboundExplodePacket.center=vecTransformer.s2cTransform(clientboundExplodePacket.center);
-                return;
-            }
-            if (packet instanceof ClientboundLightUpdatePacket lightUpdateS2CPacket)
-            {
-                ChunkPos pos = vecTransformer.s2cTransform(new ChunkPos(lightUpdateS2CPacket.x, lightUpdateS2CPacket.z));
-                lightUpdateS2CPacket.x = pos.x();
-                lightUpdateS2CPacket.z = pos.z();
-                return;
-            }
-            if (packet instanceof ClientboundChunksBiomesPacket(
-                    List<ClientboundChunksBiomesPacket.ChunkBiomeData> chunkBiomeData
-            ))
-            {
-                for (ClientboundChunksBiomesPacket.ChunkBiomeData serialized : chunkBiomeData)
-                {
-                    serialized.pos = vecTransformer.s2cTransform(serialized.pos);
-                }
-                return;
-            }
-            if (packet instanceof ClientboundDebugChunkValuePacket chunkValueDebugS2CPacket)
-            {
-                chunkValueDebugS2CPacket.chunkPos = vecTransformer.s2cTransform(chunkValueDebugS2CPacket.chunkPos);
-                return;
-            }
             if (packet instanceof ClientboundSetChunkCacheCenterPacket chunkRenderDistanceCenterS2CPacket)
             {
-                ChunkPos pos = vecTransformer.s2cTransform(new ChunkPos(chunkRenderDistanceCenterS2CPacket.x, chunkRenderDistanceCenterS2CPacket.z));
-                chunkRenderDistanceCenterS2CPacket.x = pos.x();
-                chunkRenderDistanceCenterS2CPacket.z = pos.z();
-                return;
-            }
-            if (packet instanceof ClientboundLevelParticlesPacket particleS2CPacket)
-            {
-                Vec3 pos = vecTransformer.s2cTransform(new Vec3(particleS2CPacket.x, 0, particleS2CPacket.z));
-                particleS2CPacket.x = pos.x;
-                particleS2CPacket.z = pos.z;
-                return;
-            }
-            if (packet instanceof ClientboundSectionBlocksUpdatePacket clientboundSectionBlocksUpdatePacket)
-            {
-                clientboundSectionBlocksUpdatePacket.sectionPos = vecTransformer.s2cTransform(clientboundSectionBlocksUpdatePacket.sectionPos);
+                ChunkPos pos = vecTransformer.s2cTransform(new ChunkPos(chunkRenderDistanceCenterS2CPacket.getX(), chunkRenderDistanceCenterS2CPacket.getZ()));
+                //Class has no setters, must reconstruct. But this packet is sent to specific player, not broadcast.
+                //Since it's after the cache, it's fine to mutate in place via reflection.
+                try
+                {
+                    Field xField = ClientboundSetChunkCacheCenterPacket.class.getDeclaredField("x");
+                    Field zField = ClientboundSetChunkCacheCenterPacket.class.getDeclaredField("z");
+                    xField.setAccessible(true);
+                    zField.setAccessible(true);
+                    xField.setInt(chunkRenderDistanceCenterS2CPacket, pos.x());
+                    zField.setInt(chunkRenderDistanceCenterS2CPacket, pos.z());
+                }
+                catch (Exception e)
+                {
+                    throw new RuntimeException(e);
+                }
                 return;
             }
             if (packet instanceof ClientboundPlayerPositionPacket clientboundPlayerPositionPacket)
@@ -333,24 +634,11 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
                 }
                 return;
             }
-            if (packet instanceof ClientboundPlayerLookAtPacket clientboundPlayerLookAtPacket)
-            {
-                Vec3 pos = vecTransformer.s2cTransform(new Vec3(clientboundPlayerLookAtPacket.x, 0, clientboundPlayerLookAtPacket.z));
-                clientboundPlayerLookAtPacket.x = pos.x;
-                clientboundPlayerLookAtPacket.z = pos.z;
-                return;
-            }
             if (packet instanceof ClientboundLevelChunkWithLightPacket clientboundLevelChunkWithLightPacket)
             {
                 ChunkPos pos = vecTransformer.s2cTransform(new ChunkPos(clientboundLevelChunkWithLightPacket.x, clientboundLevelChunkWithLightPacket.z));
                 clientboundLevelChunkWithLightPacket.x = pos.x();
                 clientboundLevelChunkWithLightPacket.z = pos.z();
-                return;
-            }
-            if (packet instanceof ClientboundDamageEventPacket clientboundDamageEventPacket)
-            {
-                if (clientboundDamageEventPacket.sourcePosition.isPresent())
-                    clientboundDamageEventPacket.sourcePosition = Optional.of(vecTransformer.s2cTransform(clientboundDamageEventPacket.sourcePosition.get()));
                 return;
             }
             for (Field field : packet.getClass().getDeclaredFields())
@@ -372,24 +660,9 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
         }
         catch (ChunkUnusedException e)
         {
-            //If this is a block update for a pruned chunk, log it prominently — this is the ghost-block cause.
-            if (packet instanceof ClientboundBlockUpdatePacket blockUpdate)
-            {
-                ChunkPos chunk=ChunkPos.containing(blockUpdate.getPos());
-                Util.LOGGER.warn("[remap-drop] ClientboundBlockUpdatePacket for {} dropped — chunk {} not in player's view",
-                        blockUpdate.getPos(), chunk);
-            }
-            else if (packet instanceof ClientboundSectionBlocksUpdatePacket sectionUpdate)
-            {
-                SectionPos sec=sectionUpdate.sectionPos;
-                ChunkPos chunk=new ChunkPos(sec.x(), sec.z());
-                Util.LOGGER.warn("[remap-drop] ClientboundSectionBlocksUpdatePacket for section {} dropped — chunk {} not in player's view",
-                        sec, chunk);
-            }
-            else
-            {
-                Util.LOGGER.warn("[remap-drop] {} dropped — ChunkUnusedException: {}", packet.getClass().getSimpleName(), e.getMessage());
-            }
+            //The target is on a page this player is not currently shown, so there is nowhere to put it.
+            //That is a normal condition and not an error - the visibility rule prunes the pages behind the
+            //player by design. Drop it and say nothing.
             ci.cancel();
         }
     }

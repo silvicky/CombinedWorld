@@ -57,6 +57,13 @@ public abstract class VecTransformer
      * the loading tickets for it, so a session that teleports a lot accumulates tickets. See the
      * {@code XorTransformer} and {@code RandomTransformer} {@code addLoadingTicket} methods, which have no
      * matching {@code removeTicket}.
+     *
+     * <p>Do <b>not</b> try to force a chunk resync by clearing {@code chunkSender.pendingChunks} here. That
+     * is not a cache of what has been sent - it is the queue of what is <em>queued and not yet sent</em>,
+     * and an entry is removed only once the chunk has actually gone. Clearing it strands those chunks: the
+     * tracking view has already diffed, so nothing re-adds them, and they are never sent at all. Vanilla
+     * builds a chunk packet per recipient inside {@code PlayerChunkSender#sendChunk}, so a genuine resync
+     * needs the tracking view to change - not this queue to be emptied.
      */
     public static void refreshInstance(ServerPlayer player)
     {

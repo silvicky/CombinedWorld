@@ -2,7 +2,6 @@ package io.silvicky.item.mixin;
 
 import com.llamalad7.mixinextras.sugar.Local;
 import io.silvicky.item.StateSaver;
-import io.silvicky.item.backrooms.ChunkRemap;
 import io.silvicky.item.backrooms.PositionedHelper;
 import io.silvicky.item.backrooms.VecTransformer;
 import io.silvicky.item.backrooms.PositionedAccess;
@@ -13,7 +12,6 @@ import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
-import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.NoiseRouter;

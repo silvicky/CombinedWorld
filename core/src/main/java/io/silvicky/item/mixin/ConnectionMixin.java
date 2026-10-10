@@ -31,8 +31,11 @@ public abstract class ConnectionMixin
     @Inject(method = "genericsFtw",at=@At("HEAD"))
     private static <T extends PacketListener> void inject1(Packet<T> packet, PacketListener listener, CallbackInfo ci)
     {
+        if(!(listener instanceof ServerGamePacketListenerImpl impl))
+        {
+            return;
+        }
         if (listener.flow() == PacketFlow.CLIENTBOUND) return;
-        if(!(listener instanceof ServerGamePacketListenerImpl impl))return;
         VecTransformer vecTransformer=VecTransformer.getInstance(impl.getPlayer());
         if (modified.contains(packet)) return;
         modified.add(packet);
@@ -51,9 +54,9 @@ public abstract class ConnectionMixin
             //real position, and the outcome is converted back when it is broadcast. If the chunk is re-rolled
             //in between, those two conversions disagree and the player is told a different block changed
             //than the one they hit - the block they broke comes straight back.
-            vecTransformer.pinAt(Vec3.atCenterOf(playerInteractBlockC2SPacket.hitResult().blockPos));
             BlockPos raw=playerInteractBlockC2SPacket.hitResult().blockPos;
             Vec3 rawLocation=playerInteractBlockC2SPacket.hitResult().location;
+            vecTransformer.pinAt(Vec3.atCenterOf(raw));
             //How far inside its own block the client clicked. This is what identifies the face, and it is the
             //one part of the hit that a page cannot change: a page is a whole-chunk translation, so a click at
             //(0.45, 0.45, 0.96) of a block is at (0.45, 0.45, 0.96) of it in every page.
@@ -66,7 +69,18 @@ public abstract class ConnectionMixin
             //through the page the point is on - and vanilla then rejects the click as too far away, having
             //measured a page-sized gap that only ever existed because of the two conversions.
             Vec3 insideBlock=rawLocation.subtract(Vec3.atLowerCornerOf(raw));
-            BlockPos landed=c2sOrKeep(vecTransformer,raw);
+            BlockPos landed;
+            try
+            {
+                landed=vecTransformer.c2sTransform(raw);
+            }
+            catch (ChunkUnusedException e)
+            {
+                //The page holding the target is not in the player's world, so there is no honest answer.
+                //Vanilla's own step is the only thing left, and it is at least the same block vanilla
+                //would have used.
+                landed=raw;
+            }
             playerInteractBlockC2SPacket.hitResult().blockPos=landed;
             playerInteractBlockC2SPacket.hitResult().location=
                     Vec3.atLowerCornerOf(landed).add(insideBlock);
@@ -122,7 +136,8 @@ public abstract class ConnectionMixin
                 case CHANGE_DESTROY_DIRECTION:
                 case ABORT_DESTROY_BLOCK:
                 case STOP_DESTROY_BLOCK:
-                    vecTransformer.pinAt(Vec3.atCenterOf(playerActionPacket.getPos()));
+                    BlockPos cPos=playerActionPacket.getPos();
+                    vecTransformer.pinAt(Vec3.atCenterOf(cPos));
                     try
                     {
                         for (Field field : packet.getClass().getDeclaredFields())
@@ -136,9 +151,11 @@ public abstract class ConnectionMixin
                     }
                     catch (ChunkUnusedException e)
                     {
-                        //The block the player clicked is in a page this player cannot currently see. Reject the
-                        //action cleanly; the client will resync on the next chunk update.
-                        Util.LOGGER.warn("[remap-break] {} tried to break block at {}, but the page is not in their view; rejecting action",
+                        //The block the player clicked is in a page this player cannot currently see, so the
+                        //click cannot be honoured at all. Reject it cleanly rather than falling back to the
+                        //raw client position: that would break a different block and the update packet for
+                        //it would then be dropped too, because its chunk is also unmapped.
+                        Util.LOGGER.warn("[remap-break] {} tried to interact with a block at {}, but the page is not in their view; rejecting action",
                                 impl.getPlayer().getGameProfile().name(), playerActionPacket.getPos());
                         ci.cancel();
                         return;

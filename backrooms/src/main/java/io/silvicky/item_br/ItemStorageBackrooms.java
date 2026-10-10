@@ -23,6 +23,6 @@ public class ItemStorageBackrooms implements ModInitializer {
 		//Report loaded chunks, outstanding tickets and heap once a minute. An 8 GB heap was exhausted with
 		//9,980 chunks held in a custom dimension, and the only evidence available was a stack trace naming
 		//whichever map rehashed last - which shows where allocation failed, never what caused it.
-		ServerTickEvents.END_SERVER_TICK.register(server -> ChunkDiagnostics.report(server));
+		//ServerTickEvents.END_SERVER_TICK.register(server -> ChunkDiagnostics.report(server));
     }
 }
