@@ -143,7 +143,7 @@ public abstract class ChunkCacheManager<B extends AbstractBlock<B>, C extends Ch
         double requestsPerChunk=chunks==0?0.0:(double)requests/chunks;
         long retained=0;
         for (C value : cache.asMap().values()) retained += value.retainedBytes();
-        LOGGER.info("[region-cache] hit rate {}% ({}/{}), avg generate {} ms, worst generate {} ms, "
+        LOGGER.debug("[region-cache] hit rate {}% ({}/{}), avg generate {} ms, worst generate {} ms, "
                         +"de-dup wait {} ms, {} requests/chunk, evictions {}, {} us/chunk, "
                         +"cached {}/{} holding {} MB",
                 String.format("%.2f",hitRate),hits,requests,

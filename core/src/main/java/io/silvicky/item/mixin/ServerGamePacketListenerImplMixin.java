@@ -114,7 +114,7 @@ public abstract class ServerGamePacketListenerImplMixin
         VecTransformer transformer=VecTransformer.getInstance(player);
         Vec3 targetC=transformer.safeClient(target);
         Vec3 hereC=transformer.safeClient(here);
-        Util.LOGGER.info(
+        Util.LOGGER.debug(
                 "[remap-move] {} | packet says S {} but server holds S {} | dS=({},{}) | C {} vs C {}"
                         + " | dC=({}) | verdict={}",
                 player.getGameProfile().name(),
@@ -187,14 +187,14 @@ public abstract class ServerGamePacketListenerImplMixin
             //the view around them because they did not cross a border. That is how a player arrives inside a
             //hole. So recentre unconditionally, and it is a no-op when they have not actually moved.
             transformer.recentre();
-            Util.LOGGER.info("[remap] {} | teleport -> {} is already on the map, shuffle kept",
+            Util.LOGGER.debug("[remap] {} | teleport -> {} is already on the map, shuffle kept",
                     player.getGameProfile().name(),destination);
             return;
         }
         if(transformer.ensureMapped(destination))
         {
             transformer.recentre();
-            Util.LOGGER.info("[remap] {} | teleport -> {} had no position, initialised one, shuffle kept",
+            Util.LOGGER.debug("[remap] {} | teleport -> {} had no position, initialised one, shuffle kept",
                     player.getGameProfile().name(),destination);
             return;
         }
@@ -202,7 +202,7 @@ public abstract class ServerGamePacketListenerImplMixin
         //default - see CONVENTION.md 2.4.1 on why quietly reusing an occupied slot is not an option.
         VecTransformer previous=transformer;
         VecTransformer.refreshInstance(player);
-        Util.LOGGER.info("[remap] {} | teleport -> {} could not be placed, fell back to a new shuffle (was {})",
+        Util.LOGGER.debug("[remap] {} | teleport -> {} could not be placed, fell back to a new shuffle (was {})",
                 player.getGameProfile().name(),destination,previous.getClass().getSimpleName());
     }
     @ModifyArg(method = "handlePlayerPositionChange", at= @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerPlayer;move(Lnet/minecraft/world/entity/MoverType;Lnet/minecraft/world/phys/Vec3;)V"),index = 1)

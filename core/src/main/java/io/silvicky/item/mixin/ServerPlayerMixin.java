@@ -180,7 +180,7 @@ public abstract class ServerPlayerMixin
         VecTransformer.remove(dead);
         if(player.connection instanceof EntityRemapAccess access)access.item_storage$resetEntityRemapper();
         player.connection.player=player;
-        Util.LOGGER.info("[remap] {} | respawned into {}, transformer {} -> {}",
+        Util.LOGGER.debug("[remap] {} | respawned into {}, transformer {} -> {}",
                 dead.getGameProfile().name(),
                 player.level().dimension().identifier(),
                 previous==null?"none":previous.getClass().getSimpleName(),
@@ -249,7 +249,7 @@ public abstract class ServerPlayerMixin
         catch (Exception ignored)
         {
         }
-        Util.LOGGER.info("[remap] {} | warped into {}, transformer {} -> {}",
+        Util.LOGGER.debug("[remap] {} | warped into {}, transformer {} -> {}",
                 player.getGameProfile().name(),
                 level.dimension().identifier(),
                 previous==null?"none":previous.getClass().getSimpleName(),

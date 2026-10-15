@@ -210,11 +210,11 @@ public abstract class VecTransformer
         String extra=diagnosticSuffix();
         if(fromC==null||toC==null)
         {
-            LOGGER.info("[remap] {} | S {} -> {} | C <not mapped> | unmapped: the server has no C position"
+            LOGGER.debug("[remap] {} | S {} -> {} | C <not mapped> | unmapped: the server has no C position"
                     + " for at least one of these chunks"+extra, name, fromS, toS);
             return;
         }
-        LOGGER.info("[remap] {} | S {} -> {} | C {} -> {} | dS=({},{}) dC=({},{}){}",
+        LOGGER.debug("[remap] {} | S {} -> {} | C {} -> {} | dS=({},{}) dC=({},{}){}",
                 name, fromS, toS, fromC, toC,
                 toS.x()-fromS.x(), toS.z()-fromS.z(),
                 toC.x()-fromC.x(), toC.z()-fromC.z(), extra);
