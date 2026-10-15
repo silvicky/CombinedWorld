@@ -11,7 +11,10 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.network.protocol.game.ClientboundSetChunkCacheRadiusPacket;
+import net.minecraft.network.protocol.game.ClientboundSetSimulationDistancePacket;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.level.Level;
@@ -225,6 +228,27 @@ public abstract class ServerPlayerMixin
         //Worth having even when the type does not change: it is a fresh shuffle for a fresh world, so a
         //player cannot carry a map across dimensions and correlate the two layouts. See CONVENTION.md 1.5.
         VecTransformer.refreshInstance(player);
+        try
+        {
+            StateSaver state = StateSaver.getServerState(player.level().getServer());
+            if (player.connection != null)
+            {
+                Integer storedView = state.ext.view.get(level.dimension().identifier());
+                int viewValue = (storedView == null)
+                        ? player.level().getServer().getPlayerList().getViewDistance()
+                        : Mth.clamp(player.requestedViewDistance(), 2, storedView);
+                player.connection.send(new ClientboundSetChunkCacheRadiusPacket(viewValue));
+
+                Integer storedSim = state.ext.sim.get(level.dimension().identifier());
+                int simValue = (storedSim == null)
+                        ? player.level().getServer().getPlayerList().getSimulationDistance()
+                        : storedSim;
+                player.connection.send(new ClientboundSetSimulationDistancePacket(simValue));
+            }
+        }
+        catch (Exception ignored)
+        {
+        }
         Util.LOGGER.info("[remap] {} | warped into {}, transformer {} -> {}",
                 player.getGameProfile().name(),
                 level.dimension().identifier(),
