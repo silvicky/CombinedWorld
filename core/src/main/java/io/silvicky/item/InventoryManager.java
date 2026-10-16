@@ -119,7 +119,7 @@ public class InventoryManager {
             player.getFoodData().setFoodLevel(20);
             player.getFoodData().setSaturation(20);
             player.setAirSupply(300);
-            int gamemode=stateSaver.gamemode.getOrDefault(targetDimension.dimension().identifier().getNamespace(),0);
+            int gamemode=stateSaver.gamemode.getOrDefault(targetDimension.dimension().identifier().getNamespace(),targetDimension.getServer().getDefaultGameType().getId());
             player.gameMode.changeGameModeForPlayer(GameType.byId(gamemode));
             if(player.connection !=null)player.connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.CHANGE_GAME_MODE, gamemode));
         }
