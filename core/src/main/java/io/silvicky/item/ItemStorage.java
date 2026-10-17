@@ -14,6 +14,7 @@ import io.silvicky.item.command.warp.WarpTp;
 import io.silvicky.item.command.world.CreateWorld;
 import io.silvicky.item.command.warp.DefaultMode;
 import io.silvicky.item.command.world.DeleteWorld;
+import io.silvicky.item.command.world.ExportWorld;
 import io.silvicky.item.command.world.ImportWorld;
 import io.silvicky.item.worldgen.WorldGens;
 import net.fabricmc.api.ModInitializer;
@@ -37,7 +38,7 @@ public class ItemStorage implements ModInitializer {
 		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> CreateWorld.register(dispatcher));
 		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> DeleteWorld.register(dispatcher));
 		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> DefaultMode.register(dispatcher));
-		//CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> ExportWorld.register(dispatcher));
+		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> ExportWorld.register(dispatcher));
 		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> WarpTp.register(dispatcher));
 		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> BanWarp.register(dispatcher));
 		CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> Evacuate.register(dispatcher));
