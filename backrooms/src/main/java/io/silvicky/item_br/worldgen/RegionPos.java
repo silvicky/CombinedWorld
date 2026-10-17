@@ -1,6 +1,5 @@
 package io.silvicky.item_br.worldgen;
 
-import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 
 public class RegionPos extends Point2

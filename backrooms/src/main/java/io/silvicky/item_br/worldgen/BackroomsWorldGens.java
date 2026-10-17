@@ -1,7 +1,10 @@
 package io.silvicky.item_br.worldgen;
 
 import io.silvicky.item.worldgen.WorldGens;
+import io.silvicky.item_br.worldgen.abyss.AbyssDecayRule;
 import io.silvicky.item_br.worldgen.road2.Road2CustomRule;
+
+import static io.silvicky.item.worldgen.WorldGens.registerDecayRule;
 
 public class BackroomsWorldGens
 {
@@ -11,5 +14,6 @@ public class BackroomsWorldGens
         WorldGens.registerWorldGen(new Level0CustomRule());
         WorldGens.registerWorldGen(new RoadCustomRule());
         WorldGens.registerWorldGenRegistry(Road2CustomRule.ID , Road2CustomRule.CODEC);
+        registerDecayRule(new AbyssDecayRule());
     }
 }

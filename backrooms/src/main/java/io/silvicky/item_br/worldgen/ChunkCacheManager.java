@@ -61,7 +61,7 @@ public abstract class ChunkCacheManager<B extends AbstractBlock<B>, C extends Ch
 
     private final Cache<RegionPos, C> cache = Caffeine.newBuilder()
             .maximumSize(cacheSize)
-            .removalListener((RegionPos key, C value, RemovalCause cause) -> {
+            .removalListener((RegionPos _, C _, RemovalCause cause) -> {
                 if(cause.wasEvicted())evictions.increment();
             })
             .build();
