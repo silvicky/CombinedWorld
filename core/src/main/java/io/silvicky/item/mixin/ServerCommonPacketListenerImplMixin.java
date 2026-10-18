@@ -2,6 +2,8 @@ package io.silvicky.item.mixin;
 
 import io.netty.channel.ChannelFutureListener;
 import io.silvicky.item.backrooms.ChunkUnusedException;
+import io.silvicky.item.backrooms.AbyssChunkComposer;
+import io.silvicky.item.backrooms.AbyssWindow;
 import io.silvicky.item.backrooms.EntityPositionRemapper;
 import io.silvicky.item.backrooms.EntityRemapAccess;
 import io.silvicky.item.backrooms.EntityVisibilityManager;
@@ -12,17 +14,22 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.PositionAndRotation;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.Vec3i;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.network.protocol.game.*;
 import net.minecraft.server.network.ServerCommonPacketListenerImpl;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.PositionPath;
 import net.minecraft.world.entity.PositionStep;
 import net.minecraft.world.entity.Relative;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.phys.Vec3;
@@ -39,6 +46,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.*;
+
+import static io.silvicky.item.common.Util.LOGGER;
 
 @Mixin(ServerCommonPacketListenerImpl.class)
 public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
@@ -82,7 +91,74 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
         if(replacing)return;
         ServerCommonPacketListenerImpl instance=(ServerCommonPacketListenerImpl) (Object)this;
         if(!(instance instanceof ServerGamePacketListenerImpl gamePacketListener))return;
-        VecTransformer vecTransformer=VecTransformer.getInstance(gamePacketListener.getPlayer());
+        ServerPlayer player=gamePacketListener.getPlayer();
+        VecTransformer vecTransformer=VecTransformer.getInstance(player);
+
+        //==============================================================================================
+        //Abyss window demo. The client is told this dimension is AbyssWindow.WINDOW_HEIGHT tall, while the
+        //player physically stands in one AbyssWindow.LAYER_HEIGHT layer, so the two coordinate systems differ
+        //by a whole number of layers. Everything here is per player (the window is per player) and therefore
+        //has to run before the shared `modified` cache below.
+        //==============================================================================================
+        if (AbyssWindow.handles(player))
+        {
+            if (packet instanceof ClientboundLevelChunkWithLightPacket chunkPacket)
+            {
+                //Replaced, never forwarded. The client decodes exactly WINDOW_SECTIONS sections from the
+                //buffer, and the layer's own chunk only carries SECTIONS_PER_LAYER of them.
+                ClientboundLevelChunkWithLightPacket composed=
+                        AbyssChunkComposer.compose(player, new ChunkPos(chunkPacket.x(), chunkPacket.z()));
+                ci.cancel();
+                if (composed==null)return;
+                replacing=true;
+                try{instance.send(composed,channelFutureListener);}
+                finally{replacing=false;}
+                return;
+            }
+        }
+        //Login and respawn are decided by the dimension the packet itself announces, not by where the player
+        //object currently is: a dimension change sends the respawn before anything else can be relied on, and
+        //the client builds its whole level - section count, height, light range - from this one field.
+        if (packet instanceof ClientboundLoginPacket login)
+        {
+            CommonPlayerSpawnInfo info=abyssSpawnInfo(login.commonPlayerSpawnInfo(),player);
+            if (info!=null)
+            {
+                ci.cancel();
+                replacing=true;
+                try
+                {
+                    instance.send(new ClientboundLoginPacket(login.playerId(),login.hardcore(),
+                            abyssLevels(login.levels()),login.maxPlayers(),login.chunkRadius(),
+                            login.simulationDistance(),login.reducedDebugInfo(),login.showDeathScreen(),
+                            login.doLimitedCrafting(),info,login.onlineMode(),login.enforcesSecureChat()),
+                            channelFutureListener);
+                }
+                finally{replacing=false;}
+                return;
+            }
+        }
+        if (packet instanceof ClientboundRespawnPacket respawn)
+        {
+            //A seam is a teleport inside one dimension, so the client is not told about it. Vanilla's respawn
+            //packet rebuilds the LocalPlayer and shows the level-loading screen even when the announced
+            //dimension is unchanged, and there is nothing in it the client still needs: the key and type are
+            //the constants it already has, and the position comes in its own packet.
+            if (AbyssWindow.isSeamTeleport(player))
+            {
+                ci.cancel();
+                return;
+            }
+            CommonPlayerSpawnInfo info=abyssSpawnInfo(respawn.commonPlayerSpawnInfo(),player);
+            if (info!=null)
+            {
+                ci.cancel();
+                replacing=true;
+                try{instance.send(new ClientboundRespawnPacket(info,respawn.dataToKeep()),channelFutureListener);}
+                finally{replacing=false;}
+                return;
+            }
+        }
         //Entity packets are handled before the `modified` cache and are exempt from it.
         //
         //That cache exists because the handlers below EDIT the packet in place, and a broadcast packet is one
@@ -260,6 +336,7 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
             {
                 BlockPos pos = blockUpdate.getPos();
                 BlockPos converted = vecTransformer.s2cTransform(pos);
+                if (AbyssWindow.handles(player)) converted = AbyssWindow.toClient(player, converted);
                 if (!pos.equals(converted))
                 {
                     ClientboundBlockUpdatePacket replacement = new ClientboundBlockUpdatePacket(converted, blockUpdate.getBlockState());
@@ -292,6 +369,7 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
                 secField.setAccessible(true);
                 SectionPos original = (SectionPos) secField.get(sectionUpdate);
                 SectionPos converted = vecTransformer.s2cTransform(original);
+                if (AbyssWindow.handles(player)) converted = AbyssWindow.toClient(player, converted);
                 if (original.equals(converted)) return;
 
                 //The states live in the section the packet was built from, and the public constructor reads
@@ -334,6 +412,7 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
             {
                 BlockPos pos = levelEvent.getPos();
                 BlockPos converted = vecTransformer.s2cTransform(pos);
+                if (AbyssWindow.handles(player)) converted = AbyssWindow.toClient(player, converted);
                 if (!pos.equals(converted))
                 {
                     ClientboundLevelEventPacket replacement = new ClientboundLevelEventPacket(
@@ -453,11 +532,16 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
             {
                 ChunkPos chunkPos = new ChunkPos(lightUpdateS2CPacket.x(), lightUpdateS2CPacket.z());
                 ChunkPos converted = vecTransformer.s2cTransform(chunkPos);
-                if (!chunkPos.equals(converted))
+                //Standalone light updates come from the layer's own light engine, so their masks are
+                //layer-section indices and have to be moved up into the band the layer occupies.
+                ClientboundLightUpdatePacketData lightData = lightUpdateS2CPacket.lightData();
+                if (AbyssWindow.handles(player))
+                    lightData = AbyssChunkComposer.shift(lightData, AbyssWindow.band(player) * AbyssWindow.SECTIONS_PER_LAYER);
+                if (!chunkPos.equals(converted) || lightData != lightUpdateS2CPacket.lightData())
                 {
                     //Rebuild with converted chunk position, preserving lightData
                     ClientboundLightUpdatePacket replacement = new ClientboundLightUpdatePacket(
-                            converted.x(), converted.z(), lightUpdateS2CPacket.lightData());
+                            converted.x(), converted.z(), lightData);
                     ci.cancel();
                     replacing = true;
                     try { instance.send(replacement, channelFutureListener); }
@@ -632,6 +716,13 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
                 {
                     clientboundPlayerPositionPacket.change().position = vecTransformer.s2cTransform(clientboundPlayerPositionPacket.change().position);
                 }
+                //The layer's Y and the window's Y differ by a whole number of layers. A relative Y is already
+                //a delta in the client's own frame, so only an absolute one is shifted.
+                if (AbyssWindow.handles(player) && !clientboundPlayerPositionPacket.relatives().contains(Relative.Y))
+                {
+                    clientboundPlayerPositionPacket.change().position =
+                            AbyssWindow.toClient(player, clientboundPlayerPositionPacket.change().position);
+                }
                 return;
             }
             if (packet instanceof ClientboundLevelChunkWithLightPacket clientboundLevelChunkWithLightPacket)
@@ -649,7 +740,9 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
                     try
                     {
                         BlockPos pos = (BlockPos) field.get(packet);
-                        field.set(packet, vecTransformer.s2cTransform(pos));
+                        BlockPos converted = vecTransformer.s2cTransform(pos);
+                        if (AbyssWindow.handles(player)) converted = AbyssWindow.toClient(player, converted);
+                        field.set(packet, converted);
                     }
                     catch (IllegalAccessException e)
                     {
@@ -665,6 +758,57 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
             //player by design. Drop it and say nothing.
             ci.cancel();
         }
+    }
+
+    /**
+     * The same spawn info, with the window's dimension type and key, when the announced level is an abyss layer.
+     *
+     * <p>This is the one place the client is told the window exists. Both the key and the type become
+     * constants, so every layer looks like the same dimension to the client: the name never changes, and a
+     * seam teleport has nothing to announce. The types are datapack entries and therefore in the synced
+     * registry; the key is only ever compared for identity, never looked up.
+     *
+     * <p>Decided from {@code info.dimension()}, so a login or respawn into any other level is left alone even
+     * if the player object has already been moved into an abyss layer by the time the packet is sent.
+     *
+     * @return the rewritten info, or null when this is not an abyss level or the window type is missing. Null
+     *         means the packet goes out unchanged: the client then builds a 64-tall level and the composed
+     *         chunks will not fit, which is wrong but diagnosable, whereas dropping the login packet would not
+     *         be.
+     */
+    @Unique
+    private static @Nullable CommonPlayerSpawnInfo abyssSpawnInfo(CommonPlayerSpawnInfo info, ServerPlayer player)
+    {
+        if (AbyssWindow.layerIndex(info.dimension()) < 0) return null;
+        try
+        {
+            var types=player.level().getServer().registryAccess().lookupOrThrow(Registries.DIMENSION_TYPE);
+            var window=types.getOrThrow(ResourceKey.create(Registries.DIMENSION_TYPE,AbyssWindow.WINDOW_TYPE));
+            return new CommonPlayerSpawnInfo(window,AbyssWindow.windowKey(),info.seed(),info.gameType(),
+                    info.previousGameType(),info.isDebug(),info.isFlat(),info.lastDeathLocation(),
+                    info.portalCooldown(),info.seaLevel());
+        }
+        catch (Exception e)
+        {
+            LOGGER.warn("[abyss] window dimension type is missing; the client will be told the layer height",e);
+            return null;
+        }
+    }
+
+    /**
+     * The login's level list, with the window key added.
+     *
+     * <p>The client keeps this list and uses it to answer "do I have this level": the announced dimension has
+     * to be in it or the client treats the spawn info as unknown. The layer keys stay, because the server does
+     * still move between them and other packets may name them.
+     */
+    @Unique
+    private static Set<ResourceKey<Level>> abyssLevels(Set<ResourceKey<Level>> levels)
+    {
+        if (levels.contains(AbyssWindow.windowKey())) return levels;
+        Set<ResourceKey<Level>> result=new java.util.HashSet<>(levels);
+        result.add(AbyssWindow.windowKey());
+        return result;
     }
 
     /**

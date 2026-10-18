@@ -1,7 +1,9 @@
 package io.silvicky.item_br.worldgen;
 
+import io.silvicky.item.backrooms.AbyssWindow;
 import io.silvicky.item.worldgen.WorldGens;
 import io.silvicky.item_br.worldgen.abyss.AbyssDecayRule;
+import io.silvicky.item_br.worldgen.abyss.AbyssLayerRule;
 import io.silvicky.item_br.worldgen.road2.Road2CustomRule;
 
 import static io.silvicky.item.worldgen.WorldGens.registerDecayRule;
@@ -15,5 +17,8 @@ public class BackroomsWorldGens
         WorldGens.registerWorldGen(new RoadCustomRule());
         WorldGens.registerWorldGenRegistry(Road2CustomRule.ID , Road2CustomRule.CODEC);
         registerDecayRule(new AbyssDecayRule());
+        //The Abyss demo: five layers, each its own generator rule, sharing the decay rule above for the shaft.
+        for (int i = 0; i < AbyssWindow.LAYERS; i++)
+            WorldGens.registerWorldGen(new AbyssLayerRule(i));
     }
 }

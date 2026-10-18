@@ -1,5 +1,6 @@
 package io.silvicky.item.mixin;
 
+import io.silvicky.item.command.world.StagedDimensions;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.dimension.LevelStem;
@@ -41,6 +42,10 @@ public class LevelStorageAccessMixin
         {
             if(!deletedDimensions.contains(i.getKey()))dimensions.put(i.getKey(),i.getValue());
         }
+        //Providers resolve their holders from this access, which is the one the settings are encoded with.
+        //Anything staged earlier - before this world existed, or in a previous world of the same client
+        //session - would be owned by a different registry instance and fail the write.
+        StagedDimensions.contribute(server.registryAccess(), levelDirectory.path(), dimensions);
         settings=new WorldGenSettings(settings.options(), new WorldDimensions(dimensions));
         try
         {

@@ -1,6 +1,7 @@
 package io.silvicky.item.mixin;
 
 import io.silvicky.item.backrooms.ChunkUnusedException;
+import io.silvicky.item.backrooms.AbyssWindow;
 import io.silvicky.item.backrooms.VecTransformer;
 import io.silvicky.item.common.Util;
 import net.minecraft.core.PositionAndRotation;
@@ -11,6 +12,7 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.*;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -37,6 +39,7 @@ public abstract class ConnectionMixin
         }
         if (listener.flow() == PacketFlow.CLIENTBOUND) return;
         VecTransformer vecTransformer=VecTransformer.getInstance(impl.getPlayer());
+        ServerPlayer player=impl.getPlayer();
         if (modified.contains(packet)) return;
         modified.add(packet);
         //c2sTransform throws ChunkUnusedException for a page the player cannot currently see, because the
@@ -84,6 +87,13 @@ public abstract class ConnectionMixin
             playerInteractBlockC2SPacket.hitResult().blockPos=landed;
             playerInteractBlockC2SPacket.hitResult().location=
                     Vec3.atLowerCornerOf(landed).add(insideBlock);
+            //Abyss: the block the client clicked is named in window coordinates, so its Y has to come down
+            //into the layer the player is physically standing in.
+            if (AbyssWindow.handles(player))
+            {
+                playerInteractBlockC2SPacket.hitResult().blockPos=AbyssWindow.toServer(player,playerInteractBlockC2SPacket.hitResult().blockPos);
+                playerInteractBlockC2SPacket.hitResult().location=AbyssWindow.toServer(player,playerInteractBlockC2SPacket.hitResult().location);
+            }
             return;
         }
         if (packet instanceof ServerboundMovePlayerPacket playerMoveC2SPacket)
@@ -94,6 +104,10 @@ public abstract class ConnectionMixin
                         new Vec3(playerMoveC2SPacket.x,0,playerMoveC2SPacket.z));
                 playerMoveC2SPacket.x = converted.x;
                 playerMoveC2SPacket.z = converted.z;
+                //The window's Y differs from the layer's by a whole number of layers, and unlike X/Z this is
+                //not a page shuffle - it is one constant per player for as long as the window holds still.
+                if (AbyssWindow.handles(player))
+                    playerMoveC2SPacket.y=AbyssWindow.toServerY(player,playerMoveC2SPacket.y);
             }
             return;
         }
@@ -101,6 +115,7 @@ public abstract class ConnectionMixin
         {
             PositionAndRotation pr=vehicleMoveC2SPacket.movingTo();
             Vec3 converted=c2sOrKeep(vecTransformer,pr.position());
+            if (AbyssWindow.handles(player)) converted=AbyssWindow.toServer(player,converted);
             vehicleMoveC2SPacket.movingTo=new PositionAndRotation.Immutable(converted,pr.yRot(), pr.xRot());
             return;
         }
@@ -113,12 +128,17 @@ public abstract class ConnectionMixin
             acceptTeleportationC2SPacket.x = converted.x;
             acceptTeleportationC2SPacket.y = converted.y;
             acceptTeleportationC2SPacket.z = converted.z;
+            //The acknowledgement carries the client's own Y, which is offset by the window band.
+            if (AbyssWindow.handles(player))
+                acceptTeleportationC2SPacket.y=AbyssWindow.toServerY(player,acceptTeleportationC2SPacket.y);
             return;
         }
         if(packet instanceof ServerboundInteractPacket playerInteractEntityC2SPacket)
         {
             playerInteractEntityC2SPacket.location=
                     c2sOrKeep(vecTransformer,playerInteractEntityC2SPacket.location);
+            if (AbyssWindow.handles(player))
+                playerInteractEntityC2SPacket.location=AbyssWindow.toServer(player,playerInteractEntityC2SPacket.location);
             return;
         }
         if(packet instanceof ServerboundSetStructureBlockPacket){return;}//TODO there are 2 pos!
@@ -145,7 +165,9 @@ public abstract class ConnectionMixin
                             if (BlockPos.class.isAssignableFrom(field.getType()))
                             {
                                 field.setAccessible(true);
-                                field.set(packet, vecTransformer.c2sTransform((BlockPos) field.get(packet)));
+                                BlockPos converted=vecTransformer.c2sTransform((BlockPos) field.get(packet));
+                                if (AbyssWindow.handles(player)) converted=AbyssWindow.toServer(player,converted);
+                                field.set(packet,converted);
                             }
                         }
                     }
@@ -178,7 +200,9 @@ public abstract class ConnectionMixin
                 field.setAccessible(true);
                 try
                 {
-                    field.set(packet,c2sOrKeep(vecTransformer,(BlockPos) field.get(packet)));
+                    BlockPos converted=c2sOrKeep(vecTransformer,(BlockPos) field.get(packet));
+                    if (AbyssWindow.handles(player)) converted=AbyssWindow.toServer(player,converted);
+                    field.set(packet,converted);
                 }
                 catch (IllegalAccessException e)
                 {

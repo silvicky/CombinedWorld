@@ -49,6 +49,8 @@ accessible field net/minecraft/network/protocol/game/ClientboundLevelParticlesPa
 mutable field net/minecraft/network/protocol/game/ClientboundLevelParticlesPacket z D
 accessible field net/minecraft/network/protocol/game/ServerboundMovePlayerPacket x D
 mutable field net/minecraft/network/protocol/game/ServerboundMovePlayerPacket x D
+accessible field net/minecraft/network/protocol/game/ServerboundMovePlayerPacket y D
+mutable field net/minecraft/network/protocol/game/ServerboundMovePlayerPacket y D
 accessible field net/minecraft/network/protocol/game/ServerboundMovePlayerPacket z D
 mutable field net/minecraft/network/protocol/game/ServerboundMovePlayerPacket z D
 accessible field net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket sectionPos Lnet/minecraft/core/SectionPos;

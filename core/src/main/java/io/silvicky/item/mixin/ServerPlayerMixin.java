@@ -2,6 +2,7 @@ package io.silvicky.item.mixin;
 
 import com.llamalad7.mixinextras.sugar.Local;
 import io.silvicky.item.StateSaver;
+import io.silvicky.item.backrooms.AbyssWindow;
 import io.silvicky.item.backrooms.EntityRemapAccess;
 import io.silvicky.item.backrooms.NoclipManager;
 import io.silvicky.item.backrooms.VecTransformer;
@@ -178,6 +179,7 @@ public abstract class ServerPlayerMixin
         VecTransformer previous=VecTransformer.peekInstance(dead);
         //Drop the dead entry first, so nothing can resolve through it while the rest is being fixed up.
         VecTransformer.remove(dead);
+        AbyssWindow.forget(dead);
         if(player.connection instanceof EntityRemapAccess access)access.item_storage$resetEntityRemapper();
         player.connection.player=player;
         Util.LOGGER.debug("[remap] {} | respawned into {}, transformer {} -> {}",
@@ -274,6 +276,7 @@ public abstract class ServerPlayerMixin
     private void inject7d(CallbackInfo ci)
     {
         VecTransformer.remove((ServerPlayer) (Object)this);
+        AbyssWindow.forget((ServerPlayer) (Object)this);
     }
     @Inject(method = "die",at = @At("HEAD"))
     private void inject7(DamageSource damageSource, CallbackInfo ci)
