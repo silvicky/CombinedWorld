@@ -1,16 +1,22 @@
 package io.silvicky.item.command.world;
 
+import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import io.silvicky.item.InventoryManager;
 import io.silvicky.item.StateSaver;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.commands.arguments.DimensionArgument;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.core.UUIDUtil;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -23,7 +29,8 @@ import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.server.permissions.Permission;
 import net.minecraft.server.permissions.PermissionLevel;
 import net.minecraft.util.ProblemReporter;
-import net.minecraft.world.level.GameType;
+import net.minecraft.util.datafix.DataFixTypes;
+import net.minecraft.util.datafix.DataFixers;
 import net.minecraft.world.level.storage.LevelData;
 import net.minecraft.world.level.storage.LevelResource;
 import net.minecraft.world.level.storage.TagValueOutput;
@@ -32,9 +39,11 @@ import net.minecraft.world.level.levelgen.WorldGenSettings;
 import net.minecraft.world.level.levelgen.WorldOptions;
 import net.minecraft.world.level.dimension.LevelStem;
 
+import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.UUID;
 
@@ -45,6 +54,8 @@ import static net.minecraft.commands.Commands.literal;
 
 public class ExportWorld {
     private static Identifier id;
+    private static Identifier idNether;
+    private static Identifier idEnd;
     private static boolean firstType = true;
     private static StateSaver stateSaver;
     private static MinecraftServer server;
@@ -77,8 +88,8 @@ public class ExportWorld {
         source.sendSuccess(() -> Component.literal("Running..."), false);
         id = getDimensionId(world);
         final boolean isSinglet = !id.getPath().endsWith(OVERWORLD);
-        Identifier idNether = isSinglet ? null : Identifier.fromNamespaceAndPath(id.getNamespace(), id.getPath().substring(0, id.getPath().length() - OVERWORLD.length()) + NETHER);
-        Identifier idEnd = isSinglet ? null : Identifier.fromNamespaceAndPath(id.getNamespace(), id.getPath().substring(0, id.getPath().length() - OVERWORLD.length()) + END);
+        idNether = isSinglet ? null : Identifier.fromNamespaceAndPath(id.getNamespace(), id.getPath().substring(0, id.getPath().length() - OVERWORLD.length()) + NETHER);
+        idEnd = isSinglet ? null : Identifier.fromNamespaceAndPath(id.getNamespace(), id.getPath().substring(0, id.getPath().length() - OVERWORLD.length()) + END);
         server = source.getServer();
         stateSaver = StateSaver.getServerState(server);
 
@@ -168,65 +179,69 @@ public class ExportWorld {
                 NbtIo.writeCompressed(worldGenRoot, worldGenPath.resolve("world_gen_settings.dat"));
                 source.sendSuccess(() -> Component.literal("Wrote world_gen_settings.dat."), false);
 
-                // Players: rebuild vanilla player files from CombinedWorld's stored inventory data.
+                // Players: walk this save's own player files instead of trusting our state alone. A player
+                // whose file points into this world has this world's data in it, so keep the tag and only
+                // rewrite Dimension; everyone else's file holds another world's data, so rebuild it from
+                // the state we stored for this namespace.
                 Path playersData = exported.resolve("players").resolve("data");
                 playersData.toFile().mkdirs();
-                HashMap<String, StateSaver.StorageInfoNew> players = stateSaver.savedMap.getOrDefault(id.getNamespace(), new HashMap<>());
-                int cnt = 0;
+                HashMap<String, StateSaver.StorageInfoNew> storedPlayers = stateSaver.savedMap.getOrDefault(id.getNamespace(), new HashMap<>());
+                HashMap<String, StateSaver.PositionInfoNew> storedPositions = stateSaver.posMap.get(id);
+                HashSet<String> walked = new HashSet<>();
+                int kept = 0;
+                int rebuilt = 0;
                 int failed = 0;
-                for (Map.Entry<String, StateSaver.StorageInfoNew> entry : players.entrySet()) {
-                    try {//TODO the vanilla player file should take precedence
-                        UUID uuid = UUID.fromString(entry.getKey());
-                        StateSaver.StorageInfoNew storage = entry.getValue();
-                        StateSaver.PositionInfoNew posInfo = null;
-                        HashMap<String, StateSaver.PositionInfoNew> playerPosMap = stateSaver.posMap.get(id);
-                        if (playerPosMap != null) posInfo = playerPosMap.get(entry.getKey());
-
-                        ServerLevel spawnLevel = src;
-                        String sourceDimension = id.toString();
-                        if (posInfo != null) {
-                            sourceDimension = posInfo.dimension().toString();
-                            ServerLevel maybe = server.getLevel(ResourceKey.create(Registries.DIMENSION, posInfo.dimension()));
-                            if (maybe != null) spawnLevel = maybe;
+                File[] playerFiles = server.getWorldPath(LevelResource.PLAYER_DATA_DIR).toFile().listFiles();
+                if (playerFiles != null) {
+                    for (File file : playerFiles) {
+                        String fileName = file.getName();
+                        if (!fileName.endsWith(".dat")) continue;
+                        String uuidString = fileName.substring(0, fileName.length() - ".dat".length());
+                        UUID uuid;
+                        try {
+                            uuid = UUID.fromString(uuidString);
+                        } catch (IllegalArgumentException e) {
+                            continue;
                         }
-                        Identifier dimensionIdentifier = Identifier.parse(sourceDimension);
-                        if (dimensionIdentifier.equals(idNether)) dimensionIdentifier = Identifier.parse("minecraft:the_nether");
-                        else if (dimensionIdentifier.equals(idEnd)) dimensionIdentifier = Identifier.parse("minecraft:the_end");
-                        else if (dimensionIdentifier.equals(id)) dimensionIdentifier = Identifier.parse("minecraft:overworld");
-                        else if (!dimensionIdentifier.getNamespace().equals("minecraft")) dimensionIdentifier = Identifier.parse("minecraft:overworld");
-
-                        CommonListenerCookie cookie = CommonListenerCookie.createInitial(new com.mojang.authlib.GameProfile(uuid, "exported"), false);
-                        ServerPlayer fake = new ServerPlayer(server, spawnLevel, cookie.gameProfile(), cookie.clientInformation());
-                        stackToInventory(fake.getInventory(), storage.inventory());
-                        stackToInventory(fake.getEnderChestInventory(), storage.ender());
-                        fake.setExperiencePoints(storage.xp());
-                        fake.setHealth(storage.hp());
-                        fake.getFoodData().setFoodLevel(storage.food());
-                        fake.getFoodData().setSaturation(storage.saturation());
-                        fake.setAirSupply(storage.air());
-                        fake.gameMode.changeGameModeForPlayer(GameType.byId(storage.gamemode()));
-                        if (posInfo != null) {
-                            fake.setPos(posInfo.pos().x, posInfo.pos().y, posInfo.pos().z);
-                            fake.setYRot(posInfo.yaw());
-                            fake.setXRot(posInfo.pitch());
+                        walked.add(uuidString);
+                        try {
+                            CompoundTag playerTag = NbtIo.readCompressed(file.toPath(), NbtAccounter.unlimitedHeap());
+                            playerTag = DataFixTypes.PLAYER.updateToCurrentVersion(DataFixers.getDataFixer(), playerTag, NbtUtils.getDataVersion(playerTag, -1));
+                            Identifier current = Identifier.parse(playerTag.getStringOr("Dimension", "minecraft:overworld"));
+                            Identifier vanilla = vanillaDimension(current);
+                            if (vanilla != null) {
+                                playerTag.putString("Dimension", vanilla.toString());
+                                NbtIo.writeCompressed(playerTag, playersData.resolve(fileName));
+                                kept++;
+                                continue;
+                            }
+                            if (!storedPlayers.containsKey(uuidString)) continue; //never visited this world, there is nothing to export
+                            StateSaver.PositionInfoNew posInfo = storedPositions == null ? null : storedPositions.get(uuidString);
+                            NbtIo.writeCompressed(buildPlayerTag(uuid, posInfo, src, hostDataVersion), playersData.resolve(fileName));
+                            rebuilt++;
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            failed++;
                         }
-                        ProblemReporter.ScopedCollector logging = new ProblemReporter.ScopedCollector(fake.problemPath(), LOGGER);
-                        TagValueOutput output = TagValueOutput.createWithContext(logging, fake.registryAccess());
-                        fake.saveWithoutId(output);
-                        CompoundTag playerTag = output.buildResult();
-                        playerTag.putString("Dimension", dimensionIdentifier.toString());
-                        playerTag.store("UUID", net.minecraft.core.UUIDUtil.CODEC, uuid);
-                        playerTag.putInt("DataVersion", hostDataVersion);
-                        NbtIo.writeCompressed(playerTag, playersData.resolve(uuid + ".dat"));
-                        cnt++;
+                    }
+                }
+                // Players of an imported world may never have joined this server, so they have no file above.
+                for (String uuidString : storedPlayers.keySet()) {
+                    if (walked.contains(uuidString)) continue;
+                    try {
+                        UUID uuid = UUID.fromString(uuidString);
+                        StateSaver.PositionInfoNew posInfo = storedPositions == null ? null : storedPositions.get(uuidString);
+                        NbtIo.writeCompressed(buildPlayerTag(uuid, posInfo, src, hostDataVersion), playersData.resolve(uuid + ".dat"));
+                        rebuilt++;
                     } catch (Exception e) {
                         e.printStackTrace();
                         failed++;
                     }
                 }
-                int finalCnt = cnt;
+                int finalKept = kept;
+                int finalRebuilt = rebuilt;
                 int finalFailed = failed;
-                source.sendSuccess(() -> Component.literal(String.format("Exported %d player data, %d failed", finalCnt, finalFailed)), false);
+                source.sendSuccess(() -> Component.literal(String.format("Exported %d player data (%d kept from vanilla, %d rebuilt from state), %d failed", finalKept + finalRebuilt, finalKept, finalRebuilt, finalFailed)), false);
                 source.sendSuccess(() -> Component.literal("Exported world to: " + exported), false);
             } catch (Exception e) {
                 e.printStackTrace();
@@ -234,5 +249,42 @@ public class ExportWorld {
             }
         }).start();
         return Command.SINGLE_SUCCESS;
+    }
+
+    /** Vanilla id this world's dimension maps to, or null when the dimension is not part of this world. */
+    private static Identifier vanillaDimension(Identifier dimension) {
+        if (dimension.equals(id)) return Identifier.parse("minecraft:overworld");
+        if (dimension.equals(idNether)) return Identifier.parse("minecraft:the_nether");
+        if (dimension.equals(idEnd)) return Identifier.parse("minecraft:the_end");
+        return null;
+    }
+
+    /** Rebuilds a vanilla player file from the storage CombinedWorld keeps for this namespace. */
+    private static CompoundTag buildPlayerTag(UUID uuid, StateSaver.PositionInfoNew posInfo, ServerLevel fallbackLevel, int dataVersion) throws CommandSyntaxException {
+        ServerLevel spawnLevel = fallbackLevel;
+        Identifier dimension = Identifier.parse("minecraft:overworld");
+        if (posInfo != null) {
+            Identifier vanilla = vanillaDimension(posInfo.dimension());
+            if (vanilla != null) dimension = vanilla;
+            ServerLevel maybe = server.getLevel(ResourceKey.create(Registries.DIMENSION, posInfo.dimension()));
+            if (maybe != null) spawnLevel = maybe;
+        }
+
+        CommonListenerCookie cookie = CommonListenerCookie.createInitial(new GameProfile(uuid, "exported"), false);
+        ServerPlayer fake = new ServerPlayer(server, spawnLevel, cookie.gameProfile(), cookie.clientInformation());
+        InventoryManager.loadInventory(fake, spawnLevel, stateSaver);
+        if (posInfo != null) {
+            fake.setPos(posInfo.pos().x, posInfo.pos().y, posInfo.pos().z);
+            fake.setYRot(posInfo.yaw());
+            fake.setXRot(posInfo.pitch());
+        }
+        ProblemReporter.ScopedCollector logging = new ProblemReporter.ScopedCollector(fake.problemPath(), LOGGER);
+        TagValueOutput output = TagValueOutput.createWithContext(logging, fake.registryAccess());
+        fake.saveWithoutId(output);
+        CompoundTag playerTag = output.buildResult();
+        playerTag.putString("Dimension", dimension.toString());
+        playerTag.store("UUID", UUIDUtil.CODEC, uuid);
+        playerTag.putInt("DataVersion", dataVersion);
+        return playerTag;
     }
 }
