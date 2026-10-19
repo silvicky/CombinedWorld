@@ -18,9 +18,10 @@ public class ItemStorageBackrooms implements ModInitializer {
 		// Proceed with mild caution.
 		LOGGER.info("Loading CombinedWorld Backrooms Addon...");
 		BackroomsWorldGens.register();
-		//Abyss demo: five layers contributed when a save is written, then created on the following start.
+		//Abyss demos: the pattern list is static, the levels are contributed when a save is written.
 		//Deliberately not staged at SERVER_STARTED - see AbyssWorlds for why the holders have to be resolved
 		//against the registry access the save is encoded with.
+		AbyssWorlds.registerPatterns();
 		register(new AbyssWorlds());
 		//Road2CustomRule now holds one region cache per world, keyed by RandomState, so it has to be
 		//released on shutdown - otherwise that map would pin every level's ChunkMap for the life of the JVM.

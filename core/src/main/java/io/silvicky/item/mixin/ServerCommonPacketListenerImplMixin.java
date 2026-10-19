@@ -3,6 +3,7 @@ package io.silvicky.item.mixin;
 import io.netty.channel.ChannelFutureListener;
 import io.silvicky.item.backrooms.ChunkUnusedException;
 import io.silvicky.item.backrooms.AbyssChunkComposer;
+import io.silvicky.item.backrooms.AbyssPatterns;
 import io.silvicky.item.backrooms.AbyssWindow;
 import io.silvicky.item.backrooms.EntityPositionRemapper;
 import io.silvicky.item.backrooms.EntityRemapAccess;
@@ -105,7 +106,7 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
             if (packet instanceof ClientboundLevelChunkWithLightPacket chunkPacket)
             {
                 //Replaced, never forwarded. The client decodes exactly WINDOW_SECTIONS sections from the
-                //buffer, and the layer's own chunk only carries SECTIONS_PER_LAYER of them.
+                //buffer, and a band's own chunk only carries SECTIONS_PER_BAND of them.
                 ClientboundLevelChunkWithLightPacket composed=
                         AbyssChunkComposer.compose(player, new ChunkPos(chunkPacket.x(), chunkPacket.z()));
                 ci.cancel();
@@ -500,7 +501,7 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
             return;
         }
         //======================================================================
-        //Broadcast packets with position data — MUST be before `modified` cache.
+        //Broadcast packets with position data - MUST be before the modified-packet cache.
         //These packets are the SAME OBJECT sent to multiple tracking players.
         //REBUILD each packet per player (new instance), do NOT mutate in place.
         //======================================================================
@@ -536,7 +537,7 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
                 //layer-section indices and have to be moved up into the band the layer occupies.
                 ClientboundLightUpdatePacketData lightData = lightUpdateS2CPacket.lightData();
                 if (AbyssWindow.handles(player))
-                    lightData = AbyssChunkComposer.shift(lightData, AbyssWindow.band(player) * AbyssWindow.SECTIONS_PER_LAYER);
+                    lightData = AbyssChunkComposer.shift(lightData, AbyssWindow.slot(player) * AbyssWindow.SECTIONS_PER_BAND);
                 if (!chunkPos.equals(converted) || lightData != lightUpdateS2CPacket.lightData())
                 {
                     //Rebuild with converted chunk position, preserving lightData
@@ -779,7 +780,7 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
     @Unique
     private static @Nullable CommonPlayerSpawnInfo abyssSpawnInfo(CommonPlayerSpawnInfo info, ServerPlayer player)
     {
-        if (AbyssWindow.layerIndex(info.dimension()) < 0) return null;
+        if (AbyssPatterns.forLevel(info.dimension()) == null) return null;
         try
         {
             var types=player.level().getServer().registryAccess().lookupOrThrow(Registries.DIMENSION_TYPE);

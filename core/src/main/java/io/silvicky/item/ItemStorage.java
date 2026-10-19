@@ -1,5 +1,6 @@
 package io.silvicky.item;
 
+import io.silvicky.item.backrooms.AbyssPatterns;
 import io.silvicky.item.backrooms.AbyssWindow;
 import io.silvicky.item.cfg.JSONConfig;
 import io.silvicky.item.command.backrooms.*;
@@ -21,6 +22,7 @@ import io.silvicky.item.worldgen.WorldGens;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 
 import static io.silvicky.item.common.Util.LOGGER;
@@ -62,5 +64,9 @@ public class ItemStorage implements ModInitializer {
 		//that band padded as air, because composition saw it was not loaded yet - so ask for it again.
 		//This handler runs off the server thread and only records; the drain happens in tick.
 		ServerChunkEvents.CHUNK_LOAD.register((level, chunk, newlyGenerated) -> AbyssWindow.onLayerChunkLoaded(level, chunk));
+		//The pattern list is read (or written) once per start, so a user can edit config/AbyssPatterns.json
+		//without rebuilding. It has to run after the addon's initialiser has registered its patterns, which
+		//is before the server starts and not guaranteed by the mod init order.
+		ServerLifecycleEvents.SERVER_STARTING.register(server -> AbyssPatterns.load());
     }
 }

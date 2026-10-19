@@ -15,6 +15,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
+import static io.silvicky.item.common.Util.LOGGER;
+
 public class WorldGens
 {
     public static final Map<String, CustomRule> worldGenMap=new HashMap<>();
@@ -23,7 +25,14 @@ public class WorldGens
     public static final Codec<CustomRuleAdv> CUSTOM_RULE_ADV_CODEC = worldGenRegistry.byNameCodec().dispatchStable(CustomRuleAdv::codec, Function.identity());
     public static void registerWorldGen(CustomRule worldGen)
     {
-        worldGenMap.put(worldGen.name(), worldGen);
+        CustomRule previous = worldGenMap.put(worldGen.name(), worldGen);
+        //A name is the key a worldgen file uses to name this rule, so a collision does not just replace an
+        //entry - it silently changes what every existing world with that name generates. That happened once
+        //already: two variants of the same rule class registered under one hardcoded name, so the later one
+        //won and the earlier one was never reachable. Say it out loud instead.
+        if (previous != null)
+            LOGGER.warn("[worldgen] rule {} was replaced by {}; the previous one is no longer reachable",
+                        worldGen.name(), worldGen.getClass().getSimpleName());
     }
     public static void registerDecayRule(DecayRule worldGen)
     {

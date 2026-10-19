@@ -28,31 +28,27 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Builds the 3072-tall chunk the client believes it is standing in, out of three 1024-tall layers.
+ * Builds the 192-tall chunk the client believes it is standing in, out of {@link AbyssWindow#WINDOW_LAYERS}
+ * bands of a pattern.
  *
  * <h2>Why this is a packet and not a level</h2>
  *
- * <p>The window has to be per player: two players on different layers must be shown different bands. A
- * {@code ServerLevel} has one chunk per column shared by everyone, so a shared level cannot hold two windows.
- * The only place a window can be per player is the packet, which is where this class works - the same place
- * {@code ClientboundLevelChunkWithLightPacket}'s x/z are already rewritten for the Backrooms shuffle.
+ * <p>The window is per player: two players in different bands must be shown different compositions, and a
+ * {@code ServerLevel} has one chunk per column shared by everyone. The only per-player place to assemble a
+ * window is the packet.
  *
  * <h2>What is in the packet, and what that forces</h2>
  *
- * <p>The section count is <em>not</em> in the packet. The client reads exactly its own
- * {@code ClientLevel} section count ({@link AbyssWindow#WINDOW_SECTIONS}) and decodes that many sections from
- * the buffer. So every band has to be present, every band has to be exactly
- * {@link AbyssWindow#SECTIONS_PER_LAYER} sections, and a missing layer is padded with air rather than
- * skipped.
+ * <p>The section count is <em>not</em> in the packet: the client reads exactly its own section count
+ * ({@link AbyssWindow#WINDOW_SECTIONS}) and decodes that many sections from the buffer. So every band has to be
+ * present, every band has to be exactly {@link AbyssWindow#SECTIONS_PER_BAND} sections, and a missing band is
+ * padded with air rather than skipped.
  *
  * <p>Heightmaps are recomputed from the composed sections, because a heightmap's values are packed at a bit
- * width derived from the height. Copying a layer's heightmap into a taller window would be read with the
- * wrong stride. Light is different: its masks are {@link BitSet}s, so a layer's bits are copied and shifted by
- * the band's section offset instead.
- *
- * <p><b>Known gap, deliberately left in this demo:</b> block entities (chests, signs, spawners) are not
- * composed. Their packet record is package-private with a private constructor, and this demo's layers contain
- * none. See {@link #compose} for where they would go.
+ * width derived from the height; copying a band's heightmap into the window would be read with the wrong
+ * stride. Light masks are {@link BitSet}s indexed relative to the level's minimum light section, so a band's
+ * bits are copied and shifted by its slot - that shift is independent of {@code min_y} and of
+ * {@code sourceY}, which is why a slice taken from the middle of a tall level needs no special handling.
  */
 public final class AbyssChunkComposer
 {
@@ -74,49 +70,52 @@ public final class AbyssChunkComposer
 
     private AbyssChunkComposer() {}
 
-    /**
-     * The window chunk for one column, or null when the player is not in a windowed layer.
-     */
+    /** The window chunk for one column, or null when the player is not being shown a window. */
     @Nullable
     public static ClientboundLevelChunkWithLightPacket compose(ServerPlayer player, ChunkPos pos)
     {
-        if (!AbyssWindow.handles(player)) return null;
+        AbyssWindow.Window window = AbyssWindow.window(player);
+        if (window == null) return null;
         MinecraftServer server = player.level().getServer();
-        int anchor = AbyssWindow.anchor(player);
+        if (server == null) return null;
 
         LevelChunkSection[] sections = new LevelChunkSection[AbyssWindow.WINDOW_SECTIONS];
         LevelChunkSection air = new LevelChunkSection(((ServerLevel) player.level()).palettedContainerFactory());
         for (int i = 0; i < sections.length; i++) sections[i] = air;
 
         boolean missing = false;
-        for (int band = 0; band < AbyssWindow.WINDOW_LAYERS; band++)
+        for (int slot = 0; slot < AbyssWindow.WINDOW_LAYERS; slot++)
         {
-            ServerLevel level = AbyssWindow.layer(server, anchor + band);
+            AbyssPattern.Band band = window.pattern().band(window.windowStart() + slot);
+            if (band == null) { missing = true; continue; }
+            ServerLevel level = server.getLevel(band.level());
             if (level == null) { missing = true; continue; }
             LevelChunk chunk = level.getChunkSource().getChunkNow(pos.x(), pos.z());
             if (chunk == null)
             {
-                //The band is not generating yet, so this column goes out with air there. Remember it: the
-                //client will keep that air until something marks the chunk pending again, and nothing will,
-                //because the player's own chunk has not moved.
+                //The band is not loaded yet, so this column goes out with air there. Remember it: the client
+                //keeps that air until something marks the chunk pending again, and nothing will, because the
+                //player's own chunk has not moved.
                 missing = true;
                 continue;
             }
             LevelChunkSection[] source = chunk.getSections();
-            System.arraycopy(source, 0, sections, band * AbyssWindow.SECTIONS_PER_LAYER,
-                             Math.min(source.length, AbyssWindow.SECTIONS_PER_LAYER));
-            //TODO block entities: chunk.getBlockEntities() would go into the list below, with y shifted by
-            //band * LAYER_HEIGHT. BlockEntityInfo is package-private with a private constructor, so this
+            int from = band.sourceY() / 16;
+            for (int i = 0; i < AbyssWindow.SECTIONS_PER_BAND; i++)
+            {
+                int index = from + i;
+                if (index < 0 || index >= source.length) break;
+                sections[slot * AbyssWindow.SECTIONS_PER_BAND + i] = source[index];
+            }
+            //TODO block entities: chunk.getBlockEntities() would go into the list below, with y shifted into
+            //the slot and by sourceY. BlockEntityInfo is package-private with a private constructor, so this
             //needs either an access widener for that class or a reflective copy.
         }
-        //Only ever adds. A complete column is removed from the set by the sweep in AbyssWindow, which is also
-        //the only place that knows the column has since become complete.
         if (missing) AbyssWindow.markIncomplete(player, pos);
 
         byte[] body = encodeSections(sections);
         ClientboundLevelChunkPacketData data = chunkData(heightmaps(sections), body);
-        ClientboundLightUpdatePacketData light = light(server, pos, anchor);
-        return new ClientboundLevelChunkWithLightPacket(pos.x(), pos.z(), data, light);
+        return new ClientboundLevelChunkWithLightPacket(pos.x(), pos.z(), data, light(server, window, pos));
     }
 
     /** Exactly {@code sum(section.getSerializedSize())} bytes, one section after another. */
@@ -144,10 +143,10 @@ public final class AbyssChunkComposer
     /**
      * Recomputes every heightmap the client is sent.
      *
-     * <p>The stored value is {@code (highest opaque y + 1) - minY}, this mirroring {@code Heightmap.update},
-     * which writes {@code y + 1} and subtracts the height accessor's minimum. Both are window-relative, so the
-     * subtraction cancels against a section index that is also window-relative: the value written here is
-     * correct for any {@code min_y} the window happens to use.
+     * <p>The stored value is {@code (highest opaque y + 1) - minY}, mirroring {@code Heightmap.update}, which
+     * writes {@code y + 1} and subtracts the height accessor's minimum. Both are window-relative, so the
+     * subtraction cancels against a section index that is also window-relative, and the value is correct for
+     * any {@code min_y} the window uses.
      */
     private static Map<Heightmap.Types, long[]> heightmaps(LevelChunkSection[] sections)
     {
@@ -166,8 +165,8 @@ public final class AbyssChunkComposer
                     for (int sectionIndex = sections.length - 1; sectionIndex >= 0; sectionIndex--)
                     {
                         LevelChunkSection section = sections[sectionIndex];
-                        //Air sections are the common case in a 3072-tall window, so skipping them whole is
-                        //what keeps this from being 192 section visits per column.
+                        //Air sections are the common case in a window, so skipping them whole is what keeps
+                        //this from being a section visit per column at full height.
                         if (section.hasOnlyAir()) continue;
                         for (int y = 15; y >= 0; y--)
                         {
@@ -187,15 +186,14 @@ public final class AbyssChunkComposer
     }
 
     /**
-     * Light for the window, band by band.
+     * Light for the window, slot by slot.
      *
      * <p>{@code prepareSectionData} indexes light by {@code sectionY - minLightSection}, and
-     * {@code minLightSection} is {@code minY/16 - 1} on every level, so the band's first section lands on
-     * index {@code band * SECTIONS_PER_LAYER + 1} whatever the two levels' {@code min_y} values are - the
-     * constant cancels. Masks are copied bit by bit in ascending order, which is the order the stream codec
-     * expects the data arrays in.
+     * {@code minLightSection} is {@code minY/16 - 1} on every level, so a band's section index inside its own
+     * light engine is already relative. Copying bit {@code i} of that band to {@code slot * SECTIONS_PER_BAND + i + 1}
+     * is right whatever {@code min_y} and whatever {@code source_y} the band has - the constants cancel.
      */
-    private static ClientboundLightUpdatePacketData light(MinecraftServer server, ChunkPos pos, int anchor)
+    private static ClientboundLightUpdatePacketData light(MinecraftServer server, AbyssWindow.Window window, ChunkPos pos)
     {
         BitSet skyMask = new BitSet();
         BitSet blockMask = new BitSet();
@@ -204,28 +202,31 @@ public final class AbyssChunkComposer
         List<byte[]> skyUpdates = new ArrayList<>();
         List<byte[]> blockUpdates = new ArrayList<>();
 
-        for (int band = 0; band < AbyssWindow.WINDOW_LAYERS; band++)
+        for (int slot = 0; slot < AbyssWindow.WINDOW_LAYERS; slot++)
         {
-            ServerLevel level = AbyssWindow.layer(server, anchor + band);
+            AbyssPattern.Band band = window.pattern().band(window.windowStart() + slot);
+            if (band == null) continue;
+            ServerLevel level = server.getLevel(band.level());
             if (level == null) continue;
-            int base = band * AbyssWindow.SECTIONS_PER_LAYER;
-            for (int local = 0; local < AbyssWindow.SECTIONS_PER_LAYER; local++)
+            int base = slot * AbyssWindow.SECTIONS_PER_BAND;
+            int from = band.sourceY() / 16;
+            for (int local = 0; local < AbyssWindow.SECTIONS_PER_BAND; local++)
             {
-                //+1 because light index 0 is the section below minY.
+                //+1 because light index 0 is the section below the level's minimum Y.
                 int index = base + local + 1;
-                collect(level, pos, local, LightLayer.SKY, index, skyMask, emptySkyMask, skyUpdates);
-                collect(level, pos, local, LightLayer.BLOCK, index, blockMask, emptyBlockMask, blockUpdates);
+                collect(level, pos, from + local, LightLayer.SKY, index, skyMask, emptySkyMask, skyUpdates);
+                collect(level, pos, from + local, LightLayer.BLOCK, index, blockMask, emptyBlockMask, blockUpdates);
             }
         }
         return new ClientboundLightUpdatePacketData(skyMask, blockMask, emptySkyMask, emptyBlockMask,
                                                    skyUpdates, blockUpdates);
     }
 
-    private static void collect(ServerLevel level, ChunkPos pos, int localSection, LightLayer layer,
+    private static void collect(ServerLevel level, ChunkPos pos, int sectionY, LightLayer layer,
                                 int index, BitSet mask, BitSet emptyMask, List<byte[]> updates)
     {
         DataLayer data = level.getLightEngine().getLayerListener(layer)
-                              .getDataLayerData(SectionPos.of(pos.x(), localSection, pos.z()));
+                              .getDataLayerData(SectionPos.of(pos.x(), sectionY, pos.z()));
         if (data == null || data.isEmpty())
         {
             emptyMask.set(index);
@@ -250,8 +251,8 @@ public final class AbyssChunkComposer
     /**
      * The same light payload, moved up by {@code sectionShift} sections.
      *
-     * <p>For standalone {@code ClientboundLightUpdatePacket}s, which the layer's own light engine emits. Their
-     * masks are layer-relative and would otherwise land 1024 or 2048 blocks too low.
+     * <p>For standalone {@code ClientboundLightUpdatePacket}s, which a band's own light engine emits. Their
+     * masks are band-relative and would otherwise land in the wrong slot.
      */
     public static ClientboundLightUpdatePacketData shift(ClientboundLightUpdatePacketData data, int sectionShift)
     {
