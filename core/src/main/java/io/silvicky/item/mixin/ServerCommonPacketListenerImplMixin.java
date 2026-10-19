@@ -101,6 +101,11 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
         //by a whole number of layers. Everything here is per player (the window is per player) and therefore
         //has to run before the shared `modified` cache below.
         //==============================================================================================
+        //A packet this mod built already holds client coordinates. Converting it again is not idempotent, and
+        //doing so moved a block update into the wrong band - the reason a downward break looked like a dead
+        //click while an upward one survived.
+        if (AbyssWindow.isTranslated()) return;
+
         if (AbyssWindow.handles(player))
         {
             if (packet instanceof ClientboundLevelChunkWithLightPacket chunkPacket)
@@ -223,14 +228,15 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
                 double x=playSoundS2CPacket.getX();
                 double y=playSoundS2CPacket.getY();
                 double z=playSoundS2CPacket.getZ();
-                //Y is passed as 0 on purpose, the way the particle and look-at branches do it: the transform
-                //moves whole chunks in x and z and has nothing to say about height. The height is then carried
-                //over untouched, because a sound's vertical distance decides how much of its volume the client
-                //attenuates away - it is real information, not something to push through the transform and hope.
+                //Y is passed as 0 to the transform on purpose, the way the particle and look-at branches do
+                //it: the shuffle moves whole chunks in x and z and has nothing to say about height. The
+                //window, however, does have something to say about height - the whole dimension is shifted by
+                //a band - so that part is added back separately.
                 Vec3 pos=vecTransformer.s2cTransform(new Vec3(x,0,z));
+                if(AbyssWindow.handles(player)) y=AbyssWindow.toClientY(player,y);
                 //Already where this player sees it. The common case on a level with no shuffle, and worth the
                 //check because sounds are frequent and this way an unchanged one allocates nothing.
-                if(pos.x==x && pos.z==z)return;
+                if(pos.x==x && pos.z==z && y==playSoundS2CPacket.getY())return;
                 //The public constructor takes doubles and does the /8 scaling itself, so this is also the only
                 //place the 1/8-block precision of the packet is applied. Handing it getX() and friends cannot
                 //drift: the transform is a translation by whole chunks, so it is exact in double, and the
@@ -298,7 +304,7 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
             TrackedWaypoint translated;
             try
             {
-                translated=s2cTransformWaypoint(waypointS2CPacket.waypoint(),vecTransformer);
+                translated=s2cTransformWaypoint(waypointS2CPacket.waypoint(),vecTransformer,player);
             }
             catch (ChunkUnusedException e)
             {
@@ -337,15 +343,35 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
             {
                 BlockPos pos = blockUpdate.getPos();
                 BlockPos converted = vecTransformer.s2cTransform(pos);
-                if (AbyssWindow.handles(player)) converted = AbyssWindow.toClient(player, converted);
-                if (!pos.equals(converted))
+                if (!AbyssWindow.handles(player))
                 {
-                    ClientboundBlockUpdatePacket replacement = new ClientboundBlockUpdatePacket(converted, blockUpdate.getBlockState());
-                    ci.cancel();
-                    replacing = true;
-                    try { instance.send(replacement, channelFutureListener); }
-                    finally { replacing = false; }
+                    if (!pos.equals(converted))
+                    {
+                        ClientboundBlockUpdatePacket replacement = new ClientboundBlockUpdatePacket(converted, blockUpdate.getBlockState());
+                        ci.cancel();
+                        replacing = true;
+                        try { instance.send(replacement, channelFutureListener); }
+                        finally { replacing = false; }
+                    }
+                    return;
                 }
+
+                //A window can show this block more than once, so every image has to be updated. Sending only
+                //the player's own band is what made a break in an adjacent band look like it did nothing: the
+                //server broke the right block, and the client was told about a different copy of it.
+                List<Double> images = AbyssWindow.imageYs(player, player.level().dimension(), pos.getY());
+                ci.cancel();
+                replacing = true;
+                try
+                {
+                    for (double imageY : images)
+                    {
+                        BlockPos image = converted.offset(0, (int) Math.round(imageY) - converted.getY(), 0);
+                        instance.send(new ClientboundBlockUpdatePacket(image, blockUpdate.getBlockState()),
+                                       channelFutureListener);
+                    }
+                }
+                finally { replacing = false; }
             }
             catch (ChunkUnusedException e)
             {
@@ -369,12 +395,9 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
                 Field secField = ClientboundSectionBlocksUpdatePacket.class.getDeclaredField("sectionPos");
                 secField.setAccessible(true);
                 SectionPos original = (SectionPos) secField.get(sectionUpdate);
-                SectionPos converted = vecTransformer.s2cTransform(original);
-                if (AbyssWindow.handles(player)) converted = AbyssWindow.toClient(player, converted);
-                if (original.equals(converted)) return;
 
                 //The states live in the section the packet was built from, and the public constructor reads
-                //them from there, so the same section has to be handed over with the new position.
+                //them from there, so the same section has to be handed over with every new position.
                 LevelChunk chunk = gamePacketListener.getPlayer().level()
                         .getChunk(original.chunk().x(), original.chunk().z());
                 if (chunk == null)
@@ -387,6 +410,25 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
 
                 ShortSet changes = new ShortOpenHashSet(positions.length);
                 for (short packed : positions) changes.add(packed);
+
+                if (AbyssWindow.handles(player))
+                {
+                    //One packet per copy of this level in the window, and none for a slot showing another
+                    //level - that is what used to blank untouched terrain.
+                    ci.cancel();
+                    replacing = true;
+                    try
+                    {
+                        for (SectionPos image : AbyssWindow.imageSections(player, original))
+                            instance.send(new ClientboundSectionBlocksUpdatePacket(image, changes, section),
+                                          channelFutureListener);
+                    }
+                    finally { replacing = false; }
+                    return;
+                }
+
+                SectionPos converted = vecTransformer.s2cTransform(original);
+                if (original.equals(converted)) return;
 
                 ClientboundSectionBlocksUpdatePacket replacement =
                         new ClientboundSectionBlocksUpdatePacket(converted, changes, section);
@@ -448,6 +490,7 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
                     {
                         BlockPos pos = bu.getPos();
                         BlockPos converted = vecTransformer.s2cTransform(pos);
+                        if (AbyssWindow.handles(player)) converted = AbyssWindow.toClient(player, converted);
                         if (!pos.equals(converted))
                         {
                             toSend = new ClientboundBlockUpdatePacket(converted, bu.getBlockState());
@@ -466,7 +509,8 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
                     {
                         Field secField = ClientboundSectionBlocksUpdatePacket.class.getDeclaredField("sectionPos");
                         secField.setAccessible(true);
-                        vecTransformer.s2cTransform((SectionPos) secField.get(sbu));
+                        SectionPos sectionPos = vecTransformer.s2cTransform((SectionPos) secField.get(sbu));
+                        if (AbyssWindow.handles(player)) AbyssWindow.toClient(player, sectionPos);
                         anyChanged = true;
                         toSend = null;
                     }
@@ -479,6 +523,7 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
                     {
                         BlockPos pos = le.getPos();
                         BlockPos converted = vecTransformer.s2cTransform(pos);
+                        if (AbyssWindow.handles(player)) converted = AbyssWindow.toClient(player, converted);
                         if (!pos.equals(converted))
                         {
                             toSend = new ClientboundLevelEventPacket(
@@ -511,6 +556,7 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
             {
                 Vec3 center = clientboundExplodePacket.center();
                 Vec3 converted = vecTransformer.s2cTransform(center);
+                if (AbyssWindow.handles(player)) converted = AbyssWindow.toClient(player, converted);
                 if (!center.equals(converted))
                 {
                     ClientboundExplodePacket replacement = new ClientboundExplodePacket(
@@ -608,11 +654,13 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
             {
                 Vec3 pos = new Vec3(particlePacket.x(), 0, particlePacket.z());
                 Vec3 converted = vecTransformer.s2cTransform(pos);
-                if (!pos.equals(converted))
+                double y = AbyssWindow.handles(player)
+                        ? AbyssWindow.toClientY(player, particlePacket.y()) : particlePacket.y();
+                if (!pos.equals(converted) || y != particlePacket.y())
                 {
                     ClientboundLevelParticlesPacket replacement = new ClientboundLevelParticlesPacket(
                             particlePacket.particle(), particlePacket.overrideLimiter(), particlePacket.alwaysShow(),
-                            converted.x, particlePacket.y(), converted.z,
+                            converted.x, y, converted.z,
                             particlePacket.xDist(), particlePacket.yDist(), particlePacket.zDist(),
                             particlePacket.xMaxSpeed(), particlePacket.yMaxSpeed(), particlePacket.zMaxSpeed(),
                             particlePacket.count(), particlePacket.randomizationType());
@@ -636,18 +684,25 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
                 if (!atEntity)
                 {
                     Field xField = ClientboundPlayerLookAtPacket.class.getDeclaredField("x");
+                    Field yField = ClientboundPlayerLookAtPacket.class.getDeclaredField("y");
                     Field zField = ClientboundPlayerLookAtPacket.class.getDeclaredField("z");
                     xField.setAccessible(true);
+                    yField.setAccessible(true);
                     zField.setAccessible(true);
                     double x = xField.getDouble(lookAtPacket);
                     double z = zField.getDouble(lookAtPacket);
+                    //The original carries a Y and the old code dropped it, rebuilding with 0. That was
+                    //already wrong for a position target above or below the player, and in a window it would
+                    //also be a band out, so it is read and carried now.
+                    double y = yField.getDouble(lookAtPacket);
                     Vec3 pos = new Vec3(x, 0, z);
                     Vec3 converted = vecTransformer.s2cTransform(pos);
-                    if (!pos.equals(converted))
+                    double clientY = AbyssWindow.handles(player) ? AbyssWindow.toClientY(player, y) : y;
+                    if (!pos.equals(converted) || clientY != y)
                     {
                         //Rebuild with converted position, preserving fromAnchor
                         ClientboundPlayerLookAtPacket replacement = new ClientboundPlayerLookAtPacket(
-                                lookAtPacket.getFromAnchor(), converted.x, converted.y, converted.z);
+                                lookAtPacket.getFromAnchor(), converted.x, clientY, converted.z);
                         ci.cancel();
                         replacing = true;
                         try { instance.send(replacement, channelFutureListener); }
@@ -667,6 +722,7 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
                 {
                     Vec3 pos = damagePacket.sourcePosition().get();
                     Vec3 converted = vecTransformer.s2cTransform(pos);
+                    if (AbyssWindow.handles(player)) converted = AbyssWindow.toClient(player, converted);
                     if (!pos.equals(converted))
                     {
                         ClientboundDamageEventPacket replacement = new ClientboundDamageEventPacket(
@@ -853,7 +909,8 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
      *         when the waypoint cannot be translated faithfully and the packet has to be dropped.
      */
     @Unique
-    private static @Nullable TrackedWaypoint s2cTransformWaypoint(TrackedWaypoint waypoint, VecTransformer vecTransformer) throws ChunkUnusedException
+    private static @Nullable TrackedWaypoint s2cTransformWaypoint(TrackedWaypoint waypoint, VecTransformer vecTransformer,
+                                                                  ServerPlayer player) throws ChunkUnusedException
     {
         Object position=waypointPosition(waypoint);
         if(position==null)return waypoint;
@@ -867,9 +924,10 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
         {
             //A block position. s2cTransform hands back a BlockPos, and a BlockPos IS a Vec3i, so it goes
             //straight back in - and staying in integer space end to end is why this needs none of the
-            //rounding care the sound packet's 1/8-block coordinates did.
-            return TrackedWaypoint.setPosition(identifier.get(),waypoint.icon(),
-                    vecTransformer.s2cTransform(new BlockPos(blockPos.getX(),blockPos.getY(),blockPos.getZ())));
+            //rounding care the sound packet's 1/8-block coordinates did. The window adds its band here.
+            BlockPos converted=vecTransformer.s2cTransform(new BlockPos(blockPos.getX(),blockPos.getY(),blockPos.getZ()));
+            if (AbyssWindow.handles(player)) converted=AbyssWindow.toClient(player,converted);
+            return TrackedWaypoint.setPosition(identifier.get(),waypoint.icon(),converted);
         }
         if (position instanceof ChunkPos chunkPos)
         {

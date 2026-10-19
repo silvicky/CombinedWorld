@@ -1,5 +1,6 @@
 package io.silvicky.item.mixin;
 
+import io.silvicky.item.backrooms.AbyssWindow;
 import io.silvicky.item.backrooms.ChunkUnusedException;
 import io.silvicky.item.backrooms.VecTransformer;
 import net.minecraft.server.level.ServerPlayer;
@@ -27,7 +28,7 @@ public class PlayerMixin
         if(!(instance instanceof ServerPlayer serverPlayer))return instance.getEyePosition();
         try
         {
-            return VecTransformer.getInstance(serverPlayer).s2cTransform(instance.getEyePosition());
+            return item_storage$toClient(serverPlayer,instance.getEyePosition());
         }
         catch (ChunkUnusedException e){return VecTransformer.INF;}
     }
@@ -38,7 +39,16 @@ public class PlayerMixin
         if(!(instance instanceof ServerPlayer serverPlayer))return pos;
         try
         {
-            return VecTransformer.getInstance(serverPlayer).s2cTransform(pos);
+            BlockPos client=VecTransformer.getInstance(serverPlayer).s2cTransform(pos);
+            if(AbyssWindow.handles(serverPlayer))
+            {
+                //The block is measured at its nearest image in the window, not at its own level Y. A window
+                //can show the same level more than once, so one block has several client positions and the
+                //distance only means something against the nearest one.
+                double y=AbyssWindow.nearestClientY(serverPlayer,pos.getY());
+                client=client.offset(0,(int)Math.round(y)-client.getY(),0);
+            }
+            return client;
         }
         catch (ChunkUnusedException e)
         {
@@ -64,7 +74,7 @@ public class PlayerMixin
         if(!(instance instanceof ServerPlayer serverPlayer))return eye;
         try
         {
-            return VecTransformer.getInstance(serverPlayer).s2cTransform(eye);
+            return item_storage$toClient(serverPlayer,eye);
         }
         catch (ChunkUnusedException e){return VecTransformer.INF;}
     }
@@ -90,7 +100,7 @@ public class PlayerMixin
             //itself is vanilla's and is not duplicated here: effectiveMinRange and effectiveMaxRange are
             //public, and the hitbox margin is a record component, so this is the same comparison vanilla
             //would have made, with both ends in C.
-            Vec3 eye=VecTransformer.getInstance(serverPlayer).s2cTransform(attacker.getEyePosition());
+            Vec3 eye=item_storage$toClient(serverPlayer,attacker.getEyePosition());
             double distance=Math.sqrt(moved.distanceToSqr(eye));
             double minReach=range.effectiveMinRange(attacker)-range.hitboxMargin()-buffer;
             double maxReach=range.effectiveMaxRange(attacker)+range.hitboxMargin()+buffer;
@@ -124,8 +134,32 @@ public class PlayerMixin
             VecTransformer transformer=VecTransformer.getInstance(serverPlayer);
             Vec3 min=transformer.s2cTransform(new Vec3(box.minX,box.minY,box.minZ));
             Vec3 max=transformer.s2cTransform(new Vec3(box.maxX,box.maxY,box.maxZ));
+            if(AbyssWindow.handles(serverPlayer))
+            {
+                //Same rule as the blocks: both corners at their nearest image, so the box lands where the
+                //player sees it rather than a band away.
+                double minY=AbyssWindow.nearestClientY(serverPlayer,box.minY);
+                double maxY=AbyssWindow.nearestClientY(serverPlayer,box.maxY);
+                min=new Vec3(min.x,minY,min.z);
+                max=new Vec3(max.x,maxY,max.z);
+            }
             return new AABB(min.x,min.y,min.z,max.x,max.y,max.z);
         }
         catch (ChunkUnusedException e){return null;}
+    }
+
+    /**
+     * A server position as the client sees it, including the window's band.
+     *
+     * <p>Reach is judged in the frame the player is looking at, and in the abyss that frame is the window's:
+     * the shuffle moves X/Z and the window moves Y. Using the transformer alone measures a Y that belongs to
+     * neither frame, which is why a block in an adjacent band could not be broken even when it was in reach.
+     */
+    @Unique
+    private static Vec3 item_storage$toClient(ServerPlayer player, Vec3 serverPos) throws ChunkUnusedException
+    {
+        Vec3 client=VecTransformer.getInstance(player).s2cTransform(serverPos);
+        if(!AbyssWindow.handles(player))return client;
+        return new Vec3(client.x,AbyssWindow.nearestClientY(player,serverPos.y),client.z);
     }
 }

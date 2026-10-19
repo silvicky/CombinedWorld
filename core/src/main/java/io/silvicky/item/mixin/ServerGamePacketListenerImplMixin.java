@@ -1,6 +1,7 @@
 package io.silvicky.item.mixin;
 
 import com.llamalad7.mixinextras.sugar.Local;
+import io.silvicky.item.backrooms.AbyssWindow;
 import io.silvicky.item.backrooms.ChunkUnusedException;
 import io.silvicky.item.backrooms.VecTransformer;
 import io.silvicky.item.common.Util;
@@ -92,6 +93,8 @@ public abstract class ServerGamePacketListenerImplMixin
         //teleport the player every tick.
         Vec3 target=new Vec3(d, e, h);
         reportDisagreement(target);
+        if (AbyssWindow.handles(player))
+            return AbyssWindow.movementDistanceSq(player, new Vec3(firstGoodX, firstGoodY, firstGoodZ), target);
         return VecTransformer.getInstance(player)
                              .movementDistanceSq(new Vec3(firstGoodX, firstGoodY, firstGoodZ), target);
     }
@@ -159,8 +162,12 @@ public abstract class ServerGamePacketListenerImplMixin
                            @Local(name = "targetY")double e,
                            @Local(name = "targetZ")double h)
     {
-        return VecTransformer.getInstance(player)
-                             .movementDistanceSq(player.position(), new Vec3(d, e, h));
+        Vec3 target = new Vec3(d, e, h);
+        //The abyss window has to measure vertically as well: a band crossing moves the server's Y by a whole
+        //band while the client's does not, and a local client does not run this check the way a remote one
+        //does, which is why the warning only appears remotely.
+        if (AbyssWindow.handles(player)) return AbyssWindow.movementDistanceSq(player, player.position(), target);
+        return VecTransformer.getInstance(player).movementDistanceSq(player.position(), target);
     }
     @Inject(method = "teleport(Lnet/minecraft/world/entity/PositionMoveRotation;Ljava/util/Set;)V",at= @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerPlayer;teleportSetPosition(Lnet/minecraft/world/entity/PositionMoveRotation;Ljava/util/Set;)V",shift = At.Shift.AFTER))
     private void inject5(PositionMoveRotation positionMoveRotation, Set<Relative> set, CallbackInfo ci)
@@ -260,8 +267,11 @@ public abstract class ServerGamePacketListenerImplMixin
         {
             //Same seam-corrected movement as inject6, for the same reason: this feeds the fly-speed and
             //walk-speed counters, and a shuffle jump would otherwise be recorded as the player sprinting.
-            Vec3 move=VecTransformer.getInstance(player).playerMove(new Vec3(startX,startY,startZ),
-                                                                  instance.position());
+            Vec3 from=new Vec3(startX,startY,startZ);
+            Vec3 to=instance.position();
+            Vec3 move=AbyssWindow.handles(player)
+                    ? AbyssWindow.playerMove(player,from,to)
+                    : VecTransformer.getInstance(player).playerMove(from,to);
             instance.checkMovementStatistics(move.x,move.y,move.z);
         }
         catch (Exception ex)

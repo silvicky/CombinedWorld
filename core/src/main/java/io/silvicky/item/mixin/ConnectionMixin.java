@@ -91,8 +91,15 @@ public abstract class ConnectionMixin
             //into the layer the player is physically standing in.
             if (AbyssWindow.handles(player))
             {
+                //The block decides the band, and the click point follows it. Deriving the point's band from the
+                //point instead splits the two whenever a click lands exactly on a band boundary - placing on
+                //the top face of a band's highest block gives a point in the band above - and vanilla then
+                //cross-checks a block at one Y against a point a band away and rejects the packet as
+                //"too far away from hit block".
+                Vec3 clientLocation=playerInteractBlockC2SPacket.hitResult().location;
                 playerInteractBlockC2SPacket.hitResult().blockPos=AbyssWindow.toServer(player,playerInteractBlockC2SPacket.hitResult().blockPos);
-                playerInteractBlockC2SPacket.hitResult().location=AbyssWindow.toServer(player,playerInteractBlockC2SPacket.hitResult().location);
+                playerInteractBlockC2SPacket.hitResult().location=
+                        AbyssWindow.toServerClick(player,raw,clientLocation);
             }
             return;
         }
