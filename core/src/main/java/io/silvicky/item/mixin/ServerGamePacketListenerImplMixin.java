@@ -1,5 +1,7 @@
 package io.silvicky.item.mixin;
 
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.sugar.Local;
 import io.silvicky.item.backrooms.AbyssWindow;
 import io.silvicky.item.backrooms.ChunkUnusedException;
@@ -7,6 +9,7 @@ import io.silvicky.item.backrooms.VecTransformer;
 import io.silvicky.item.common.Util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -20,6 +23,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.Set;
 
@@ -28,6 +32,10 @@ public abstract class ServerGamePacketListenerImplMixin
 {
 
     @Shadow public ServerPlayer player;
+
+    @Shadow private int awaitingTeleport;
+
+    @Shadow public abstract void resetPosition();
 
     @Shadow private double firstGoodX;
 
@@ -94,7 +102,32 @@ public abstract class ServerGamePacketListenerImplMixin
         Vec3 target=new Vec3(d, e, h);
         reportDisagreement(target);
         if (AbyssWindow.handles(player))
-            return AbyssWindow.movementDistanceSq(player, new Vec3(firstGoodX, firstGoodY, firstGoodZ), target);
+        {
+            //Measured against the previous packet, not against the start of the tick.
+            //
+            //Vanilla compares every packet with `firstGood`, which is only refreshed once per tick, and
+            //compensates for a burst of packets by scaling its allowance with how many arrived. In a window
+            //that compensation does not hold: a crossing is a teleport, the client spends the round trip
+            //falling, and the packets it queued meanwhile are handled in one burst afterwards - so the third
+            //and fourth of them measure three and four ticks of fall against a reference one tick old. The
+            //result is `moved too quickly! 0.0,-12.03,0.0`, where twelve blocks is simply how far the player
+            //had fallen since the reference was taken.
+            //
+            //`lastGood` is the previous accepted position and moves once per packet, so measuring from it
+            //gives each packet's own step - which is what the client actually did, and what the client's own
+            //prediction is judged on. Ten blocks per packet is still enforced, so a flying player is still
+            //caught; only the arithmetic changes.
+            Vec3 previous = new Vec3(lastGoodX, lastGoodY, lastGoodZ);
+            double step = AbyssWindow.movementDistanceSq(player, previous, target);
+            double fromTickStart = AbyssWindow.movementDistanceSq(player,
+                    new Vec3(firstGoodX, firstGoodY, firstGoodZ), target);
+            if (fromTickStart > 100.0 && step <= 100.0)
+                Util.LOGGER.info("[abyss] speed check rebased for {}: {} blocks since the tick start "
+                                + "(firstGood y={}), {} since the previous packet (lastGood y={}); player y={}",
+                        player.getGameProfile().name(), round(Math.sqrt(fromTickStart)), round(firstGoodY),
+                        round(Math.sqrt(step)), round(lastGoodY), round(player.getY()));
+            return step;
+        }
         return VecTransformer.getInstance(player)
                              .movementDistanceSq(new Vec3(firstGoodX, firstGoodY, firstGoodZ), target);
     }
@@ -169,6 +202,50 @@ public abstract class ServerGamePacketListenerImplMixin
         if (AbyssWindow.handles(player)) return AbyssWindow.movementDistanceSq(player, player.position(), target);
         return VecTransformer.getInstance(player).movementDistanceSq(player.position(), target);
     }
+    /**
+     * Everything vanilla does with the client's answer to a position packet.
+     *
+     * <p>The answer is handled by {@code handlePlayerPositionChange}, i.e. by the ordinary movement path: the
+     * distance from the teleport's destination is measured against the same ten-block allowance as walking and
+     * reported as "moved too quickly" when it is larger. For a player falling through a seam that is expected,
+     * because the client falls for the whole round trip - at terminal velocity the allowance covers about
+     * 130 ms - and the answer is a teleport back to the destination, which is the snap felt on every crossing.
+     *
+     * <p>Marking the call is what tells the distance hooks above that this position is a starting point, not
+     * movement. It is keyed on the call rather than on anything of ours (a teleport id, a pending record): the
+     * packet is by definition the acknowledgement of some teleport, and a player of this mod is in the air at a
+     * seam almost by construction.
+     */
+    @WrapMethod(method = "handleAcceptTeleportPacket")
+    private void abyss$teleportAck(ServerboundAcceptTeleportationPacket packet, Operation<Void> original)
+    {
+        boolean abyss = AbyssWindow.handles(player);
+        AbyssWindow.beginSeamAck();
+        try
+        {
+            original.call(packet);
+        }
+        finally
+        {
+            //In a finally, not at RETURN: the flag is read by every movement hook on this thread, and a throw
+            //would otherwise leave the server thread exempting movement for good.
+            AbyssWindow.endSeamAck();
+        }
+        //The acknowledgement has just moved the player from the teleport's destination to where the client
+        //really is, which for a fall is well below it. `firstGoodX/Y/Z` still holds the destination - it is only
+        //refreshed by `resetPosition`, at the start of a tick - and it is what the *next* movement packet of this
+        //same tick is measured from. Left alone, that packet reports the very fall the acknowledgement was
+        //exempted from, one packet later: the "moved too quickly" that was logged between two acknowledgements
+        //with the exact distance the client had fallen while the position packet was in flight.
+        //
+        //So the reference positions follow the acceptance. This is exactly what a tick start would do, only
+        //sooner, and it is what vanilla itself relies on (`ServerPlayer.teleport` calls it for both branches).
+        if (abyss) resetPosition();
+        if (abyss)
+            Util.LOGGER.info("[abyss] teleport acknowledged by {} (id {} of {}) - position accepted, not measured",
+                    player.getGameProfile().name(), packet.id(), awaitingTeleport);
+    }
+
     @Inject(method = "teleport(Lnet/minecraft/world/entity/PositionMoveRotation;Ljava/util/Set;)V",at= @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerPlayer;teleportSetPosition(Lnet/minecraft/world/entity/PositionMoveRotation;Ljava/util/Set;)V",shift = At.Shift.AFTER))
     private void inject5(PositionMoveRotation positionMoveRotation, Set<Relative> set, CallbackInfo ci)
     {
@@ -232,6 +309,16 @@ public abstract class ServerGamePacketListenerImplMixin
             return par2;
         }
     }
+    @Inject(method = "isEntityCollidingWithAnythingNew", at = @At("HEAD"), cancellable = true)
+    private void abyss$acceptTeleportPosition(CallbackInfoReturnable<Boolean> ci)
+    {
+        //The same call, one step further: with the position accepted, this swept test asks whether the player's
+        //bounding box now collides with something it was not touching before. Across a teleport of a falling
+        //player it always does - the box was moved to wherever the fall had got to - and rejecting it sends them
+        //back to the destination to fall again. The client has already resolved that collision.
+        if (AbyssWindow.isTeleportAck()) ci.setReturnValue(false);
+    }
+
     @ModifyArg(method = "isEntityCollidingWithAnythingNew", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/phys/shapes/Shapes;create(Lnet/minecraft/world/phys/AABB;)Lnet/minecraft/world/phys/shapes/VoxelShape;"))
     private AABB inject7(AABB value, @Local(argsOnly = true) Entity entity)
     {

@@ -21,7 +21,9 @@ import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -137,7 +139,27 @@ public final class AbyssWindow
     private static final Map<ServerPlayer, TicketKey> tickets = new ConcurrentHashMap<>();
     private static final Map<ServerPlayer, Set<ChunkPos>> incomplete = new ConcurrentHashMap<>();
     private static final Map<ServerPlayer, Integer> ticks = new ConcurrentHashMap<>();
+    /**
+     * The seam teleport is in flight: from `setWindow` until the client has been told where it now stands.
+     *
+     * <p>Used to suppress the respawn packet, which would rebuild the client's level for a move that stays in
+     * the same dimension.
+     */
     private static final Set<ServerPlayer> seamTeleports = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Set while vanilla is handling the client's acknowledgement of a position packet.
+     *
+     * <p>That acknowledgement is the one place where the reported position is measured against the teleport's
+     * destination, and for a falling player the two are separated by however far they fell while the packet was
+     * in flight. At terminal velocity that is ~4 blocks a tick, so vanilla's ten-block allowance covers about
+     * 130 ms of round trip - less than any real client. Measured, the seam crossing is reported as
+     * "moved too quickly" and answered with a teleport back to the destination, which is the hitch and the snap.
+     *
+     * <p>So the acknowledgement of a teleport is not movement and is not measured here. See
+     * {@code ServerGamePacketListenerImplMixin}, which sets this around the call.
+     */
+    private static final ThreadLocal<Boolean> IN_TELEPORT_ACK = ThreadLocal.withInitial(() -> false);
 
     /**
      * Columns whose chunk finished loading, waiting to be handled on the server thread.
@@ -712,6 +734,9 @@ public final class AbyssWindow
      */
     public static double movementDistanceSq(ServerPlayer player, Vec3 fromS, Vec3 toS)
     {
+        //The answer to a teleport is not movement: the player was moved by the server, and everything between
+        //the destination and where they really are happened while the client was not allowed to say so.
+        if (IN_TELEPORT_ACK.get()) return 0.0;
         double horizontal;
         try
         {
@@ -740,6 +765,7 @@ public final class AbyssWindow
         incomplete.remove(player);
         ticks.remove(player);
         seamTeleports.remove(player);
+        resendQueue.remove(player);
     }
 
     public static boolean isSeamTeleport(ServerPlayer player)
@@ -806,6 +832,8 @@ public final class AbyssWindow
         }
 
         keepWindowLoaded(player);
+
+        drainResend(player);
 
         if (!columnsLoaded(player, player.chunkPosition())) ready.put(player, false);
         else if (!ready.getOrDefault(player, false))
@@ -899,27 +927,41 @@ public final class AbyssWindow
             int start = clampStart(current.pattern(), next - WINDOW_LAYERS / 2);
             Window nextWindow = new Window(current.pattern(), next, start);
 
-            //The window update, the re-send and the teleport are one transition, and the order matters:
+            //The window update, the teleport and the re-send are one transition, and the order matters:
             //  - the seam flag spans all of it, because between `setWindow` and the teleport the stored window
             //    deliberately disagrees with `player.level()`, and anything that re-derives the window in that
             //    gap discards the move;
-            //  - chunks are queued and one batch flushed before the position packet, so the client is never
-            //    told to stand somewhere whose terrain has not been sent yet.
+            //  - the position packet goes out first. It is the only packet the client has to acknowledge, and it
+            //    is the head of the stream rather than the tail: everything vanilla does with the player's
+            //    movement waits for it, so putting the near columns ahead of it froze the player for however long
+            //    those took to cross the wire. Both go out in one burst, so the client applies the new position
+            //    and the new terrain in the same tick.
+            //  - the rest of the view is queued behind that and drained at the chunk sender's pace, because a
+            //    crossing changes the composition of every column and marking them all pending at once is a
+            //    single-tick stall of the whole view.
             seamTeleports.add(player);
+            long started = System.nanoTime();
             try
             {
                 setWindow(player, nextWindow);
-                if (!nextWindow.bands().equals(current.bands()))
-                {
-                    resendChunks(player);
-                    flushChunks(player);
-                }
+                boolean bandsChanged = !nextWindow.bands().equals(current.bands());
                 sendTeleport(player, target, targetY);
+                if (bandsChanged)
+                {
+                    resendNearChunks(player);
+                    flushChunks(player);
+                    resendChunks(player, 1);
+                }
             }
             finally
             {
                 seamTeleports.remove(player);
             }
+            //Kept in the log because it is the server's share of the hitch a crossing is felt as; anything
+            //beyond a millisecond or two is work that could be moved off the transition.
+            LOGGER.info("[abyss] seam crossed {} -> {} at client y={}; transition took {} ms",
+                    band.level().identifier(), target.level().identifier(), targetY + bandOffset(player),
+                    (System.nanoTime() - started) / 1_000_000L);
             return true;
         }
 
@@ -959,6 +1001,23 @@ public final class AbyssWindow
     /** Keeps the recovery warning to one per player rather than one per tick. */
     private static final Set<ServerPlayer> recovered = ConcurrentHashMap.newKeySet();
 
+    /** Marks the call this thread is inside as the client's answer to a position packet. */
+    public static void beginSeamAck()
+    {
+        IN_TELEPORT_ACK.set(true);
+    }
+
+    public static void endSeamAck()
+    {
+        IN_TELEPORT_ACK.set(false);
+    }
+
+    /** Whether this thread is inside the client's acknowledgement of a position packet. */
+    public static boolean isTeleportAck()
+    {
+        return IN_TELEPORT_ACK.get();
+    }
+
     /**
      * Sends the teleport itself.
      *
@@ -976,9 +1035,16 @@ public final class AbyssWindow
         TeleportTransition transition = new TeleportTransition(level, pos, player.getDeltaMovement(),
                                                               player.getYRot(), player.getXRot(),
                                                               TeleportTransition.DO_NOTHING);
-        //The respawn packet is sent synchronously inside this call, and the hook cancels it while the flag is
-        //set - which it is, for the whole transition.
+        //Inside this call vanilla sends the respawn packet and the position packet. The respawn is cancelled by
+        //the outbound hook while the seam flag is set; the position packet is converted into window coordinates
+        //and does go out, which is what makes a crossing seamless - the player moves from the top of the window
+        //to the bottom of it while the composed world shifts down with them.
         player.teleport(transition);
+
+        //The connection's own idea of where the player is has to follow the move. `teleport` resets it for both
+        //branches, but it is the reference the client's acknowledgement and its next move packet are measured
+        //against, so it is stated here too rather than relied upon.
+        if (player.connection != null) player.connection.resetPosition();
     }
 
     // ---------------------------------------------------------------------------------------------------
@@ -1148,16 +1214,94 @@ public final class AbyssWindow
         return new Vec3(horizontal.x, toS.y - fromS.y, horizontal.z);
     }
 
-    /** Re-announces every chunk the player tracks, after the window's contents changed. */
+    /**
+     * Queues every chunk the player tracks after the window's contents changed.
+     *
+     * <p>The queue is drained a few columns per tick rather than marked all at once. A crossing changes the
+     * composition of the whole view, and an integrated server's chunk sender ignores its batch quota and puts
+     * everything pending on the wire in one tick - so marking all of them composed the entire view in a single
+     * server tick (about five thousand sections) and handed the client the same amount to mesh. That is the
+     * hitch that was felt on every crossing. Drained, the player's own area still goes first and the rest
+     * arrives over the following second, the way ordinary chunk loading does.
+     */
     private static void resendChunks(ServerPlayer player)
     {
-        ServerLevel host = (ServerLevel) player.level();
+        resendChunks(player, -1);
+    }
+
+    /**
+     * @param skipRadius columns within this many chunks of the player are left out of the queue; a seam
+     *                   transition has just sent them and re-queuing them would duplicate the whole near box.
+     */
+    private static void resendChunks(ServerPlayer player, int skipRadius)
+    {
         if (player.connection == null) return;
+        ChunkPos centre = player.chunkPosition();
+        List<ChunkPos> columns = new ArrayList<>();
         player.getChunkTrackingView().forEach(pos ->
         {
-            LevelChunk chunk = host.getChunkSource().getChunkNow(pos.x(), pos.z());
-            if (chunk != null) player.connection.chunkSender.markChunkPendingToSend(chunk);
+            if (skipRadius >= 0
+                && Math.abs(pos.x() - centre.x()) <= skipRadius
+                && Math.abs(pos.z() - centre.z()) <= skipRadius) return;
+            columns.add(pos);
         });
+        columns.sort((a, b) -> Integer.compare(distanceSquared(centre, a), distanceSquared(centre, b)));
+        resendQueue.put(player, new ArrayDeque<>(columns));
+    }
+
+    private static int distanceSquared(ChunkPos from, ChunkPos to)
+    {
+        int dx = to.x() - from.x();
+        int dz = to.z() - from.z();
+        return dx * dx + dz * dz;
+    }
+
+    /** Columns still to be re-sent for the current window, nearest first. */
+    private static final Map<ServerPlayer, Deque<ChunkPos>> resendQueue = new ConcurrentHashMap<>();
+
+    /** How many columns a window re-send puts back on the wire in one tick. */
+    private static final int RESEND_PER_TICK = 24;
+
+    private static void drainResend(ServerPlayer player)
+    {
+        Deque<ChunkPos> queue = resendQueue.get(player);
+        if (queue == null || player.connection == null) return;
+        ServerLevel host = (ServerLevel) player.level();
+        for (int queued = 0; queued < RESEND_PER_TICK && !queue.isEmpty(); )
+        {
+            ChunkPos pos = queue.poll();
+            if (!player.getChunkTrackingView().contains(pos)) continue;
+            LevelChunk chunk = host.getChunkSource().getChunkNow(pos.x(), pos.z());
+            if (chunk == null) continue;
+            player.connection.chunkSender.markChunkPendingToSend(chunk);
+            queued++;
+        }
+        if (queue.isEmpty()) resendQueue.remove(player);
+    }
+
+    /**
+     * Queues the columns around the player for a seam transition: the 3x3 they are standing in.
+     *
+     * <p>This is the terrain the client needs first, and the rest of the view follows through
+     * {@link #resendChunks(ServerPlayer, int)} at the sender's pace. A column is twelve sections of composed
+     * terrain, so the difference between this and the whole view is the difference between the client having
+     * its surroundings on the tick it is moved and having them a second later.
+     */
+    private static void resendNearChunks(ServerPlayer player)
+    {
+        if (player.connection == null) return;
+        ServerLevel host = (ServerLevel) player.level();
+        ChunkPos centre = player.chunkPosition();
+        for (int dx = -1; dx <= 1; dx++)
+        {
+            for (int dz = -1; dz <= 1; dz++)
+            {
+                ChunkPos pos = new ChunkPos(centre.x() + dx, centre.z() + dz);
+                if (!player.getChunkTrackingView().contains(pos)) continue;
+                LevelChunk chunk = host.getChunkSource().getChunkNow(pos.x(), pos.z());
+                if (chunk != null) player.connection.chunkSender.markChunkPendingToSend(chunk);
+            }
+        }
     }
 
     /**
