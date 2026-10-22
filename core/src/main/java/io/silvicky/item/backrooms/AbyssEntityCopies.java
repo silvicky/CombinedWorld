@@ -261,26 +261,130 @@ public final class AbyssEntityCopies
         for (Entity entity : visible(player, level, band, true))
         {
             if (entity == player) continue;
+            //**Feet-based slice test, deliberately.** The outbound gate in EntityPositionRemapper.addY tests
+            //`pos.y - sourceY`, and the set here has to describe exactly what that gate will let through - or this
+            //would re-add an entity whose packets are still being dropped, and remove one that is being shown.
+            if (!AbyssWindow.inSlice(band, entity.getY())) continue;
             now.add(entity.getId());
         }
 
         ownSeen.put(player, now);
-        if (before == null) return;
-        for (int id : now)
+        if (before != null)
         {
-            if (before.contains(id)) continue;
-            Entity entity = level.getEntity(id);
-            if (entity != null)
-                LOGGER.info("[abyss] {} entered own band {} of {} (y={}, offset {})",
-                        describe(entity), band.level().identifier().getPath(), name(player),
-                        Math.round(player.getY()), AbyssWindow.bandOffset(player));
+            for (int id : now)
+            {
+                if (before.contains(id)) continue;
+                Entity entity = level.getEntity(id);
+                if (entity != null)
+                    LOGGER.info("[abyss] {} entered own band {} of {} (y={}, offset {})",
+                            describe(entity), band.level().identifier().getPath(), name(player),
+                            Math.round(player.getY()), AbyssWindow.bandOffset(player));
+            }
+            for (int id : before)
+            {
+                if (now.contains(id)) continue;
+                Entity entity = level.getEntity(id);
+                LOGGER.info("[abyss] left own band {} of {}: {}", band.level().identifier().getPath(), name(player),
+                        entity == null ? ("entity " + id + " (gone)") : describe(entity));
+            }
         }
-        for (int id : before)
+
+        reconcileOwnBand(player, level, band, now);
+    }
+
+    /**
+     * Which own-band entities this client currently holds, per player.
+     *
+     * <p>Needed because dropping a packet is not an action the client can recover from on its own. Vanilla's
+     * tracking is horizontal, so it sends an entity's spawn once and never again: if that spawn was dropped for
+     * being outside the band, the client has nothing, and when the entity later walks down into the band every
+     * movement packet is silently discarded - the mob is simply absent, or (if it was already visible and then
+     * rose out of the band) frozen at the height where its packets stopped. That is the "stuck in the seam"
+     * report, and it is a consequence of the drop without a matching reconcile, not of the drop itself.
+     */
+    private static final Map<ServerPlayer, Set<Integer>> held = new ConcurrentHashMap<>();
+
+    /** The client now holds this entity, because its spawn packet went out. */
+    public static void delivered(ServerPlayer player, int id)
+    {
+        held.computeIfAbsent(player, p -> ConcurrentHashMap.newKeySet()).add(id);
+    }
+
+    /** The client definitely does not hold this entity, because its spawn packet was dropped. */
+    public static void dropped(ServerPlayer player, int id)
+    {
+        Set<Integer> set = held.get(player);
+        if (set != null) set.remove(id);
+    }
+
+    /** Vanilla announced a removal, so the client no longer holds these. */
+    public static void removed(ServerPlayer player, int... ids)
+    {
+        Set<Integer> set = held.get(player);
+        if (set == null) return;
+        for (int id : ids) set.remove(id);
+    }
+
+    /**
+     * Brings the client's view of the own band back in line with what is displayable.
+     *
+     * <p>Two directions, and both were missing:
+     *<ul>
+     *   <li>displayable but not held - the spawn was dropped while the entity was outside the slice, so one is
+     *       synthesised now. With its metadata, attributes, equipment and passengers, because the client never
+     *       received vanilla's copies of those either and several types look wrong or undefined without them.</li>
+     *   <li>held but not displayable - the entity has risen out of the slice. Its movement packets are being
+     *       dropped, so the client is holding it at the last height it was told; a remove is the only honest
+     *       answer, and it is what makes it reappear when it comes back down.</li>
+     *</ul>
+     */
+    private static void reconcileOwnBand(ServerPlayer player, ServerLevel level, AbyssPattern.Band band,
+                                         Set<Integer> displayable)
+    {
+        if (player.connection == null) return;
+        Set<Integer> present = held.computeIfAbsent(player, p -> ConcurrentHashMap.newKeySet());
+        int offset = AbyssWindow.bandOffset(player);
+
+        for (int id : displayable)
         {
-            if (now.contains(id)) continue;
+            if (present.contains(id)) continue;
             Entity entity = level.getEntity(id);
-            LOGGER.info("[abyss] left own band {} of {}: {}", band.level().identifier().getPath(), name(player),
-                    entity == null ? ("entity " + id + " (gone)") : describe(entity));
+            if (entity == null || !CopyIdentity.usable(id)) continue;
+            Vec3 client = toClient(player, entity.trackingPosition(), offset);
+            Packet<?> spawn = spawnPacket(entity, id, entity.getUUID(), client);
+            if (spawn == null) continue;
+            AbyssWindow.sendPreTranslated(player, spawn);
+            sendPayload(player, id, entity, nonDefaultData(entity));
+            //Riders are announced by vanilla, which the client will have discarded for the same reason it
+            //discarded the spawn. The ids are the real ones - this is the own band.
+            List<Integer> passengers = new ArrayList<>();
+            for (Entity passenger : entity.getPassengers())
+                if (present.contains(passenger.getId()) || displayable.contains(passenger.getId()))
+                    passengers.add(passenger.getId());
+            if (!passengers.isEmpty())
+            {
+                ClientboundSetPassengersPacket riders = new ClientboundSetPassengersPacket(entity);
+                riders.vehicle = id;
+                riders.passengers = passengers.stream().mapToInt(Integer::intValue).toArray();
+                AbyssWindow.sendPreTranslated(player, riders);
+            }
+            present.add(id);
+            LOGGER.info("[abyss] re-added own-band {} to {} at client {} (spawn had been dropped)",
+                    describe(entity), name(player), fmt(client));
+        }
+
+        IntList gone = new IntArrayList();
+        for (Integer id : new ArrayList<>(present))
+        {
+            if (displayable.contains(id)) continue;
+            present.remove(id);
+            gone.add((int) id);
+        }
+        if (!gone.isEmpty())
+        {
+            AbyssWindow.sendPreTranslated(player, new ClientboundRemoveEntitiesPacket(gone));
+            LOGGER.info("[abyss] hid {} own-band entities from {} for leaving the band slice: {}",
+                    gone.size(), name(player), gone);
         }
     }
 
@@ -772,6 +876,7 @@ public final class AbyssEntityCopies
         byId.remove(player);
         ownSeen.remove(player);
         ownSeenBand.remove(player);
+        held.remove(player);
         lastShape.remove(player);
         EntityPacketLog.forget(player);
         if (table == null || table.isEmpty() || player.connection == null) return;

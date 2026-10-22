@@ -1064,6 +1064,46 @@ public final class AbyssWindow
     private static final Map<ServerPlayer, Long> copyFailures = new ConcurrentHashMap<>();
 
     /**
+     * How far past a band's edge the feet must be before that counts as a crossing.
+     *
+     * <p>Without it, standing on the highest block of a band is *itself* the crossing condition: that block's top
+     * is exactly {@code sourceY + BAND_HEIGHT}, so the player's feet sit exactly on the threshold and every tick
+     * qualifies. The player then bounces between the band they are supported in and the band above, which has no
+     * floor at that height - the "block disappears and I get squeezed off" report. A margin makes the boundary
+     * belong to the band that actually holds the ground beneath it.
+     *
+     * <p>5 cm: far below one tick of any movement, and far above the noise in a position the client reports.
+     */
+    private static final double CROSS_MARGIN = 0.05;
+
+    /**
+     * A crossing's destination Y, moved up out of solid terrain if it landed inside any.
+     *
+     * <p>The concatenated world has no geometry of its own at a seam: the top block of one band and the bottom
+     * block of the band above are adjacent in the window but unrelated in the levels. So a destination computed by
+     * pure arithmetic can be inside a block, and collision will then eject the player - a squeeze that looks like a
+     * glitch because nothing in the log is wrong.
+     *
+     * <p>Bounded to four steps: a floor-to-ceiling column of blocks would otherwise be an unbounded loop, and
+     * four is already more than a player can be inside at once.
+     */
+    private static double arrivalY(ServerLevel level, double x, double z, double y)
+    {
+        for (int guard = 0; guard < 4; guard++)
+        {
+            BlockPos pos = BlockPos.containing(x, y, z);
+            net.minecraft.world.phys.shapes.VoxelShape shape =
+                    level.getBlockState(pos).getCollisionShape(level, pos);
+            if (shape.isEmpty()) return y;
+            double top = pos.getY() + shape.max(net.minecraft.core.Direction.Axis.Y);
+            //Already standing on it rather than inside it.
+            if (y >= top - 1.0E-7) return y;
+            y = top;
+        }
+        return y;
+    }
+
+    /**
      * Moves the player into the band they have walked into, and slides the window to follow them.
      *
      * <p>Falling or climbing out of a band is a real teleport. The destination Y is chosen so that the client's
@@ -1109,7 +1149,7 @@ public final class AbyssWindow
             if (target == null) return false;
             targetY = local + BAND_HEIGHT + target.sourceY();
         }
-        else if (local >= BAND_HEIGHT)
+        else if (local >= BAND_HEIGHT + CROSS_MARGIN)
         {
             next = current.position() + 1;
             AbyssPattern.Band target = current.pattern().band(next);
@@ -1125,6 +1165,26 @@ public final class AbyssWindow
         if (!Double.isNaN(targetY))
         {
             AbyssPattern.Band target = current.pattern().band(next);
+            if (target == null) return false;
+
+            //**The seam is not solid, so the arrival must not be inside terrain.** A band's top edge is the exact
+            //crossing threshold, and the band above has nothing at its own y=-1 - which means a player standing on
+            //an isolated block at the top of a band is, on the server, about to be moved somewhere with no floor.
+            //They fall, come back down, and land at `64 - (however far they fell)`, which is *inside* that same
+            //block. Collision then ejects them, they are at 64.0 again, the threshold fires again, and the pair of
+            //crossings repeats: the block appears to vanish and the player is "squeezed off" it, with nothing in
+            //the log because every step was individually a legitimate crossing.
+            ServerLevel targetLevel = player.level().getServer() == null ? null
+                    : player.level().getServer().getLevel(target.level());
+            if (targetLevel != null)
+            {
+                double safe = arrivalY(targetLevel, player.getX(), player.getZ(), targetY);
+                if (safe != targetY)
+                    LOGGER.info("[abyss] arrival clamped for {}: {} -> {} in {} (would have been inside terrain)",
+                            player.getName().getString(), Math.round(targetY * 100.0) / 100.0,
+                            Math.round(safe * 100.0) / 100.0, target.level().identifier().getPath());
+                targetY = safe;
+            }
             //Recentre, and do it here rather than later. `slot = position - windowStart` is what decides
             //which band the player is standing in, and the window only renders slots 0..2. Keeping the start
             //on a crossing puts the player in slot -1 or 3 - a band the client is not being sent at all - and
@@ -1170,8 +1230,10 @@ public final class AbyssWindow
             }
             //Kept in the log because it is the server's share of the hitch a crossing is felt as; anything
             //beyond a millisecond or two is work that could be moved off the transition.
-            LOGGER.info("[abyss] seam crossed {} -> {} at client y={}; transition took {} ms",
+            LOGGER.info("[abyss] seam crossed {} -> {} at client y={}; local {} -> {} (onGround {}, window {} -> {}); {} ms",
                     band.level().identifier(), target.level().identifier(), targetY + bandOffset(player),
+                    Math.round(local * 100.0) / 100.0, Math.round((targetY - target.sourceY()) * 100.0) / 100.0,
+                    player.onGround(), current.position(), next,
                     (System.nanoTime() - started) / 1_000_000L);
             //Whether the bands around the player are actually simulating, which is what decides if a mob in one of
             //them walks and can be damaged. Reported once per crossing, on one line: "frozen in the next band"
@@ -1234,8 +1296,14 @@ public final class AbyssWindow
                         player.getName().getString(), player.getY());
         double local = player.getY() - band.sourceY();
         if (local >= 0 && local < BAND_HEIGHT) return;
-        sendTeleport(player, pattern.band(position),
-                     local < 0 ? band.sourceY() + 0.01 : band.sourceY() + BAND_HEIGHT - 0.01);
+        //Both edges are nudged *into* the slice, which is right, but the upper one is ``sourceY + BAND_HEIGHT -
+        //0.01`` - inside the highest block of the band when one exists there. The same clamp the crossing uses
+        //applies, or recovery would eject the player exactly as a crossing did.
+        double edge = local < 0 ? band.sourceY() + 0.01 : band.sourceY() + BAND_HEIGHT - 0.01;
+        ServerLevel own = player.level().getServer() == null ? null
+                : player.level().getServer().getLevel(band.level());
+        if (own != null) edge = arrivalY(own, player.getX(), player.getZ(), edge);
+        sendTeleport(player, pattern.band(position), edge);
     }
 
     /** Keeps the recovery warning to one per player rather than one per tick. */

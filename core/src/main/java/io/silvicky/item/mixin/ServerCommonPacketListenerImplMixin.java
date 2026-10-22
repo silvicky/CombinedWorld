@@ -2,8 +2,10 @@ package io.silvicky.item.mixin;
 
 import io.netty.channel.ChannelFutureListener;
 import io.silvicky.item.backrooms.ChunkUnusedException;
+import io.silvicky.item.backrooms.AbyssEntityCopies;
 import io.silvicky.item.backrooms.AbyssChunkComposer;
 import io.silvicky.item.backrooms.AbyssPatterns;
+import io.silvicky.item.backrooms.AbyssPattern;
 import io.silvicky.item.backrooms.AbyssWindow;
 import io.silvicky.item.backrooms.EntityPositionRemapper;
 import io.silvicky.item.backrooms.EntityPacketLog;
@@ -201,19 +203,37 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
                     ServerPlayer bundlePlayer = gamePacketListener.getPlayer();
                     int bundleOffset = AbyssWindow.handles(bundlePlayer)
                             ? AbyssWindow.bandOffset(bundlePlayer) : 0;
+                    //The band's own slice, which is what decides whether the entity's height is displayable at
+                    //all. See EntityPositionRemapper.addY.
+                    AbyssPattern.Band bundleBand = AbyssWindow.band(bundlePlayer);
+                    int bundleSource = bundleBand == null ? 0 : bundleBand.sourceY();
                     Vec3 before = entityPosition(sub);
                     try
                     {
                         Packet<?> translated = item_storage$entityRemapper
-                                .translate(sub, vecTransformer, bundlePlayer.level(), bundleOffset);
+                                .translate(sub, vecTransformer, bundlePlayer.level(), bundleOffset, bundleSource);
                         if (translated == null)
                         {
-                            LOGGER.info("[abyss] dropped bundled entity packet {} for {}",
-                                    sub.type(), bundlePlayer.getGameProfile().name());
+                            //Debug, not info: an entity parked outside its band's slice drops one packet per
+                            //tick, for as long as it stays there. The transition is already reported by the
+                            //reconcile in AbyssEntityCopies ("hid N own-band entities ..."), which fires once.
+                            if (LOGGER.isDebugEnabled())
+                                LOGGER.debug("[abyss] dropped bundled entity packet {} for {} at {} (band slice {}..{})",
+                                        sub.type(), bundlePlayer.getGameProfile().name(), before,
+                                        bundleSource, bundleSource + AbyssWindow.BAND_HEIGHT);
+                            //Tell the presence table, or nothing ever brings this entity back when it descends
+                            //into the band: vanilla sends a spawn once and does not know it was discarded.
+                            if (sub instanceof ClientboundAddEntityPacket droppedAdd)
+                                AbyssEntityCopies.dropped(bundlePlayer, droppedAdd.getId());
                             result = null;
                         }
                         else
                         {
+                            if (translated instanceof ClientboundAddEntityPacket added)
+                                AbyssEntityCopies.delivered(bundlePlayer, added.getId());
+                            if (translated instanceof ClientboundRemoveEntitiesPacket removed)
+                                AbyssEntityCopies.removed(bundlePlayer,
+                                        removed.entityIds().toIntArray());
                             EntityPacketLog.record(bundlePlayer, sub, bundleOffset, before,
                                     entityPosition(translated));
                             result = translated;
@@ -291,21 +311,37 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
             {
                 ServerPlayer entityPlayer = gamePacketListener.getPlayer();
                 int yOffset = AbyssWindow.handles(entityPlayer) ? AbyssWindow.bandOffset(entityPlayer) : 0;
+                AbyssPattern.Band ownBand = AbyssWindow.band(entityPlayer);
+                int sourceY = ownBand == null ? 0 : ownBand.sourceY();
                 Vec3 before = entityPosition(packet);
                 Packet<?> translated=item_storage$entityRemapper
                                              .translate(packet,vecTransformer,
                                                         entityPlayer.level(),
-                                                        yOffset);
+                                                        yOffset,
+                                                        sourceY);
                 if(translated==null)
                 {
-                    //Its page is not in this player's map, so there is nowhere to put it. Dropping is right:
-                    //the alternative is sending it at a position the player has never been shown. Logged,
-                    //because a silently dropped entity packet and an entity that never existed look alike.
-                    LOGGER.info("[abyss] dropped entity packet {} for {}",
-                            packet.type(), entityPlayer.getGameProfile().name());
+                    //Its page is not in this player's map, or its height is outside every band, so there is
+                    //Dropping is right: the alternative is sending it at a height the player has never seen, or in
+                    //a band that is not the entity's own - from which it could be reached and even walk into a
+                    //seam. Debug rather than info, because an entity parked outside its band drops one packet per
+                    //tick for as long as it stays there; the transition is reported once by the reconcile.
+                    if (LOGGER.isDebugEnabled())
+                        LOGGER.debug("[abyss] dropped entity packet {} for {} at {} (band slice {}..{})",
+                                packet.type(), entityPlayer.getGameProfile().name(), before,
+                                sourceY, sourceY + AbyssWindow.BAND_HEIGHT);
+                    //A dropped spawn means the client has nothing, and nothing will send it again; a dropped move
+                    //means the client is holding it at a stale height. Both are reconciled once per tick by
+                    //AbyssEntityCopies, which needs to know which case this was.
+                    if (packet instanceof ClientboundAddEntityPacket droppedAdd)
+                        AbyssEntityCopies.dropped(entityPlayer, droppedAdd.getId());
                     ci.cancel();
                     return;
                 }
+                if (translated instanceof ClientboundAddEntityPacket added)
+                    AbyssEntityCopies.delivered(entityPlayer, added.getId());
+                if (translated instanceof ClientboundRemoveEntitiesPacket removed)
+                    AbyssEntityCopies.removed(entityPlayer, removed.entityIds().toIntArray());
                 EntityPacketLog.record(entityPlayer, packet, yOffset, before, entityPosition(translated));
                 //Same object back means no change was needed - the common case, an offset packet inside one
                 //page - and the original can simply go out.

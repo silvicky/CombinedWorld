@@ -170,14 +170,43 @@ public final class EntityPositionRemapper
     }
 
     /**
+     * Thrown when a packet describes an entity at a Y that the window cannot show.
+     *
+     * <p>Separate from {@link ChunkUnusedException} because the two mean different things - one is "this column
+     * is not in the player's map", the other "this height is not in any band" - and the caller logs them
+     * differently.
+     */
+    public static final class OutOfBandException extends Exception
+    {
+        public OutOfBandException(String message) { super(message); }
+    }
+
+    /**
      * Translates one entity packet.
      *
      * @return the packet to actually send: the original when it needs no change, a replacement when it does,
-     *         or {@code null} to drop it because its page is not in this player's map.
+     *         or {@code null} to drop it because its page is not in the player's map or its height is outside
+     *         every band.
      */
     public @Nullable Packet<?> translate(Packet<?> packet, VecTransformer transformer, ServerLevel level,
-                                         int yOffset)
+                                         int yOffset, int sourceY)
             throws ChunkUnusedException
+    {
+        try
+        {
+            return translateChecked(packet, transformer, level, yOffset, sourceY);
+        }
+        catch (OutOfBandException e)
+        {
+            //Nothing to draw: the composed window has no section at that height in this band, so showing it would
+            //place it in somebody else's band. See the note on addY.
+            return null;
+        }
+    }
+
+    private @Nullable Packet<?> translateChecked(Packet<?> packet, VecTransformer transformer, ServerLevel level,
+                                                 int yOffset, int sourceY)
+            throws ChunkUnusedException, OutOfBandException
     {
         // --- movement as an offset: the case that needs real work ---------------------------------------
         if (packet instanceof ClientboundMoveEntityPacket move)
@@ -188,7 +217,7 @@ public final class EntityPositionRemapper
             Entity entity = move.getEntity(level);
             if (entity == null) return packet;
             Vec3 serverNow = entity.trackingPosition();
-            Vec3 clientNow = addY(transformer.s2cTransform(serverNow), yOffset);
+            Vec3 clientNow = addY(transformer.s2cTransform(serverNow), yOffset, sourceY);
 
             //The common case, and it costs one map lookup plus a decode: the offset has not moved and the
             //delta still means what it says, so it is already the right answer and must not be touched.
@@ -205,7 +234,7 @@ public final class EntityPositionRemapper
         // --- movement as an absolute position --------------------------------------------------------------
         if (packet instanceof ClientboundEntityPositionSyncPacket sync)
         {
-            PositionPath clientPath = transformPath(sync.position(), transformer, yOffset);
+            PositionPath clientPath = transformPath(sync.position(), transformer, yOffset, sourceY);
             record(sync.id(), sync.position().endPosition(), clientPath.endPosition());
             return new ClientboundEntityPositionSyncPacket(sync.id(), clientPath,
                     sync.yRot(), sync.xRot(), sync.onGround());
@@ -226,7 +255,7 @@ public final class EntityPositionRemapper
         if (packet instanceof ClientboundAddEntityPacket add)
         {
             Vec3 serverPos = new Vec3(add.getX(), add.getY(), add.getZ());
-            Vec3 clientPos = addY(transformer.s2cTransform(serverPos), yOffset);
+            Vec3 clientPos = addY(transformer.s2cTransform(serverPos), yOffset, sourceY);
             //Entity ids are reused, so a spawn must overwrite rather than merge with a stale entry.
             record(add.getId(), serverPos, clientPos);
             add.x = clientPos.x;
@@ -241,7 +270,7 @@ public final class EntityPositionRemapper
             //No entity id on this one, so the position is converted but not remembered as a base. That only
             //costs the vehicle an occasional absolute packet; it cannot put it in the wrong place.
             PositionAndRotation to = vehicle.movingTo();
-            Vec3 clientPos = addY(transformer.s2cTransform(to.position()), yOffset);
+            Vec3 clientPos = addY(transformer.s2cTransform(to.position()), yOffset, sourceY);
             vehicle.movingTo = new PositionAndRotation.Immutable(clientPos, to.yRot(), to.xRot());
             return vehicle;
         }
@@ -255,7 +284,7 @@ public final class EntityPositionRemapper
             for (NewMinecartBehavior.MinecartStep step : minecart.lerpSteps())
             {
                 Vec3 serverPos = step.position();
-                Vec3 clientPos = addY(transformer.s2cTransform(serverPos), yOffset);
+                Vec3 clientPos = addY(transformer.s2cTransform(serverPos), yOffset, sourceY);
                 //Movement, not position: left in S on purpose. See the class comment.
                 steps.add(new NewMinecartBehavior.MinecartStep(clientPos, step.movement(),
                         step.yRot(), step.xRot(), step.weight()));
@@ -336,18 +365,18 @@ public final class EntityPositionRemapper
      * <p>A path has several interpolation points and the client walks through all of them, so converting only
      * the end point would leave it interpolating through coordinates that mean nothing.
      */
-    private PositionPath transformPath(PositionPath path, VecTransformer transformer, int yOffset)
-            throws ChunkUnusedException
+    private PositionPath transformPath(PositionPath path, VecTransformer transformer, int yOffset, int sourceY)
+            throws ChunkUnusedException, OutOfBandException
     {
         if (path instanceof PositionPath.Linear linear)
         {
-            return PositionPath.of(addY(transformer.s2cTransform(linear.endPosition()), yOffset));
+            return PositionPath.of(addY(transformer.s2cTransform(linear.endPosition()), yOffset, sourceY));
         }
         PositionPath.Stepped stepped = (PositionPath.Stepped) path;
         List<PositionStep> steps = new ArrayList<>(stepped.steps().size());
         for (PositionStep step : stepped.steps())
         {
-            steps.add(new PositionStep(addY(transformer.s2cTransform(step.position()), yOffset),
+            steps.add(new PositionStep(addY(transformer.s2cTransform(step.position()), yOffset, sourceY),
                                        step.tickOffset()));
         }
         return PositionPath.stepped(steps);
@@ -360,8 +389,35 @@ public final class EntityPositionRemapper
      * has to go through this, or an entity in the player's own band is drawn a whole band away - which is what
      * it was doing, because nothing here touched Y at all.
      */
-    private static Vec3 addY(Vec3 pos, int yOffset)
+    /**
+     * Moves a converted position up by the window's band offset, refusing heights the window cannot show.
+     *
+     * <p>The shuffle rewrites X and Z; the window rewrites Y, and by a constant per player. Everything absolute
+     * has to go through this, or an entity in the player's own band is drawn a whole band away - which is what it
+     * was doing, because nothing here touched Y at all.
+     *
+     * <p><b>The second check.</b> The composed window holds exactly {@code SECTIONS_PER_BAND} sections per band,
+     * starting at that band's {@code sourceY}. An entity at a Y outside that range - the case that prompted this,
+     * a mob at y=65 in a band spanning 0..63 - therefore has no section anywhere in the window, and applying the
+     * offset still produces a position the client will happily draw: at slot 1 it lands in slot 2's range, i.e. in
+     * a band that is not the entity's own. Showing it there is worse than not showing it, because it can also be
+     * reached and attacked through that wrong band and can walk into a seam from it. So an out-of-range height is
+     * refused and the caller drops the packet.
+     *
+     * <p>This is the rule {@link AbyssEntityCopies} already applies to foreign bands through
+     * {@code AbyssWindow.inSlice}; it was simply missing on the own-band path, which is why the same entity was
+     * invisible when seen from one band and visible one band too high when seen from another.
+     */
+    private static Vec3 addY(Vec3 pos, int yOffset, int sourceY) throws OutOfBandException
     {
+        //Checked against the BAND's slice, not the window's extent. A window is three bands tall, so an entity one
+        //band above its own slice still lands inside the window - at slot 1 a mob at y=65 maps to client 129, which
+        //is perfectly inside 0..192 and would simply be drawn in slot 2. That is exactly the misleading case this
+        //check exists to prevent, so the bound has to be the band's own height.
+        double local = pos.y - sourceY;
+        if (local < 0 || local >= AbyssWindow.BAND_HEIGHT)
+            throw new OutOfBandException("entity at server y=" + pos.y + " is outside band slice "
+                                         + sourceY + ".." + (sourceY + AbyssWindow.BAND_HEIGHT));
         return yOffset == 0 ? pos : new Vec3(pos.x, pos.y + yOffset, pos.z);
     }
 }
