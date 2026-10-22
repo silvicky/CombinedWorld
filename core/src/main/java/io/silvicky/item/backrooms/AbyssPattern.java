@@ -1,5 +1,6 @@
 package io.silvicky.item.backrooms;
 
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import org.jspecify.annotations.Nullable;
@@ -50,7 +51,21 @@ public final class AbyssPattern
     private final boolean cyclic;
     private final List<Band> bands;
 
+    /**
+     * The dimension key the client is told it is in while this pattern is the one in force.
+     *
+     * <p>Per pattern, not global: the window is not a real level, so this key exists only to be sent, and two
+     * patterns may legitimately want to be called different things - a world of stacked plains and a spiral are not
+     * the same place. It travels in the same packets as the bands, so it is fixed for a session like they are.
+     */
+    private final Identifier windowDimension;
+
     public AbyssPattern(String name, int bandHeight, boolean cyclic, List<Band> bands)
+    {
+        this(name, bandHeight, cyclic, bands, AbyssPatterns.DEFAULT_WINDOW_DIMENSION);
+    }
+
+    public AbyssPattern(String name, int bandHeight, boolean cyclic, List<Band> bands, Identifier windowDimension)
     {
         if (name == null || name.isBlank()) throw new IllegalArgumentException("a pattern needs a name");
         if (bands.isEmpty()) throw new IllegalArgumentException(name + ": a pattern needs at least one band");
@@ -69,6 +84,14 @@ public final class AbyssPattern
         this.bandHeight = bandHeight;
         this.cyclic = cyclic;
         this.bands = List.copyOf(bands);
+        this.windowDimension = windowDimension == null
+                ? AbyssPatterns.DEFAULT_WINDOW_DIMENSION : windowDimension;
+    }
+
+    /** The dimension key the client is told it is in while this pattern is in force. */
+    public Identifier windowDimension()
+    {
+        return windowDimension;
     }
 
     public String name()

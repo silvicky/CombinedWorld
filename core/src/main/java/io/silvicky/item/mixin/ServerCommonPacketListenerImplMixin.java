@@ -996,7 +996,8 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
         {
             var types=player.level().getServer().registryAccess().lookupOrThrow(Registries.DIMENSION_TYPE);
             var window=types.getOrThrow(ResourceKey.create(Registries.DIMENSION_TYPE,AbyssWindow.WINDOW_TYPE));
-            return new CommonPlayerSpawnInfo(window,AbyssWindow.windowKey(),info.seed(),info.gameType(),
+            //The key comes from the pattern that owns this level, so two patterns can present different names.
+            return new CommonPlayerSpawnInfo(window,AbyssWindow.windowKey(info.dimension()),info.seed(),info.gameType(),
                     info.previousGameType(),info.isDebug(),info.isFlat(),info.lastDeathLocation(),
                     info.portalCooldown(),info.seaLevel());
         }
@@ -1017,9 +1018,11 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
     @Unique
     private static Set<ResourceKey<Level>> abyssLevels(Set<ResourceKey<Level>> levels)
     {
-        if (levels.contains(AbyssWindow.windowKey())) return levels;
         Set<ResourceKey<Level>> result=new java.util.HashSet<>(levels);
-        result.add(AbyssWindow.windowKey());
+        //One key per pattern, since each names its own window. A pattern whose key is already present contributes
+        //nothing, which is why this adds rather than returning early on a single match.
+        for (AbyssPatterns.PatternKey view : AbyssPatterns.windowKeys())
+            result.add(ResourceKey.create(Registries.DIMENSION, view.dimension()));
         return result;
     }
 

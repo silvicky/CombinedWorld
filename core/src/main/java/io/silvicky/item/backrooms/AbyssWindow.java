@@ -105,12 +105,31 @@ public final class AbyssWindow
      * <p>A datapack entry, so it is in the synced registry and resolvable by a vanilla client.
      */
     public static final Identifier WINDOW_TYPE = Identifier.parse("silvicky:abyss_window");
-    /** The one dimension key the client is told it is in, for every band. */
-    public static final Identifier WINDOW_DIMENSION = Identifier.parse("abyss:window");
+    /** The key the client is told it is in when a pattern does not name one. */
+    public static final Identifier DEFAULT_WINDOW_DIMENSION = AbyssPatterns.DEFAULT_WINDOW_DIMENSION;
 
-    public static ResourceKey<Level> windowKey()
+    /**
+     * The key the client is told it is in, for a player standing in this level.
+     *
+     * <p>A datapack identifier, so the client can resolve it as a dimension key; the <em>level</em> it names need not
+     * exist, because the player is always physically inside a band. Whatever the pattern says - see
+     * {@link AbyssPattern#windowDimension()}. A level that belongs to no pattern gets the default.
+     */
+    public static Identifier windowDimension(ResourceKey<Level> level)
     {
-        return ResourceKey.create(Registries.DIMENSION, WINDOW_DIMENSION);
+        return AbyssPatterns.windowDimension(level);
+    }
+
+    /** The key for a player's current band. */
+    public static Identifier windowDimension(ServerPlayer player)
+    {
+        AbyssPattern pattern = AbyssPatterns.forLevel(player.level().dimension());
+        return pattern == null ? DEFAULT_WINDOW_DIMENSION : pattern.windowDimension();
+    }
+
+    public static ResourceKey<Level> windowKey(ResourceKey<Level> level)
+    {
+        return ResourceKey.create(Registries.DIMENSION, windowDimension(level));
     }
 
     /** A player's place in a pattern, plus which bands are currently shown. */

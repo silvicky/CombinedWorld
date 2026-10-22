@@ -271,7 +271,7 @@ handed to every tracking player.
 | Packet | What happens |
 |---|---|
 | `ClientboundLevelChunkWithLightPacket` | **Replaced** by the composition. Never forwarded. |
-| `ClientboundLoginPacket` / `ClientboundRespawnPacket` | Spawn info rewritten: dimension **type** → `silvicky:abyss_window`, dimension **key** → `abyss:window`. |
+| `ClientboundLoginPacket` / `ClientboundRespawnPacket` | Spawn info rewritten: dimension **type** → `silvicky:abyss_window`, dimension **key** → `abyss:window` (configurable, see below). |
 | `ClientboundRespawnPacket` during a seam | **Cancelled.** A seam is a teleport inside one dimension; vanilla's respawn rebuilds `LocalPlayer` and flashes the loading screen even for an unchanged dimension. |
 | `ClientboundBlockUpdatePacket`, `ClientboundSectionBlocksUpdatePacket`, `ClientboundLevelEventPacket`, generic `BlockPos` loop, bundle sub-packets | Position/section shifted by the band offset. |
 | `ClientboundPlayerPositionPacket` | Absolute Y shifted by the band offset; relative Y untouched. |
@@ -354,6 +354,7 @@ drop through; slatted landings at both ends of the wrap arc.
     "name": "abyss:stack",
     "band_height": 64,
     "cyclic": false,
+    "window_dimension": "abyss:window",
     "bands": [
       { "level": "abyss:layer0", "source_y": 0 },
       { "level": "abyss:layer1", "source_y": 0 }
@@ -364,6 +365,14 @@ drop through; slatted landings at both ends of the wrap arc.
 
 - The file is written from the registered patterns **only when it does not exist**. Editing it requires deleting
   it first, or writing the whole array yourself.
+- `window_dimension` is the key the client is told it is in while this pattern is in force. It sits with `name`
+  and `band_height` because it describes the pattern, and two patterns may want to be called different things. The
+  window is not a real level, so this key exists only to be sent: it appears in the login and respawn packets, and
+  the client prints it verbatim - including on the F3 debug screen, which reads `abyss:window FC: 0`. Changing it
+  changes what the player sees, with no client mod involved. Identifier syntax only (`namespace:path`), and it must
+  be settled before anyone connects. A value that is also one of the pattern's own band levels is accepted with a
+  warning, because the client would then be told it is in a level it is not in. Omitted means the default,
+  `abyss:window`.
 - `name` is the key `AbyssPatterns.forLevel` searches by; the first registered pattern containing the player's
   level wins, so order is meaningful.
 - A malformed file is logged and ignored; the built-in patterns stay registered.
