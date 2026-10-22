@@ -2,6 +2,8 @@ package io.silvicky.item.mixin;
 
 import com.llamalad7.mixinextras.sugar.Local;
 import io.silvicky.item.StateSaver;
+import io.silvicky.item.backrooms.AbyssWindow;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.server.players.PlayerList;
@@ -89,7 +91,12 @@ public abstract class ServerLevelMixin extends Level
         }
         HashMap<Identifier, LevelData.RespawnData> spawn=StateSaver.getServerState(instance).worldSpawn;
         LevelData.RespawnData defaultSpawn=instance.getRespawnData();
-        return spawn.getOrDefault(target, LevelData.RespawnData.of(ResourceKey.create(Registries.DIMENSION,target),defaultSpawn.pos(),defaultSpawn.yaw(),defaultSpawn.pitch()));
+        ServerLevel self=(ServerLevel) (Object)this;
+        //The fallback takes the overworld's position, whose Y belongs to a level the band is not. Clamped, or a player
+        //respawning without a set spawn point lands outside the band and the window reads it as a crossing - which put
+        //them on the floor of the band above the one they died in.
+        BlockPos fallback=AbyssWindow.clampRespawn(self, defaultSpawn.pos());
+        return spawn.getOrDefault(target, LevelData.RespawnData.of(ResourceKey.create(Registries.DIMENSION,target),fallback,defaultSpawn.yaw(),defaultSpawn.pitch()));
     }
     @Redirect(method= "setRespawnData",at= @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;setRespawnData(Lnet/minecraft/world/level/storage/LevelData$RespawnData;)V"))
     private void inject10(MinecraftServer instance, LevelData.RespawnData spawnPoint)

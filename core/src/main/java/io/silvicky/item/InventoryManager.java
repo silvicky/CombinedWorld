@@ -1,6 +1,7 @@
 package io.silvicky.item;
 
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import io.silvicky.item.backrooms.AbyssWindow;
 import net.minecraft.network.protocol.game.ClientboundGameEventPacket;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.core.registries.Registries;
@@ -69,8 +70,13 @@ public class InventoryManager {
         {
             LOGGER.info("Entering a new world... Good luck to the pioneer!");
             BlockPos sp=player.adjustSpawnLocation(targetDimension,targetDimension.getRespawnData().pos());
+            //The same problem a respawn has: the position the band offers is the overworld's, and its Y is outside the
+            //band's slice. See AbyssWindow.respawnPosition.
+            Vec3 arrival=Vec3.atBottomCenterOf(sp);
+            Vec3 fixed=AbyssWindow.respawnPosition(targetDimension,arrival);
+            if(fixed!=null)arrival=fixed;
             TeleportTransition.PostTeleportTransition postDimensionTransition= TeleportTransition.DO_NOTHING;
-            TeleportTransition target = new TeleportTransition(targetDimension,Vec3.atBottomCenterOf(sp), Vec3.ZERO, 0f, 0f,postDimensionTransition);
+            TeleportTransition target = new TeleportTransition(targetDimension,arrival, Vec3.ZERO, 0f, 0f,postDimensionTransition);
             if(player.connection !=null)player.teleport(target);
             else fakeTeleportTo(player,target,stateSaver);
         }

@@ -432,6 +432,35 @@ Both are ceilinged, skylight-less, `ambient_light 0.1` with the nether's visual 
 | "Moved too quickly" on remote clients only | Server Y jumps a band; `movedDist` measured in server space. |
 | Registry error on save | Holders staged at `SERVER_STARTED` instead of resolved against the save's registry access. |
 | `min_y + height cannot be higher than 2032` | A 3072-tall window type; `DimensionType` caps `min_y + height`, so tall windows must start below 0. |
+| "Die anywhere, respawn on the floor of the band above" | A band's `RespawnData` falls back to the overworld's, whose Y is outside the band's slice; the window read that as an upward crossing. `AbyssWindow.respawnPosition` decides the arrival now. |
+| "Respawned in the right band, in mid-air" | The first fix clamped the borrowed Y to the top of the slice — inside the ceiling shell — and took the first block that was not solid. A respawn position has to be *standable*: feet and head free, something solid underfoot. |
+| "Respawned one level higher than it should in a multi-slice pattern" | The slice was chosen from the borrowed Y rather than from where the player died. A death inside the level now decides it, per the "same band you died in" convention. |
+
+## 13.1 Respawn
+
+`PlayerList#respawn` asks `ServerPlayer#findRespawnPositionAndUseSpawnBlock` for a `TeleportTransition`, then builds a
+new player in `transition.newLevel()` at `transition.position()`. Every route — bed, respawn anchor, missing block,
+no config at all — leaves through that one method, so it is the only place an arrival Y has to be corrected, and a
+`RETURN` inject does it.
+
+`AbyssWindow.respawnPosition(level, pos, death)` returns the position to use, or `null` to keep the one it was given.
+It searches, in order:
+
+1. the same column, down then up, for a block that is *standable* (feet and head free, floor underfoot);
+2. columns outward to `RESPAWN_SEARCH_RADIUS`, for the same thing, skipping ones that are not loaded — except the
+   player's own column, which is loaded on demand as vanilla does when it reads a spawn block;
+3. where the player died, if that is standable (a shaft has no floor at all, so the column that was asked for may
+   have nowhere to stand within reach);
+4. a merely free block in the asked-for column;
+5. the height clamped into the slice, which at least prevents the crossing.
+
+Only `clampRespawn` — a height-only clamp with no block access — is called from `ServerLevel#getRespawnData` and
+`ServerPlayer#getRespawnConfig`, because those are also read while a save is loading, before there is a chunk source.
+The first entry into a band (`InventoryManager.loadPos`) builds its own transition and does not pass through the
+respawn path, so it calls `respawnPosition` directly.
+
+`tools/SpawnProbe.java` mirrors the search against the demo geometry and runs with
+`java tools/SpawnProbe.java`; keep the two in step when the search changes.
 
 ## 14. File map
 
@@ -439,14 +468,18 @@ Both are ceilinged, skylight-less, `ambient_light 0.1` with the nether's visual 
 core/src/main/java/io/silvicky/item/backrooms/
   AbyssPattern.java          bands, patterns, indexOf, validation
   AbyssPatterns.java         registry + config/AbyssPatterns.json
-  AbyssWindow.java           state, tick, travel, offsets, tickets, resend
+  AbyssWindow.java           state, tick, travel, offsets, tickets, resend, respawn position
   AbyssChunkComposer.java    sections, heightmaps, light → one packet
 
 core/src/main/java/io/silvicky/item/mixin/
   ServerCommonPacketListenerImplMixin   outbound translation, composition, login/respawn
   ConnectionMixin                       inbound translation
   ServerGamePacketListenerImplMixin     movement distance and statistics
-  ServerPlayerMixin                     window state cleanup on respawn/disconnect
+  ServerPlayerMixin                     window state cleanup on respawn/disconnect, respawn position
+  ServerLevelMixin                      RespawnData per level, seeds, spawn point
+
+tools/
+  SpawnProbe.java            mirror of the respawn search, run against demo geometry
 
 backrooms/src/main/java/io/silvicky/item_br/worldgen/abyss/
   AbyssWorlds.java           patterns + staged levels

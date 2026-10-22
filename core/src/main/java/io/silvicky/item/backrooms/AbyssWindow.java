@@ -235,6 +235,20 @@ public final class AbyssWindow
     public static @Nullable Window window(@Nullable ServerPlayer player)
     {
         if (player == null) return null;
+
+        //A player who has fallen out of the bottom of an acyclic pattern is not in the window at all: they are in the
+        //void, below the level's build height, and vanilla is the thing that should decide their fate. Rebuilding a
+        //window for them is what made `recover` teleport them back to the bottom of the stack every tick. See
+        //`outOfPattern` in travel.
+        if (escaped.contains(player))
+        {
+            AbyssPattern pattern = AbyssPatterns.forLevel(player.level().dimension());
+            //`indexOf` deliberately falls back to the first band of the level, so it cannot answer "is this position
+            //inside a slice" - that is what this asks, directly.
+            if (pattern != null && insideAnySlice(pattern, player.getY())) escaped.remove(player);
+            else return null;
+        }
+
         Window stored = windows.get(player);
         if (stored != null && stored.band() != null)
         {
@@ -968,6 +982,7 @@ public final class AbyssWindow
         ticks.remove(player);
         seamTeleports.remove(player);
         levelSwaps.remove(player);
+        escaped.remove(player);
         copyFailures.remove(player);
         resendQueue.remove(player);
         AbyssEntityCopies.drop(player);
@@ -1155,6 +1170,26 @@ public final class AbyssWindow
         //pushed back to 63.99, so a level could never be ascended from below.
         if (local < -BAND_HEIGHT || local >= 2 * BAND_HEIGHT)
         {
+            //**Outside an end of the pattern is not a desync.** An acyclic pattern really does have a bottom, and a
+            //player below it has fallen out of the world - not out of step with it. Recovering them means teleporting
+            //to the nearest edge, so falling out of the bottom of a stack silently put them back at its floor instead
+            //of letting the void finish, and the bottom band could not be fallen out of at all.
+            //
+            //Cyclic patterns never reach this: their next band always exists, so the crossing branches handle both
+            //directions.
+            if (outOfPattern(current.pattern(), current.position(), local))
+            {
+                escaped.add(player);
+                windows.remove(player);
+                //No window means no `keepWindowLoaded` either, so the tickets have to be released here or they are
+                //held until the player dies or disconnects - `PLAYER_LOADING` has no timeout.
+                TicketKey held = tickets.remove(player);
+                if (held != null) releaseTickets(player, held);
+                LOGGER.info("[abyss] {} fell out of {} at y={}; the window no longer applies",
+                        player.getName().getString(), current.pattern().name(),
+                        Math.round(player.getY() * 100.0) / 100.0);
+                return false;
+            }
             recover(player, current);
             return false;
         }
@@ -1325,8 +1360,269 @@ public final class AbyssWindow
         sendTeleport(player, pattern.band(position), edge);
     }
 
+    /**
+     * The position a respawn transition should actually land on, or {@code null} when it needs no change.
+     *
+     * <p>Every respawn route - bed, respawn anchor, missing block, no config at all - leaves
+     * {@code findRespawnPositionAndUseSpawnBlock} as one transition, and for a band that transition can point outside
+     * the band's slice. The window reads such a position as having crossed the seam and teleports the player on, which
+     * is why a death in one band respawned them on the floor of the band above.
+     *
+     * <p>A free block is not enough: a band is a floor at its bottom, a ceiling at its top and air between, so a
+     * position merely clamped into the slice lands in the ceiling shell, and "the first block that is not solid" can be
+     * the middle of the room with a fifty-block drop under it. What a respawn needs is a place to <em>stand</em> - feet
+     * and head free, something solid directly underfoot - so this searches for that, downward first, which is the
+     * direction the band's floor is.
+     */
+    public static @Nullable Vec3 respawnPosition(ServerLevel level, Vec3 pos)
+    {
+        return respawnPosition(level, pos, null);
+    }
+
+    /**
+     * The position a respawn should land on, told where the player died.
+     *
+     * <p>The death position decides <em>which</em> slice of the level to land in, and is the last resort for a floor.
+     * The mod's convention is that a player comes back in the band they died in; and it has to be the death that
+     * decides, because the position handed in is usually the world spawn's, borrowed from another level, whose Y can
+     * fall inside a <em>different</em> slice of this same level when one level is used twice - which would put the
+     * player a band up, the very symptom this exists to prevent. Without a death position only the given position is
+     * available, and it is used as it is.
+     */
+    public static @Nullable Vec3 respawnPosition(ServerLevel level, Vec3 pos, @Nullable Vec3 death)
+    {
+        BlockPos at = new BlockPos(Mth.floor(pos.x), Mth.floor(pos.y), Mth.floor(pos.z));
+        AbyssPattern pattern = AbyssPatterns.forLevel(level.dimension());
+        if (pattern == null) return null;
+        AbyssPattern.Band containing = bandContaining(pattern, level.dimension(), at.getY());
+        AbyssPattern.Band dying = death != null ? bandContaining(pattern, level.dimension(), Mth.floor(death.y)) : null;
+        AbyssPattern.Band band = dying != null ? dying
+                : containing != null ? containing
+                : nearestBand(pattern, level.dimension(), at.getY());
+        if (band == null) return null;
+        int minY = band.sourceY();
+        int maxY = band.sourceY() + BAND_HEIGHT - 1;
+        //The highest block a player's feet may occupy: at `maxY` the head would be in the ceiling, or outside the slice.
+        int top = maxY - 1;
+
+        //A position already inside the chosen slice that a player can stand on is where someone chose to put it - a bed,
+        //an anchor, a spawn point - and moving it would be worse than leaving it. The floor is part of the test: a
+        //position merely inside the slice can still be the middle of the room, and a spawn there is a fall.
+        if (at.getY() >= minY && at.getY() <= top && standable(level, at)) return null;
+
+        BlockPos target = standingSpot(level, at, minY, top);
+        if (target == null && death != null)
+        {
+            //Nothing near the requested column can be stood on, which in the demo bands means a shaft: they punch
+            //through a whole layer and have no floor at all, for a hundred blocks in every direction. Where the player
+            //died is the one position known to be standable and loaded, so it is the fallback that is a floor rather
+            //than a guess. Its X and Z come along, because the requested ones are what has no floor.
+            BlockPos died = new BlockPos(Mth.floor(death.x), Mth.floor(death.y), Mth.floor(death.z));
+            if (died.getY() >= minY && died.getY() <= top && level.isLoaded(died) && standable(level, died))
+            {
+                target = died;
+                LOGGER.info("[abyss] no floor near the respawn point in {}; using where the player died",
+                        level.dimension().identifier().getPath());
+            }
+        }
+        if (target == null)
+        {
+            //Still nothing to stand on. Being somewhere free inside the slice is the least bad answer: the crossing
+            //the old position would have caused is exactly the bug, and a free spot at least leaves vanilla a chance
+            //to do something sane. `fits` is required, so this is never inside a block.
+            target = freeSpot(level, at, minY, top);
+            if (target != null)
+                LOGGER.warn("[abyss] no place to stand in {} ({}..{}); respawning free at {}",
+                        level.dimension().identifier().getPath(), minY, maxY, target);
+        }
+        if (target == null)
+        {
+            //Nothing could be probed at all - every column is solid, or none of them is loaded. Clamping the height is
+            //then the only thing left that prevents the crossing, which is what this whole path exists to prevent. The
+            //band is the one chosen above, not one re-derived from the borrowed Y.
+            int y = Mth.clamp(at.getY(), minY, top);
+            if (y == at.getY()) return null;
+            target = new BlockPos(at.getX(), y, at.getZ());
+            LOGGER.warn("[abyss] could not find free space in {} ({}..{}); using the clamped height {}",
+                    level.dimension().identifier().getPath(), minY, maxY, target);
+        }
+        LOGGER.info("[abyss] respawn in {} moved from {} to {} ({}..{})",
+                level.dimension().identifier().getPath(), pos, target, minY, maxY);
+        //Bottom centre of the block, the same convention a vanilla spawn point uses.
+        return new Vec3(target.getX() + 0.5, target.getY(), target.getZ() + 0.5);
+    }
+
+    /** The slice of this level that a Y is inside, or null when it is in none of them. */
+    private static AbyssPattern.@Nullable Band bandContaining(AbyssPattern pattern, ResourceKey<Level> level, int y)
+    {
+        for (AbyssPattern.Band band : pattern.bands())
+            if (band.level().equals(level) && y >= band.sourceY() && y < band.sourceY() + BAND_HEIGHT) return band;
+        return null;
+    }
+
+    /**
+     * The slice of this level a Y belongs to, or the one it is nearest to when it is in none.
+     *
+     * <p>Nearest rather than the union of all of the level's slices: a level can appear twice in one pattern with a gap
+     * between, and the union would let a position be clamped into the gap - inside no slice, so the window would still
+     * cross.
+     */
+    private static AbyssPattern.@Nullable Band nearestBand(AbyssPattern pattern, ResourceKey<Level> level, int y)
+    {
+        AbyssPattern.Band best = null;
+        long bestDistance = Long.MAX_VALUE;
+        for (AbyssPattern.Band band : pattern.bands())
+        {
+            if (!band.level().equals(level)) continue;
+            int minY = band.sourceY();
+            int maxY = band.sourceY() + BAND_HEIGHT - 1;
+            long distance = y < minY ? (long) minY - y : y > maxY ? (long) y - maxY : 0;
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                best = band;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * A place near {@code pos} where a player can stand, inside the slice.
+     *
+     * <p>The given column is searched first, downward from the clamped height and then upward, because a position that
+     * came from another level's spawn is far more often above the band's floor than under a ceiling. If that column has
+     * nowhere to stand - the bands have shafts that punch through a whole layer - the columns around it are tried,
+     * nearer first, so a respawn does not end up falling through the hole.
+     *
+     * <p>Only loaded columns are asked: a block lookup on an unloaded one makes the server generate it, and a respawn
+     * is no place to be generating chunks. Returns {@code null} when nothing in the searched area works.
+     */
+    private static @Nullable BlockPos standingSpot(ServerLevel level, BlockPos pos, int minY, int top)
+    {
+        //`top` is the highest block feet may occupy, so clamping to it here is the whole of the rule; the helpers below
+        //must not subtract another block, or the top two blocks of every band become unsearchable.
+        int start = Mth.clamp(pos.getY(), minY, top);
+        for (int radius = 0; radius <= RESPAWN_SEARCH_RADIUS; radius++)
+            for (int dx = -radius; dx <= radius; dx++)
+                for (int dz = -radius; dz <= radius; dz++)
+                {
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) != radius) continue;
+                    BlockPos column = new BlockPos(pos.getX() + dx, start, pos.getZ() + dz);
+                    //The column the player is being placed in is loaded on demand, as vanilla does when it reads the
+                    //spawn block. The ones around it are only a convenience, and generating a hundred chunks to find
+                    //one is not worth it.
+                    if (radius > 0 && !level.isLoaded(column)) continue;
+                    BlockPos down = standableFrom(level, column, -1, minY, top);
+                    if (down != null) return down;
+                    BlockPos up = standableFrom(level, column.above(), 1, minY, top);
+                    if (up != null) return up;
+                }
+        return null;
+    }
+
+    /** How far from the requested column a standable spot may be looked for, in blocks. */
+    private static final int RESPAWN_SEARCH_RADIUS = 8;
+
+    /** The same column with feet and head free, floor or no floor. Last resort when nothing can be stood on. */
+    private static @Nullable BlockPos freeSpot(ServerLevel level, BlockPos pos, int minY, int top)
+    {
+        int start = Mth.clamp(pos.getY(), minY, top);
+        BlockPos column = new BlockPos(pos.getX(), start, pos.getZ());
+        for (BlockPos at = column; at.getY() >= minY; at = at.below())
+            if (fits(level, at)) return at;
+        for (BlockPos at = column.above(); at.getY() <= top; at = at.above())
+            if (fits(level, at)) return at;
+        return null;
+    }
+
+    private static @Nullable BlockPos standableFrom(ServerLevel level, BlockPos from, int step, int minY, int top)
+    {
+        BlockPos at = from;
+        while (at.getY() >= minY && at.getY() <= top)
+        {
+            if (standable(level, at)) return at;
+            at = at.offset(0, step, 0);
+        }
+        return null;
+    }
+
+    /** Whether a player could stand at {@code pos}: feet and head free, and something solid directly underfoot. */
+    private static boolean standable(ServerLevel level, BlockPos pos)
+    {
+        return fits(level, pos) && !level.getBlockState(pos.below()).getCollisionShape(level, pos.below()).isEmpty();
+    }
+
+    /**
+     * Whether a player occupying the block at {@code pos} and the one above it would stand in free space.
+     *
+     * <p>Fluids count as occupied: lava is not solid, so a collision-only test would call a respawn point in a lava
+     * lake free.
+     */
+    private static boolean fits(ServerLevel level, BlockPos pos)
+    {
+        return level.getBlockState(pos).getCollisionShape(level, pos).isEmpty()
+                && level.getBlockState(pos.above()).getCollisionShape(level, pos.above()).isEmpty()
+                && level.getFluidState(pos).isEmpty()
+                && level.getFluidState(pos.above()).isEmpty();
+    }
+
+    /**
+     * A respawn position moved into the band's own slice, by height only.
+     *
+     * <p>The respawn data for a band falls back to the overworld's when the band has none of its own, and the
+     * overworld's Y is meaningless here: a band is 64 tall starting at its {@code sourceY}, and the world spawn is
+     * usually above the band's ceiling. Vanilla then puts the player at that height - outside the level - and the
+     * window reads it as a crossing, so a death anywhere put the player on the floor of the band <em>above</em>.
+     *
+     * <p>This is the cheap half of {@link #respawnPosition}: no block access, because {@code getRespawnData} is also
+     * read while a save is loading, before there is a chunk source to ask. The position it returns is inside the slice
+     * but not necessarily standable; whoever places a player from it should prefer {@link #respawnPosition}, which is
+     * what finds a floor.
+     */
+    public static BlockPos clampRespawn(ServerLevel level, BlockPos pos)
+    {
+        AbyssPattern pattern = AbyssPatterns.forLevel(level.dimension());
+        if (pattern == null) return pos;
+        AbyssPattern.Band band = nearestBand(pattern, level.dimension(), pos.getY());
+        if (band == null) return pos;
+        int y = Mth.clamp(pos.getY(), band.sourceY(), band.sourceY() + BAND_HEIGHT - 2);
+        if (y == pos.getY()) return pos;
+        return new BlockPos(pos.getX(), y, pos.getZ());
+    }
+
     /** Keeps the recovery warning to one per player rather than one per tick. */
     private static final Set<ServerPlayer> recovered = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Players who have left an acyclic pattern at one of its ends, and so are no longer inside a window.
+     *
+     * <p>Kept because the window is rebuilt from the player's level and position on every call: without a record,
+     * "below the bottom" would be re-derived into "position 0" one tick later, `travel` would see the same value, and
+     * the pair would repeat forever. Cleared in {@link #forget} and as soon as the player is back inside a slice.
+     */
+    private static final Set<ServerPlayer> escaped = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Whether a position is outside the pattern rather than merely outside its band.
+     *
+     * <p>`local` is the distance from the band's own slice. Beyond one band below the first band, or above the last,
+     * there is nothing to cross into - the pattern has ended - so this is not a bookkeeping error and must not be
+     * answered with a teleport.
+     */
+    private static boolean outOfPattern(AbyssPattern pattern, int position, double local)
+    {
+        if (pattern.cyclic()) return false;
+        if (local >= AbyssWindow.BAND_HEIGHT) return position >= pattern.length() - 1;
+        return position <= 0;
+    }
+
+    /** Whether a Y lies inside any band slice of this pattern, whichever level that band names. */
+    private static boolean insideAnySlice(AbyssPattern pattern, double y)
+    {
+        for (AbyssPattern.Band band : pattern.bands())
+            if (y >= band.sourceY() && y < band.sourceY() + BAND_HEIGHT) return true;
+        return false;
+    }
 
     /** Marks the call this thread is inside as the client's answer to a position packet. */
     public static void beginSeamAck()

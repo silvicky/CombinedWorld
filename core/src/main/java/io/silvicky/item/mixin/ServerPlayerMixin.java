@@ -7,6 +7,7 @@ import io.silvicky.item.backrooms.EntityRemapAccess;
 import io.silvicky.item.backrooms.NoclipManager;
 import io.silvicky.item.backrooms.VecTransformer;
 import io.silvicky.item.common.Util;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.core.registries.Registries;
@@ -112,10 +113,40 @@ public abstract class ServerPlayerMixin
     {
         ServerPlayer player=(ServerPlayer) (Object)this;
         Identifier id=getDimensionId(level());
+        if(id.equals(Level.OVERWORLD.identifier()))
+        {
+            cir.setReturnValue(player.respawnConfig);
+            return;
+        }
         LevelData.RespawnData defaultSpawn= level().getServer().getRespawnData();
-        LevelData.RespawnData defaultCurrentSpawn= LevelData.RespawnData.of(ResourceKey.create(Registries.DIMENSION,id),defaultSpawn.pos(),defaultSpawn.yaw(),defaultSpawn.pitch());
-        if(id.equals(Level.OVERWORLD.identifier())) cir.setReturnValue(player.respawnConfig);
-        else cir.setReturnValue(StateSaver.getServerState(level().getServer()).respawn.computeIfAbsent(id, _ ->new HashMap<>()).getOrDefault(player.getStringUUID(), new ServerPlayer.RespawnConfig(defaultCurrentSpawn,false)));
+        //Same reason as ServerLevelMixin.inject9: the default position is the overworld's, and its Y is outside a band.
+        //This is the value the respawn actually uses, so the clamp has to be here as well as there. Only for a level
+        //that is actually in a band, which is the case left after the overworld branch above.
+        BlockPos defaultPos=AbyssWindow.clampRespawn((ServerLevel)level(),defaultSpawn.pos());
+        LevelData.RespawnData defaultCurrentSpawn= LevelData.RespawnData.of(ResourceKey.create(Registries.DIMENSION,id),defaultPos,defaultSpawn.yaw(),defaultSpawn.pitch());
+        cir.setReturnValue(StateSaver.getServerState(level().getServer()).respawn.computeIfAbsent(id, _ ->new HashMap<>()).getOrDefault(player.getStringUUID(), new ServerPlayer.RespawnConfig(defaultCurrentSpawn,false)));
+    }
+    /**
+     * Keeps the respawn inside the band it was queried for.
+     *
+     * <p>{@code PlayerList#respawn} gets its level and its position from the transition this method returns, so this is
+     * the last place where a position that landed outside the band's slice can be corrected. See
+     * {@link AbyssWindow#respawnPosition} for why it can land outside at all.
+     */
+    @Inject(method = "findRespawnPositionAndUseSpawnBlock", at = @At("RETURN"), cancellable = true)
+    private void injectRespawnPosition(boolean consumeBlock, TeleportTransition.PostTeleportTransition post, CallbackInfoReturnable<TeleportTransition> cir)
+    {
+        TeleportTransition transition = cir.getReturnValue();
+        if (transition == null) return;
+        //The dying player: its position is where the slice to land in comes from, and the last resort for a floor. The
+        //transition's own position is the world spawn's, borrowed from another level, and says nothing about which band
+        //this player was in.
+        ServerPlayer player = (ServerPlayer) (Object) this;
+        Vec3 fixed = AbyssWindow.respawnPosition(transition.newLevel(), transition.position(),
+                transition.newLevel() == player.level() ? player.position() : null);
+        if (fixed == null) return;
+        //`respawnPosition` logs the move it decides on; a second line here would only duplicate it.
+        cir.setReturnValue(transition.withPosition(fixed));
     }
     @Redirect(method= "findRespawnPositionAndUseSpawnBlock",at= @At(value = "INVOKE", target = "Lnet/minecraft/world/level/portal/TeleportTransition;missingRespawnBlock(Lnet/minecraft/server/level/ServerPlayer;Lnet/minecraft/world/level/portal/TeleportTransition$PostTeleportTransition;)Lnet/minecraft/world/level/portal/TeleportTransition;"))
     private TeleportTransition inject5(ServerPlayer player, TeleportTransition.PostTeleportTransition postDimensionTransition)
