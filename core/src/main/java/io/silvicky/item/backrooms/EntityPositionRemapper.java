@@ -175,7 +175,8 @@ public final class EntityPositionRemapper
      * @return the packet to actually send: the original when it needs no change, a replacement when it does,
      *         or {@code null} to drop it because its page is not in this player's map.
      */
-    public @Nullable Packet<?> translate(Packet<?> packet, VecTransformer transformer, ServerLevel level)
+    public @Nullable Packet<?> translate(Packet<?> packet, VecTransformer transformer, ServerLevel level,
+                                         int yOffset)
             throws ChunkUnusedException
     {
         // --- movement as an offset: the case that needs real work ---------------------------------------
@@ -187,7 +188,7 @@ public final class EntityPositionRemapper
             Entity entity = move.getEntity(level);
             if (entity == null) return packet;
             Vec3 serverNow = entity.trackingPosition();
-            Vec3 clientNow = transformer.s2cTransform(serverNow);
+            Vec3 clientNow = addY(transformer.s2cTransform(serverNow), yOffset);
 
             //The common case, and it costs one map lookup plus a decode: the offset has not moved and the
             //delta still means what it says, so it is already the right answer and must not be touched.
@@ -204,7 +205,7 @@ public final class EntityPositionRemapper
         // --- movement as an absolute position --------------------------------------------------------------
         if (packet instanceof ClientboundEntityPositionSyncPacket sync)
         {
-            PositionPath clientPath = transformPath(sync.position(), transformer);
+            PositionPath clientPath = transformPath(sync.position(), transformer, yOffset);
             record(sync.id(), sync.position().endPosition(), clientPath.endPosition());
             return new ClientboundEntityPositionSyncPacket(sync.id(), clientPath,
                     sync.yRot(), sync.xRot(), sync.onGround());
@@ -214,7 +215,7 @@ public final class EntityPositionRemapper
         {
             PositionMoveRotation change = teleport.change();
             Set<Relative> relatives = teleport.relatives();
-            Vec3 client = teleportPosition(change.position(), relatives, transformer);
+            Vec3 client = teleportPosition(change.position(), relatives, transformer, yOffset);
             record(teleport.id(), change.position(), client);
             return new ClientboundTeleportEntityPacket(teleport.id(),
                     new PositionMoveRotation(client, change.deltaMovement(), change.yRot(), change.xRot()),
@@ -225,10 +226,11 @@ public final class EntityPositionRemapper
         if (packet instanceof ClientboundAddEntityPacket add)
         {
             Vec3 serverPos = new Vec3(add.getX(), add.getY(), add.getZ());
-            Vec3 clientPos = transformer.s2cTransform(serverPos);
+            Vec3 clientPos = addY(transformer.s2cTransform(serverPos), yOffset);
             //Entity ids are reused, so a spawn must overwrite rather than merge with a stale entry.
             record(add.getId(), serverPos, clientPos);
             add.x = clientPos.x;
+            add.y = clientPos.y;
             add.z = clientPos.z;
             return add;
         }
@@ -239,7 +241,7 @@ public final class EntityPositionRemapper
             //No entity id on this one, so the position is converted but not remembered as a base. That only
             //costs the vehicle an occasional absolute packet; it cannot put it in the wrong place.
             PositionAndRotation to = vehicle.movingTo();
-            Vec3 clientPos = transformer.s2cTransform(to.position());
+            Vec3 clientPos = addY(transformer.s2cTransform(to.position()), yOffset);
             vehicle.movingTo = new PositionAndRotation.Immutable(clientPos, to.yRot(), to.xRot());
             return vehicle;
         }
@@ -253,7 +255,7 @@ public final class EntityPositionRemapper
             for (NewMinecartBehavior.MinecartStep step : minecart.lerpSteps())
             {
                 Vec3 serverPos = step.position();
-                Vec3 clientPos = transformer.s2cTransform(serverPos);
+                Vec3 clientPos = addY(transformer.s2cTransform(serverPos), yOffset);
                 //Movement, not position: left in S on purpose. See the class comment.
                 steps.add(new NewMinecartBehavior.MinecartStep(clientPos, step.movement(),
                         step.yRot(), step.xRot(), step.weight()));
@@ -308,21 +310,24 @@ public final class EntityPositionRemapper
      * <p>If every axis is relative there is no absolute position to work from, and the packet is returned
      * unchanged: a pure offset needs no conversion, for the reason given in the class comment.
      */
-    private Vec3 teleportPosition(Vec3 serverPos, Set<Relative> relatives, VecTransformer transformer)
+    private Vec3 teleportPosition(Vec3 serverPos, Set<Relative> relatives, VecTransformer transformer,
+                                  int yOffset)
             throws ChunkUnusedException
     {
         boolean relX = relatives.contains(Relative.X);
         boolean relZ = relatives.contains(Relative.Z);
-        if (relX && relZ) return serverPos;
+        boolean relY = relatives.contains(Relative.Y);
+        if (relX && relZ && relY) return serverPos;
 
-        //Find an absolute axis to read the offset from. Y is not remapped - the shuffle is horizontal - so it
-        //cannot serve, but Z can whenever X is relative.
+        //Find an absolute axis to read the offset from. Y is not remapped by the shuffle - that is horizontal -
+        //but it does carry the window's band, which is a constant per player and needs no reference axis.
         Vec3 reference = relX ? new Vec3(serverPos.x, serverPos.y, serverPos.z) : serverPos;
-        long[] offset = offsetAt(reference, transformer);
+        long[] offset = relX && relZ ? new long[] {0, 0} : offsetAt(reference, transformer);
 
         double x = relX ? serverPos.x : serverPos.x + offset[0];
         double z = relZ ? serverPos.z : serverPos.z + offset[1];
-        return new Vec3(x, serverPos.y, z);
+        double y = relY ? serverPos.y : serverPos.y + yOffset;
+        return new Vec3(x, y, z);
     }
 
     /**
@@ -331,18 +336,32 @@ public final class EntityPositionRemapper
      * <p>A path has several interpolation points and the client walks through all of them, so converting only
      * the end point would leave it interpolating through coordinates that mean nothing.
      */
-    private PositionPath transformPath(PositionPath path, VecTransformer transformer) throws ChunkUnusedException
+    private PositionPath transformPath(PositionPath path, VecTransformer transformer, int yOffset)
+            throws ChunkUnusedException
     {
         if (path instanceof PositionPath.Linear linear)
         {
-            return PositionPath.of(transformer.s2cTransform(linear.endPosition()));
+            return PositionPath.of(addY(transformer.s2cTransform(linear.endPosition()), yOffset));
         }
         PositionPath.Stepped stepped = (PositionPath.Stepped) path;
         List<PositionStep> steps = new ArrayList<>(stepped.steps().size());
         for (PositionStep step : stepped.steps())
         {
-            steps.add(new PositionStep(transformer.s2cTransform(step.position()), step.tickOffset()));
+            steps.add(new PositionStep(addY(transformer.s2cTransform(step.position()), yOffset),
+                                       step.tickOffset()));
         }
         return PositionPath.stepped(steps);
+    }
+
+    /**
+     * Moves a converted position up by the window's band offset.
+     *
+     * <p>The shuffle rewrites X and Z; the window rewrites Y, and by a constant per player. Everything absolute
+     * has to go through this, or an entity in the player's own band is drawn a whole band away - which is what
+     * it was doing, because nothing here touched Y at all.
+     */
+    private static Vec3 addY(Vec3 pos, int yOffset)
+    {
+        return yOffset == 0 ? pos : new Vec3(pos.x, pos.y + yOffset, pos.z);
     }
 }

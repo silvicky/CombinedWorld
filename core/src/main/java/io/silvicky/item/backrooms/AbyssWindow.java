@@ -10,6 +10,7 @@ import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.TicketType;
+import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.PositionMoveRotation;
@@ -181,6 +182,30 @@ public final class AbyssWindow
     // ---------------------------------------------------------------------------------------------------
 
     /**
+     * Players whose {@code player.level()} is temporarily pointed at another band.
+     *
+     * <p>Used by cross-band entity actions, which have to run vanilla's handler with the player in the target's
+     * level (vanilla resolves the target via {@code player.level().getEntityOrPart(id)}). While that is true the
+     * stored window <b>must</b> be trusted: {@link #window} re-derives whenever the stored band's level differs
+     * from the player's, and re-deriving here would rewrite the window with the *target* band as the player's
+     * own. That silently corrupts every later tick - the real own band becomes foreign and its entities are
+     * copied at the wrong slot - and it makes the reach test measure against the wrong frame, which is why an
+     * action on a copy was rejected before it could be dispatched.
+     */
+    private static final Set<ServerPlayer> levelSwaps = ConcurrentHashMap.newKeySet();
+
+    /** Marks the player's level as pointed elsewhere, for the duration of a cross-band action. */
+    public static void beginLevelSwap(ServerPlayer player)
+    {
+        levelSwaps.add(player);
+    }
+
+    public static void endLevelSwap(ServerPlayer player)
+    {
+        levelSwaps.remove(player);
+    }
+
+    /**
      * This player's window, creating it on first use.
      *
      * <p>The stored window is trusted unless the player is demonstrably somewhere else: their level is not the
@@ -194,7 +219,7 @@ public final class AbyssWindow
         Window stored = windows.get(player);
         if (stored != null && stored.band() != null)
         {
-            if (seamTeleports.contains(player)) return stored;
+            if (seamTeleports.contains(player) || levelSwaps.contains(player)) return stored;
             if (stored.band().level().equals(player.level().dimension())) return stored;
         }
         AbyssPattern pattern = AbyssPatterns.forLevel(player.level().dimension());
@@ -210,6 +235,13 @@ public final class AbyssWindow
             return null;
         }
         Window fresh = new Window(pattern, position, initialStart(pattern, position));
+        //Loud on purpose: this path runs only when the stored window was missing or contradicted the player's
+        //level, and it discards whatever window was there. If it fires during an ordinary session, something is
+        //reading the window in a frame where {@code player.level()} does not match it - which is how a
+        //cross-band action used to corrupt the own band.
+        LOGGER.info("[abyss] window derived for {}: {} position {} start {} (level {}, y={})",
+                player.getName().getString(), pattern.name(), position, fresh.windowStart(),
+                player.level().dimension().identifier(), Math.round(player.getY()));
         setWindow(player, fresh);
         return fresh;
     }
@@ -281,8 +313,36 @@ public final class AbyssWindow
     /** Applies a window change, keeping the offset history that inbound packets are read against. */
     private static void setWindow(ServerPlayer player, Window window)
     {
-        windows.put(player, window);
+        //Purely structural: this must not call window(player), which on a miss builds a window by calling this
+        //method. Reading the maps directly is what keeps the two from recursing into each other.
+        Window previous = windows.put(player, window);
         noteOffset(player);
+        if (offsetOf(previous) != offsetOf(window))
+        {
+            LOGGER.info("[abyss] offset for {} {} -> {} (position {} -> {}, start {} -> {}, slot {} -> {})",
+                    player.getName().getString(), offsetOf(previous), offsetOf(window),
+                    previous == null ? "?" : previous.position(), window.position(),
+                    previous == null ? "?" : previous.windowStart(), window.windowStart(),
+                    previous == null ? "?" : previous.slot(), window.slot());
+            //Only when the own band keeps its LEVEL. A crossing into another level makes vanilla re-send that
+            //level's entities by itself (the teleport redoes the player's tracking), so touching them here would
+            //be work done twice on entities the client may not even hold yet. A change of slot inside one level -
+            //which a pattern with two slices of the same level produces - is the case vanilla cannot see, and it
+            //is the case that leaves a stationary entity drawn a band away.
+            boolean sameLevel = previous != null && previous.band() != null && window.band() != null
+                                && previous.band().level().equals(window.band().level());
+            if (sameLevel) AbyssEntityCopies.repositionOwnBand(player);
+            //The shuffle's remembered bases go either way, so the next delta of each surviving entity is
+            //absolute and lands in the new frame.
+            if (player.connection instanceof EntityRemapAccess access) access.item_storage$resetEntityRemapper();
+        }
+    }
+
+    /** The Y offset a window implies, without creating one. */
+    private static int offsetOf(@Nullable Window window)
+    {
+        if (window == null || window.band() == null) return 0;
+        return WINDOW_MIN_Y + window.slot() * BAND_HEIGHT - window.band().sourceY();
     }
 
     /**
@@ -387,6 +447,41 @@ public final class AbyssWindow
     }
 
     /**
+     * The Y offset for an arbitrary slot of a band, for code outside this class that places things in the
+     * window - the entity copies above all.
+     *
+     * @param slot the slot the band is shown in, which is {@code position - windowStart}, not the player's own
+     */
+    public static int slotOffsetY(int slot, AbyssPattern.Band band)
+    {
+        return slotOffset(slot, band);
+    }
+
+    /**
+     * The Y range of a band's slice inside its own level.
+     *
+     * <p>A band is a slice, but a level may be taller than one band, and it may hold more than one slice. An
+     * entity belongs to a slice only if it stands inside it; an entity elsewhere in the same level is not
+     * visible through this band at all.
+     */
+    public static boolean inSlice(AbyssPattern.Band band, double serverY)
+    {
+        return serverY >= band.sourceY() && serverY < band.sourceY() + BAND_HEIGHT;
+    }
+
+    /**
+     * Whether a bounding box overlaps a band's slice.
+     *
+     * <p>Used instead of testing the feet alone, because a position exactly on a boundary is common: an entity
+     * standing on the highest block of a band has its feet at {@code sourceY + BAND_HEIGHT}, one tenth of a block
+     * outside the slice the feet test uses, and would be dropped from the band it is standing in.
+     */
+    public static boolean inSlice(AbyssPattern.Band band, double minY, double maxY)
+    {
+        return maxY > band.sourceY() && minY < band.sourceY() + BAND_HEIGHT;
+    }
+
+    /**
      * The client Y a server position should be measured at, for distance checks.
      *
      * <p>Vanilla's distance is undefined here, and the reason is not the offset - it is that a window can show
@@ -479,6 +574,48 @@ public final class AbyssWindow
         return server.getLevel(band.level());
     }
 
+    /**
+     * The pattern position the last click addressed, or null when there is no trustworthy record.
+     *
+     * <p>Recorded when the inbound position was converted, so it says which band the player was actually
+     * pointing at - not which one is nearest their eye, which is ambiguous because every band spans the same Y
+     * range.
+     *
+     * <p>Unlike {@link #actionLevel} this answers for the player's <b>own</b> band too, because a placement that
+     * crosses a seam needs to know where it is starting from even when the clicked block is in the own band.
+     */
+    public static @Nullable Integer clickPosition(ServerPlayer player, BlockPos pos)
+    {
+        Window window = window(player);
+        if (window == null) return null;
+        Map<BlockPos, SlotRecord> slots = posSlots.get(player);
+        SlotRecord record = slots == null ? null : slots.get(pos);
+        if (record == null || tickCounter - record.tick() > 1) return null;
+        return window.windowStart() + record.slot();
+    }
+
+    /** The pattern position this player currently occupies. */
+    public static int bandPosition(@Nullable ServerPlayer player)
+    {
+        Window window = window(player);
+        return window == null ? 0 : window.position();
+    }
+
+    /** The band at an arbitrary pattern position, for code reasoning about a seam rather than about the player. */
+    public static AbyssPattern.@Nullable Band bandAt(@Nullable ServerPlayer player, int position)
+    {
+        Window window = window(player);
+        return window == null ? null : window.pattern().band(position);
+    }
+
+    /** The level at an arbitrary pattern position. */
+    public static @Nullable ServerLevel levelAt(ServerPlayer player, int position)
+    {
+        MinecraftServer server = player.level().getServer();
+        AbyssPattern.Band band = bandAt(player, position);
+        return server == null || band == null ? null : server.getLevel(band.level());
+    }
+
 
     /**
      * Every client section at which a section of the player's own level is visible, in slot order.
@@ -548,19 +685,23 @@ public final class AbyssWindow
      */
     public static void sendBlockUpdate(ServerPlayer player, ResourceKey<Level> level, BlockPos pos)
     {
-        sendBlockUpdateNow(player, level, pos);
+        //The client-space images are resolved **once** and carried into the repeat.
+        //
+        //Recomputing them was wrong, and produced a visible glitch: place a block at your feet while crossing a
+        //seam and the first update lands where you are looking, while the repeat - one tick later, after the window
+        //has recentred - resolved the same server position to a *different* slot's Y. The client was told the block
+        //was air at one height and solid at another, which reads as the block vanishing and reappearing, and the
+        //disagreement about what is under the player is what shoved them off it.
+        List<BlockPos> images = images(player, level, pos);
+        sendImages(player, level, pos, images);
         //And once more next tick, after the client's own prediction for this position has been acknowledged.
-        repeats.computeIfAbsent(player, p -> ConcurrentHashMap.newKeySet()).add(new PendingUpdate(level, pos));
+        repeats.computeIfAbsent(player, p -> ConcurrentHashMap.newKeySet())
+               .add(new PendingUpdate(level, pos, images));
     }
 
-    private static void sendBlockUpdateNow(ServerPlayer player, ResourceKey<Level> level, BlockPos pos)
+    /** The client-space positions one server block occupies in this player's window, as of now. */
+    private static List<BlockPos> images(ServerPlayer player, ResourceKey<Level> level, BlockPos pos)
     {
-        if (player.connection == null) return;
-        MinecraftServer server = player.level().getServer();
-        if (server == null) return;
-        ServerLevel source = server.getLevel(level);
-        if (source == null) return;
-
         BlockPos client = pos;
         try
         {
@@ -571,20 +712,39 @@ public final class AbyssWindow
             //Page not visible through the shuffle; fall through with the raw position and let the window
             //mapping put it where it can.
         }
-        //The positions below are already in the client's frame. Sending them through the connection would run
-        //them through the outbound hook again, which converts a second time - and that is not idempotent:
-        //a block at y=62 sent as 62 is re-read as a server Y and mapped to whichever slot the *player's* level
-        //occupies, landing at 126 instead. Breaking downward then looked like a dead click while breaking
-        //upward survived, because 0 -> 64 -> 64 happens to be stable.
+        List<BlockPos> out = new ArrayList<>();
+        for (double imageY : imageYs(player, level, pos.getY()))
+            out.add(client.offset(0, (int) Math.round(imageY) - client.getY(), 0));
+        return out;
+    }
+
+    /**
+     * Sends one block's state to a list of already-resolved client positions.
+     *
+     * <p>The positions are in the client's frame, so they bypass the outbound hook: converting them again is not
+     * idempotent, and a block at y=62 sent as 62 was re-read as a server Y and mapped to a slot, landing at 126.
+     * Breaking downward then looked like a dead click while breaking upward survived, because 0 -> 64 -> 64 happens
+     * to be stable.
+     */
+    private static void sendImages(ServerPlayer player, ResourceKey<Level> level, BlockPos pos,
+                                   List<BlockPos> images)
+    {
+        if (player.connection == null) return;
+        MinecraftServer server = player.level().getServer();
+        if (server == null) return;
+        ServerLevel source = server.getLevel(level);
+        if (source == null) return;
+
+        //The positions are already in the client's frame. Sending them through the connection would run
+        //them through the outbound hook again, which converts a second time - and that is not idempotent: a block
+        //at y=62 sent as 62 is re-read as a server Y and mapped to whichever slot the *player's* level occupies,
+        //landing at 126 instead.
         boolean was = TRANSLATED.get();
         TRANSLATED.set(true);
         try
         {
-            for (double imageY : imageYs(player, level, pos.getY()))
+            for (BlockPos image : images)
             {
-                BlockPos image = client.offset(0, (int) Math.round(imageY) - client.getY(), 0);
-                //Instrumented: this is the packet that decides whether an edit is visible at all, and it has been
-                //wrong in three different ways already. One line per send, cheap and removable.
                 LOGGER.info("[abyss] update {} at server {} -> client {} state {}",
                             level.identifier(), pos, image, source.getBlockState(pos));
                 player.connection.send(new ClientboundBlockUpdatePacket(image, source.getBlockState(pos)));
@@ -604,6 +764,29 @@ public final class AbyssWindow
      * mid-send.
      */
     private static final ThreadLocal<Boolean> TRANSLATED = ThreadLocal.withInitial(() -> false);
+
+    /**
+     * Sends a packet whose coordinates are already in the client's frame.
+     *
+     * <p>Every packet the mod builds for a copy of an entity in another band is of this kind: it was built from
+     * client-space numbers, so the outbound hook must not convert it again. Converting twice is not idempotent
+     * - the same reason a block update built here is sent this way - and for entity packets it would also
+     * record the copy's id as a base for an entity that has none.
+     */
+    public static void sendPreTranslated(ServerPlayer player, Packet<?> packet)
+    {
+        if (player.connection == null) return;
+        boolean was = TRANSLATED.get();
+        TRANSLATED.set(true);
+        try
+        {
+            player.connection.send(packet);
+        }
+        finally
+        {
+            TRANSLATED.set(was);
+        }
+    }
 
     /** True when the current thread is sending a packet that needs no further window conversion. */
     public static boolean isTranslated()
@@ -765,7 +948,10 @@ public final class AbyssWindow
         incomplete.remove(player);
         ticks.remove(player);
         seamTeleports.remove(player);
+        levelSwaps.remove(player);
+        copyFailures.remove(player);
         resendQueue.remove(player);
+        AbyssEntityCopies.drop(player);
     }
 
     public static boolean isSeamTeleport(ServerPlayer player)
@@ -811,7 +997,7 @@ public final class AbyssWindow
      * <p>One repeat, one tick later, is past the acknowledgement; it is applied and sticks. Repeats are not
      * chained, so this cannot become a stream.
      */
-    private record PendingUpdate(ResourceKey<Level> level, BlockPos pos) {}
+    private record PendingUpdate(ResourceKey<Level> level, BlockPos pos, List<BlockPos> images) {}
 
     private static final Map<ServerPlayer, Set<PendingUpdate>> repeats = new ConcurrentHashMap<>();
 
@@ -819,7 +1005,7 @@ public final class AbyssWindow
     {
         Set<PendingUpdate> pending = repeats.remove(player);
         if (pending == null || pending.isEmpty()) return;
-        for (PendingUpdate update : pending) sendBlockUpdateNow(player, update.level(), update.pos());
+        for (PendingUpdate update : pending) sendImages(player, update.level(), update.pos(), update.images());
     }
 
     private static void tickPlayer(ServerPlayer player)
@@ -849,8 +1035,33 @@ public final class AbyssWindow
         //throttled.
         travel(player, before);
 
+        //After travel, so a crossing's new window is what the copies are built from in the same tick.
+        //
+        //Guarded: the copies are a cosmetic layer over entities the mod did not create, and processing an arbitrary
+        //modded entity can hit a shape nobody anticipated - that is how a boat whose metadata was all defaults
+        //crashed the whole server tick. A missing copy is a visible bug; a dead server is not an acceptable
+        //failure mode for either. Logged with the player, once per second rather than once per tick.
+        try
+        {
+            AbyssEntityCopies.tick(player);
+        }
+        catch (RuntimeException e)
+        {
+            long now = System.currentTimeMillis();
+            Long last = copyFailures.get(player);
+            if (last == null || now - last >= 1000L)
+            {
+                copyFailures.put(player, now);
+                LOGGER.error("[abyss] entity copy pass failed for {}; skipping this tick",
+                        player.getName().getString(), e);
+            }
+        }
+
         if (ticks.merge(player, 1, Integer::sum) % 20 == 0) healIncomplete(player);
     }
+
+    /** When a copy pass last failed, so a repeating fault cannot flood the log. */
+    private static final Map<ServerPlayer, Long> copyFailures = new ConcurrentHashMap<>();
 
     /**
      * Moves the player into the band they have walked into, and slides the window to follow them.
@@ -962,10 +1173,40 @@ public final class AbyssWindow
             LOGGER.info("[abyss] seam crossed {} -> {} at client y={}; transition took {} ms",
                     band.level().identifier(), target.level().identifier(), targetY + bandOffset(player),
                     (System.nanoTime() - started) / 1_000_000L);
+            //Whether the bands around the player are actually simulating, which is what decides if a mob in one of
+            //them walks and can be damaged. Reported once per crossing, on one line: "frozen in the next band"
+            //has two very different causes - chunks that never reach ENTITY_TICKING, or something else - and this
+            //is the single fact that tells them apart. Silent when every band is ticking.
+            reportTicking(player);
             return true;
         }
 
         return false;
+    }
+
+    /**
+     * Reports the bands of the window that are not entity-ticking, once per crossing.
+     *
+     * <p>Nothing is printed when all of them are, so a healthy crossing stays one line. This is a diagnostic with a
+     * known expiry: `isPositionEntityTicking` answers the whole pipeline - ticket, loading tracker, simulation
+     * tracker, chunk status - with one boolean, which is what a report of "frozen until I enter their band" needs.
+     */
+    private static void reportTicking(ServerPlayer player)
+    {
+        Window window = window(player);
+        MinecraftServer server = player.level().getServer();
+        if (window == null || server == null) return;
+        BlockPos probe = player.blockPosition();
+        List<String> cold = new ArrayList<>();
+        for (AbyssPattern.Band band : window.bands())
+        {
+            ServerLevel level = band == null ? null : server.getLevel(band.level());
+            if (level == null || level.isPositionEntityTicking(probe)) continue;
+            cold.add(band.level().identifier().getPath() + "@" + band.sourceY());
+        }
+        if (cold.isEmpty()) return;
+        LOGGER.warn("[abyss] not entity-ticking for {}: {} (bands {}); a mob there will not walk or take damage",
+                player.getName().getString(), cold, window.pattern().name());
     }
 
     /**
@@ -991,7 +1232,6 @@ public final class AbyssWindow
         if (recovered.add(player))
             LOGGER.warn("[abyss] window was out of step with {} (y={}); re-derived, no teleport",
                         player.getName().getString(), player.getY());
-
         double local = player.getY() - band.sourceY();
         if (local >= 0 && local < BAND_HEIGHT) return;
         sendTeleport(player, pattern.band(position),
@@ -1157,7 +1397,15 @@ public final class AbyssWindow
         if (window == null) return;
         int radius = viewRadius(player);
         TicketKey key = new TicketKey(player.chunkPosition(), window.windowStart(), window.pattern().name(), radius);
-        if (key.equals(tickets.get(player))) return;
+        if (key.equals(tickets.get(player)))
+        {
+            //The tickets were added for this exact window already - but a ticket can be lost without the key
+            //changing: a chunk unload drops the ones attached to it, and this cache would then never re-add them,
+            //which is a permanent freeze for every band. Checking once a second costs two map lookups per band and
+            //turns "frozen forever" into "frozen for at most a second".
+            if (ticks.getOrDefault(player, 0) % 20 == 0) reassertTickets(player, window, key);
+            return;
+        }
 
         TicketKey old = tickets.put(player, key);
         if (old != null) releaseTickets(player, old);
@@ -1167,8 +1415,58 @@ public final class AbyssWindow
         for (AbyssPattern.Band band : window.bands())
         {
             ServerLevel level = band == null ? null : server.getLevel(band.level());
-            if (level != null)
-                level.getChunkSource().addTicketWithRadius(TicketType.PLAYER_LOADING, key.pos(), key.radius());
+            if (level == null) continue;
+            //Two tickets, because the two flags do different things and neither implies the other:
+            //  - PLAYER_LOADING (doesLoad) feeds the loading tracker, which decides chunk status;
+            //  - PLAYER_SIMULATION (doesSimulate) feeds the simulation tracker, which decides whether entities,
+            //    block entities and random ticks run.
+            //The bands nobody stands in need the second one or a mob in the band above is a statue: no AI, no
+            //gravity, no despawn. `TicketStorage.addTicket` updates the two trackers independently, on the
+            //`doesLoad` and `doesSimulate` flags, so a single ticket cannot do both and `FORCED` would also
+            //persist the ticket into the save.
+            level.getChunkSource().addTicketWithRadius(TicketType.PLAYER_LOADING, key.pos(), key.radius());
+            level.getChunkSource().addTicketWithRadius(TicketType.PLAYER_SIMULATION, key.pos(), key.radius());
+        }
+    }
+
+    /**
+     * The ticket types present at a chunk, for diagnostics.
+     *
+     * <p>{@code simLevel == 33} alone cannot tell "no ticket at all" apart from "a ticket whose level is too
+     * high", and those have different fixes - so the list is worth the widener it costs.
+     */
+    public static List<String> ticketsAt(ServerLevel level, ChunkPos pos)
+    {
+        return level.getChunkSource().chunkMap.getDistanceManager().ticketStorage
+                    .getTickets(pos.pack())
+                    .stream()
+                    .map(ticket -> ticket.getType().toString() + ":" + ticket.getTicketLevel())
+                    .toList();
+    }
+
+    /**
+     * Re-adds a band's tickets if its simulation level says none is in effect.
+     *
+     * <p>Separated from {@link #keepWindowLoaded} so the check is explicit and visible: everything about the
+     * "frozen in the neighbouring band" report comes down to whether the player's chunk in that level carries a
+     * simulation ticket, and this is the only place the mod can notice that it does not.
+     */
+    private static void reassertTickets(ServerPlayer player, Window window, TicketKey key)
+    {
+        MinecraftServer server = player.level().getServer();
+        if (server == null) return;
+        for (AbyssPattern.Band band : window.bands())
+        {
+            ServerLevel level = band == null ? null : server.getLevel(band.level());
+            if (level == null) continue;
+            int simLevel = level.getChunkSource().chunkMap.getDistanceManager()
+                                .getChunkLevel(key.pos().pack(), true);
+            //31 is ENTITY_TICKING; anything above means this band's entities are not ticked.
+            if (simLevel <= 31) continue;
+            LOGGER.warn("[abyss] simulation ticket for {} was missing at {} (simLevel {}); re-adding with radius {}",
+                    band.level().identifier().getPath(), key.pos(), simLevel, key.radius());
+            level.getChunkSource().addTicketWithRadius(TicketType.PLAYER_LOADING, key.pos(), key.radius());
+            level.getChunkSource().addTicketWithRadius(TicketType.PLAYER_SIMULATION, key.pos(), key.radius());
         }
     }
 
@@ -1182,7 +1480,10 @@ public final class AbyssWindow
             AbyssPattern.Band band = pattern.band(key.windowStart() + i);
             ServerLevel level = band == null ? null : server.getLevel(band.level());
             if (level != null)
+            {
                 level.getChunkSource().removeTicketWithRadius(TicketType.PLAYER_LOADING, key.pos(), key.radius());
+                level.getChunkSource().removeTicketWithRadius(TicketType.PLAYER_SIMULATION, key.pos(), key.radius());
+            }
         }
     }
 

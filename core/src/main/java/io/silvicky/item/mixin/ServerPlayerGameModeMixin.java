@@ -218,30 +218,64 @@ public class ServerPlayerGameModeMixin
         BlockPos pos = hit.getBlockPos();
         ServerLevel target = item_storage$target(pos);
 
-        //A click on the top face of a band's highest block asks for the block one above it, which lives at the
-        //bottom of the next band. Vanilla cannot express that (the position is outside the level), so the
-        //action is re-targeted to the neighbouring band at its own floor height.
-        ServerLevel adjacent = item_storage$adjacent(usingLevel, pos, hit.getDirection());
-        if (adjacent != null && target == null)
+        //One line per placement attempt, before the decision, because the failure this is meant to explain is
+        //vanilla's "The height limit for building is 63" - which the *listener* shows after this method returns
+        //without consuming the action. So a rejection here and a rejection there look identical from outside; the
+        //inputs do not. Printed for every attempt rather than only failures, because the interesting case is the
+        //one where the mod believed it had a target and vanilla disagreed.
+        LOGGER.info("[abyss] place attempt: item {} at hit {} face {} in {} (y bounds {})-({}) | own band {}, target {}, player y={}",
+                stack.getItem(), pos.toShortString(), hit.getDirection(),
+                usingLevel.dimension().identifier().getPath(),
+                usingLevel.getMinY(), usingLevel.getMaxY(),
+                usingPlayer.level().dimension().identifier().getPath(),
+                target == null ? "none" : target.dimension().identifier().getPath(),
+                Math.round(usingPlayer.getY()));
+
+        //Which band the click is in, and where a placement would land.
+        //
+        //The seam case used to be guarded on `target == null`, i.e. it only ran when the clicked block was in the
+        //player's OWN level. That is the rarer case. Standing at a seam and clicking the top face of the band
+        //below means the clicked block belongs to a foreign band, so `target` was non-null, the seam branch was
+        //skipped, and the placement asked for a position one above that band's ceiling - which vanilla refused
+        //with "The height limit for building is 63". The log that found this showed it exactly: target layer0,
+        //face up, placed 64,64,61, Fail.
+        Direction face = hit.getDirection();
+        int step = face == Direction.UP ? 1 : face == Direction.DOWN ? -1 : 0;
+        //The band the click addressed, which is the one a seam leaves from - not necessarily the player's own.
+        Integer clickedPosition = AbyssWindow.clickPosition(usingPlayer, pos);
+        int herePosition = clickedPosition != null ? clickedPosition : AbyssWindow.bandPosition(usingPlayer);
+        AbyssPattern.Band hereBand = AbyssWindow.bandAt(usingPlayer, herePosition);
+        ServerLevel clickedLevel = target != null ? target : (ServerLevel) usingLevel;
+
+        if (step != 0 && hereBand != null && clickedLevel.isOutsideBuildHeight(pos.relative(face)))
         {
-            int step = hit.getDirection() == Direction.UP ? 1 : -1;
-            //The block the click asks for, expressed in the neighbouring band. Vanilla would compute
-            //`clicked.relative(direction)` *inside that level*, which is one block too high: the click on the
-            //lower band's ceiling at y=63 asks for y=64, and in the upper band that is y=0, not y=1.
-            AbyssPattern.Band here = AbyssWindow.band(usingPlayer);
-            int hereSource = here == null ? 0 : here.sourceY();
-            int thereSource = AbyssWindow.adjacentSourceY(usingPlayer, step);
-            int targetY = pos.getY() + hit.getDirection().getStepY()
-                          - hereSource - step * AbyssWindow.BAND_HEIGHT + thereSource;
+            AbyssPattern.Band thereBand = AbyssWindow.bandAt(usingPlayer, herePosition + step);
+            ServerLevel there = thereBand == null ? null : AbyssWindow.levelAt(usingPlayer, herePosition + step);
+            if (there == null || thereBand == null)
+            {
+                //The pattern ends here, so there is no band to place into and vanilla is right to refuse.
+                LOGGER.info("[abyss] place across seam refused: no band at position {}", herePosition + step);
+                return InteractionResult.FAIL;
+            }
+
+            //The block the click asks for, expressed in the band above or below. Vanilla would compute
+            //`clicked.relative(direction)` inside that level, which is one block too high: a click on the lower
+            //band's ceiling at y=63 asks for y=64, and in the upper band that is y=0, not y=1.
+            int targetY = pos.getY() + face.getStepY()
+                          - hereBand.sourceY() - step * AbyssWindow.BAND_HEIGHT + thereBand.sourceY();
             BlockPos landing = new BlockPos(pos.getX(), targetY, pos.getZ());
 
-            BlockHitResult reHit = new BlockHitResult(Vec3.atCenterOf(landing), hit.getDirection(), landing, false);
+            BlockHitResult reHit = new BlockHitResult(Vec3.atCenterOf(landing), face, landing, false);
             InteractionResult[] result = new InteractionResult[1];
-            item_storage$dispatch(adjacent, landing, landing,
-                    () -> result[0] = original.call(usingPlayer, adjacent, stack, hand, reHit));
-            item_storage$log("use across the seam", adjacent, landing);
+            item_storage$dispatch(there, landing, landing,
+                    () -> result[0] = original.call(usingPlayer, there, stack, hand, reHit));
+            LOGGER.info("[abyss] place across seam: {} at {} in {} [{},{}] -> {} in {} [{},{}] consumed={}",
+                    stack.getItem(), pos.toShortString(), clickedLevel.dimension().identifier().getPath(),
+                    herePosition, hereBand.sourceY(), landing.toShortString(),
+                    there.dimension().identifier().getPath(), herePosition + step, thereBand.sourceY(),
+                    result[0] != null && result[0].consumesAction());
             if (result[0] != null && result[0].consumesAction())
-                AbyssWindow.sendBlockUpdate(usingPlayer, adjacent.dimension(), landing);
+                AbyssWindow.sendBlockUpdate(usingPlayer, there.dimension(), landing);
             return result[0] == null ? InteractionResult.PASS : result[0];
         }
 
@@ -258,6 +292,13 @@ public class ServerPlayerGameModeMixin
         BlockPos placed = hit.getDirection() == null ? pos : pos.relative(hit.getDirection());
         if (result[0] != null && result[0].consumesAction())
             AbyssWindow.sendBlockUpdate(usingPlayer, target.dimension(), placed);
+        //The outcome, and the two positions involved. A block that is consumed but placed *elsewhere* than the
+        //face asked for (a stair, a door, a block that snaps) shows up here as a disagreement between `placed`
+        //and the state vanilla reports at the clicked position.
+        LOGGER.info("[abyss] place result: {} at {} in {} -> {} (consumed={}, placed={}, state-at-clicked={})",
+                stack.getItem(), pos.toShortString(), target.dimension().identifier().getPath(),
+                result[0], result[0] != null && result[0].consumesAction(), placed.toShortString(),
+                target.getBlockState(pos));
         return result[0];
     }
 
@@ -287,22 +328,6 @@ public class ServerPlayerGameModeMixin
         //The five-argument constructor is the one that takes the level; it is protected in vanilla and opened
         //by the access widener.
         return new UseOnContext(band, usingPlayer, hand, usingPlayer.getItemInHand(hand), hit);
-    }
-
-    /**
-     * The band the placement would cross into, or null when the placement stays inside the target level.
-     *
-     * <p>Only for a click on a face that points out of the level: the placed position is then outside the build
-     * height, which vanilla rejects outright.
-     */
-    @Unique
-    private @Nullable ServerLevel item_storage$adjacent(Level usingLevel, BlockPos pos, Direction direction)
-    {
-        if (direction != Direction.UP && direction != Direction.DOWN) return null;
-        if (!AbyssWindow.handles(player)) return null;
-        BlockPos placed = pos.relative(direction);
-        if (!usingLevel.isOutsideBuildHeight(placed)) return null;
-        return AbyssWindow.adjacentLevel(player, direction == Direction.UP ? 1 : -1);
     }
 
     /** One line per dispatched action, at info, so a failing case can be told apart from a rejected one. */

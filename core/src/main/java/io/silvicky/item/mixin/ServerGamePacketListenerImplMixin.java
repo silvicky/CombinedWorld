@@ -3,24 +3,31 @@ package io.silvicky.item.mixin;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.sugar.Local;
+import io.silvicky.item.backrooms.AbyssEntityCopies;
 import io.silvicky.item.backrooms.AbyssWindow;
 import io.silvicky.item.backrooms.ChunkUnusedException;
+import io.silvicky.item.backrooms.EntityLevelAccess;
 import io.silvicky.item.backrooms.VecTransformer;
 import io.silvicky.item.common.Util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.network.protocol.game.ServerboundAttackPacket;
+import net.minecraft.network.protocol.game.ServerboundInteractPacket;
 import net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.Relative;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
@@ -244,6 +251,164 @@ public abstract class ServerGamePacketListenerImplMixin
         if (abyss)
             Util.LOGGER.info("[abyss] teleport acknowledged by {} (id {} of {}) - position accepted, not measured",
                     player.getGameProfile().name(), packet.id(), awaitingTeleport);
+    }
+
+    @WrapMethod(method = "handleAttack")
+    private void abyss$attack(ServerboundAttackPacket packet, Operation<Void> original)
+    {
+        if (!AbyssEntityCopies.looksLikeCopy(packet.entityId()))
+        {
+            original.call(packet);
+            return;
+        }
+        //A packet handler is entered on the netty thread: vanilla's own `ensureRunningOnSameThread` is the first
+        //statement inside the method, so a wrap around the method runs before it. That check does not merely
+        //wait - it re-queues the packet it was given and throws:
+        //
+        //    if (!packetProcessor.isSameThread()) {
+        //        packetProcessor.scheduleIfPossible(listener, packet);
+        //        throw RunningOnDifferentThreadException.RUNNING_ON_DIFFERENT_THREAD;
+        //    }
+        //
+        //So rebuilding the packet with the real id and calling the original queued *that* packet to the server
+        //thread, where the level swap - a thing that exists only inside this call stack - was gone. Vanilla then
+        //looked the real id up in the player's own band, found nothing, and the attack did nothing at all. The
+        //log showed it exactly: `attack dispatched` with no `completed`, and on the netty thread. That was the
+        //whole of "cannot attack across a band".
+        //
+        //So the dispatch is scheduled here, and the original runs on the server thread where its own thread
+        //check passes and the swap is still in scope.
+        MinecraftServer server = player.level().getServer();
+        if (server != null && !server.isSameThread())
+        {
+            server.execute(() -> item_storage$attackNow(packet, original));
+            return;
+        }
+        item_storage$attackNow(packet, original);
+    }
+
+    @Unique
+    private void item_storage$attackNow(ServerboundAttackPacket packet, Operation<Void> original)
+    {
+        AbyssEntityCopies.Target target = AbyssEntityCopies.target(player, packet.entityId());
+        if (target == null)
+        {
+            //A copy-shaped id that resolved to nothing: the client is acting on an entity this server no longer
+            //holds a copy for, and vanilla will find nothing either.
+            if (AbyssEntityCopies.looksLikeCopy(packet.entityId()))
+                Util.LOGGER.warn("[abyss] attack on unknown copy id {} from {}",
+                        packet.entityId(), player.getGameProfile().name());
+            //An attack that is not aimed at a copy is an ordinary one, aimed at an entity in the player's own band.
+            //It used to be silent, which hid the most useful case: standing next to a mob and hitting it is the one
+            //situation in which its tick state can be observed without any of this machinery in the way.
+            Entity ordinary = player.level().getEntityOrPart(packet.entityId());
+            if (ordinary != null && AbyssWindow.handles(player))
+                Util.LOGGER.info("[abyss] own-band attack on {}: {}", packet.entityId(),
+                        AbyssEntityCopies.tickState(ordinary));
+            original.call(packet);
+            return;
+        }
+        //Vanilla resolves the target in the player's own level (`level.getEntityOrPart(id)`), so the action is
+        //re-pointed at the real entity and run with the player's level swapped to its band. The reach test inside
+        //still passes: PlayerMixin measures entity boxes in the client's frame, where the copy is on screen.
+        AbyssEntityCopies.sendHurt(player, packet.entityId(), target.band(), target.entity());
+        ServerboundAttackPacket real = new ServerboundAttackPacket(target.entity().getId());
+        Util.LOGGER.info("[abyss] attack dispatched [{}]: copy {} -> {} in {} (offset {}, player y={}, own band {})",
+                Thread.currentThread().getName(), packet.entityId(), target.entity().getId(),
+                target.band().dimension().identifier(), target.offset(), Math.round(player.getY()),
+                player.level().dimension().identifier());
+        //Why a hit may not land, in one line: whether the entity is ticked at all (`tickCount` of 0 on a living
+        //entity means it has never been ticked), which gate is closed if not, and how far away vanilla thinks it is.
+        Entity victim = target.entity();
+        Util.LOGGER.info("[abyss] attack target {} ({}): {}{}, distance={}",
+                victim.getId(), victim.getType(), AbyssEntityCopies.tickState(victim),
+                victim.isInvulnerable() ? ", INVULNERABLE" : "",
+                Math.round(Math.sqrt(victim.distanceToSqr(player))));
+        //Health is the only observable that says whether vanilla's handler actually reached the entity: the
+        //handler refuses silently when its own reach test fails, so without this a rejected attack and an
+        //ignored attack produce identical logs.
+        float before = health(target);
+        item_storage$inBand(target, () -> original.call(real));
+        Util.LOGGER.info("[abyss] attack on copy {} completed: {} health {} -> {} (alive {})",
+                packet.entityId(), target.entity().getType(), before, health(target), target.entity().isAlive());
+        //The hurt event the level broadcast went to its own trackers, not to this player; sendHurt above covers
+        //the copy. Nothing else has to be forwarded: the death event and the removal come from the copy loop.
+    }
+
+    @Unique
+    private static float health(AbyssEntityCopies.Target target)
+    {
+        return target.entity() instanceof net.minecraft.world.entity.LivingEntity living
+                ? living.getHealth() : Float.NaN;
+    }
+
+    @WrapMethod(method = "handleInteract")
+    private void abyss$interact(ServerboundInteractPacket packet, Operation<Void> original)
+    {
+        if (!AbyssEntityCopies.looksLikeCopy(packet.entityId()))
+        {
+            original.call(packet);
+            return;
+        }
+        //Same thread problem as handleAttack above.
+        MinecraftServer server = player.level().getServer();
+        if (server != null && !server.isSameThread())
+        {
+            server.execute(() -> item_storage$interactNow(packet, original));
+            return;
+        }
+        item_storage$interactNow(packet, original);
+    }
+
+    @Unique
+    private void item_storage$interactNow(ServerboundInteractPacket packet, Operation<Void> original)
+    {
+        AbyssEntityCopies.Target target = AbyssEntityCopies.target(player, packet.entityId());
+        if (target == null)
+        {
+            Util.LOGGER.warn("[abyss] interact on unknown copy id {} from {}",
+                    packet.entityId(), player.getGameProfile().name());
+            original.call(packet);
+            return;
+        }
+        //The hit point is in the copy's frame and has to be converted with the copy's own offset, or vanilla
+        //cross-checks a block against a point a band away and the interaction is discarded.
+        Vec3 location = AbyssEntityCopies.toServer(player, target, packet.location());
+        ServerboundInteractPacket real = new ServerboundInteractPacket(
+                target.entity().getId(), packet.hand(), location, packet.usingSecondaryAction());
+        Util.LOGGER.info("[abyss] interact dispatched [{}]: copy {} -> {} in {} (hit {} in copy frame -> {})",
+                Thread.currentThread().getName(), packet.entityId(), target.entity().getId(),
+                target.band().dimension().identifier(), fmt(packet.location()), fmt(location));
+        item_storage$inBand(target, () -> original.call(real));
+        Util.LOGGER.info("[abyss] interact on copy {} completed", packet.entityId());
+    }
+
+    /**
+     * Runs an action with the player's level pointing at the band it acts on.
+     *
+     * <p>Sound, particles, damage sources, attribute bookkeeping and the entity lookup all derive from
+     * {@code player.level()}, so the swap has to span the whole call and be undone in a {@code finally}.
+     */
+    @Unique
+    private void item_storage$inBand(AbyssEntityCopies.Target target, Runnable action)
+    {
+        EntityLevelAccess access = (EntityLevelAccess) (Object) player;
+        Level previous = access.item_storage$level();
+        access.item_storage$setLevel(target.band());
+        //Without this, every AbyssWindow call inside the handler sees `player.level()` disagreeing with the
+        //stored window, re-derives it from the target band, and rewrites the player's own band. That broke both
+        //halves of this feature at once: the reach test then measured in the wrong frame (rejecting the action)
+        //and later ticks treated the real band as foreign (drawing its entities one band away).
+        AbyssWindow.beginLevelSwap(player);
+        try
+        {
+            action.run();
+        }
+        finally
+        {
+            AbyssWindow.endLevelSwap(player);
+            access.item_storage$setLevel(previous);
+        }
     }
 
     @Inject(method = "teleport(Lnet/minecraft/world/entity/PositionMoveRotation;Ljava/util/Set;)V",at= @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerPlayer;teleportSetPosition(Lnet/minecraft/world/entity/PositionMoveRotation;Ljava/util/Set;)V",shift = At.Shift.AFTER))

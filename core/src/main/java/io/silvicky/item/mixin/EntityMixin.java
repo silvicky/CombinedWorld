@@ -2,6 +2,7 @@ package io.silvicky.item.mixin;
 
 import com.llamalad7.mixinextras.sugar.Local;
 import io.silvicky.item.backrooms.ChunkUnusedException;
+import io.silvicky.item.backrooms.EntityLevelAccess;
 import io.silvicky.item.backrooms.VecTransformer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
@@ -19,10 +20,31 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import java.util.stream.Stream;
 
 @Mixin(Entity.class)
-public class EntityMixin
+public class EntityMixin implements EntityLevelAccess
 {
     @Shadow
     private Vec3 position;
+
+    /**
+     * The entity's level, which {@code Entity.level()} returns.
+     *
+     * <p>Exposed so a cross-band action can point the player at the band it is acting on for the duration of
+     * the call - vanilla resolves interaction targets by asking the *player's* level for the id.
+     */
+    @Shadow
+    private net.minecraft.world.level.Level level;
+
+    @Override
+    public net.minecraft.world.level.Level item_storage$level()
+    {
+        return level;
+    }
+
+    @Override
+    public void item_storage$setLevel(net.minecraft.world.level.Level level)
+    {
+        this.level = level;
+    }
 
     @ModifyVariable(method = "move",at=@At("STORE"),name = "checkTo")
     private Vec3 inject1(Vec3 value, @Local(name = "movement")Vec3 vec32,@Local(name = "checkDistance")double e)

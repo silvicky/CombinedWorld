@@ -6,6 +6,7 @@ import io.silvicky.item.backrooms.AbyssChunkComposer;
 import io.silvicky.item.backrooms.AbyssPatterns;
 import io.silvicky.item.backrooms.AbyssWindow;
 import io.silvicky.item.backrooms.EntityPositionRemapper;
+import io.silvicky.item.backrooms.EntityPacketLog;
 import io.silvicky.item.backrooms.EntityRemapAccess;
 import io.silvicky.item.backrooms.EntityVisibilityManager;
 import io.silvicky.item.backrooms.VecTransformer;
@@ -174,20 +175,138 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
         //two different maps, two different offsets, and two different remembered bases, so the same packet
         //object legitimately has two different correct answers. Caching by object identity would hand both
         //players the first one's answer. So entity packets skip the cache and are converted per player.
+        //Entity spawns do not arrive as add packets. Vanilla sends them inside a bundle:
+        //
+        //    // ServerEntity.addPairing
+        //    List<Packet<? super ClientGamePacketListener>> packets = new ArrayList<>();
+        //    this.sendPairingData(player, packets::add);
+        //    player.connection.send(new ClientboundBundlePacket(packets));
+        //
+        //and the client runs `subPacket.handle(this)` for each member, so a bundle is only a container. The
+        //outbound hook saw a `ClientboundBundlePacket`, which is not an entity packet, and forwarded it whole -
+        //so no add packet was ever converted and every entity in the window was announced at its raw server Y.
+        //For the band at offset 0 that is accidentally right, which is why only the other bands looked broken:
+        //an entity in a band 64 above the window origin was drawn 64 blocks below where it stood, at the very
+        //bottom of the window, i.e. not in its own band at all. It also means the horizontal shuffle has never
+        //applied to an entity spawn.
+        if (packet instanceof ClientboundBundlePacket bundle)
+        {
+            List<Packet<? super ClientGamePacketListener>> converted = new ArrayList<>();
+            boolean changed = false;
+            for (Packet<? super ClientGamePacketListener> sub : bundle.subPackets())
+            {
+                Packet<?> result = sub;
+                if (isEntityPacket(sub))
+                {
+                    ServerPlayer bundlePlayer = gamePacketListener.getPlayer();
+                    int bundleOffset = AbyssWindow.handles(bundlePlayer)
+                            ? AbyssWindow.bandOffset(bundlePlayer) : 0;
+                    Vec3 before = entityPosition(sub);
+                    try
+                    {
+                        Packet<?> translated = item_storage$entityRemapper
+                                .translate(sub, vecTransformer, bundlePlayer.level(), bundleOffset);
+                        if (translated == null)
+                        {
+                            LOGGER.info("[abyss] dropped bundled entity packet {} for {}",
+                                    sub.type(), bundlePlayer.getGameProfile().name());
+                            result = null;
+                        }
+                        else
+                        {
+                            EntityPacketLog.record(bundlePlayer, sub, bundleOffset, before,
+                                    entityPosition(translated));
+                            result = translated;
+                        }
+                    }
+                    catch (ChunkUnusedException e)
+                    {
+                        result = null;
+                    }
+                }
+                if (result != sub) changed = true;
+                if (result != null) converted.add((Packet<? super ClientGamePacketListener>) result);
+            }
+            if (!changed) return;
+            //What the bundle contained, and what it became. A spawn is a *sequence* - add, metadata, attributes,
+            //equipment, passengers - and a missing member looks exactly like a missing entity from the outside, so
+            //the sequence is worth one line rather than a log of only the things that happened.
+            LOGGER.info("[abyss] bundle for {}: {} -> {}",
+                    gamePacketListener.getPlayer().getGameProfile().name(),
+                    describeBundle(bundle.subPackets()), describeBundle(converted));
+
+            //**Adds go first.** The client resolves both ends of a hierarchy packet by id at the moment it is
+            //handled:
+            //
+            //    handleSetEntityPassengersPacket:
+            //        Entity vehicle = this.level.getEntity(packet.getVehicle());
+            //        if (vehicle == null) { LOGGER.warn("Received passengers for unknown entity"); }
+            //        else { vehicle.ejectPassengers(); for (int id : passengers) if (getEntity(id) != null) startRiding(...); }
+            //
+            //So a passenger packet that arrives before either add is dropped with that warning, and an add that
+            //arrives after it silently loses the rider. Vanilla's own bundles happen to order adds before
+            //hierarchy packets; a rebuilt one must guarantee it, and this is where the guarantee lives.
+            List<Packet<? super ClientGamePacketListener>> ordered =
+                    new ArrayList<>(converted.size());
+            for (Packet<? super ClientGamePacketListener> sub : converted)
+                if (sub instanceof ClientboundAddEntityPacket) ordered.add(sub);
+            for (Packet<? super ClientGamePacketListener> sub : converted)
+                if (!(sub instanceof ClientboundAddEntityPacket)) ordered.add(sub);
+
+            ci.cancel();
+            replacing = true;
+            try
+            {
+                instance.send(new ClientboundBundlePacket(ordered), channelFutureListener);
+            }
+            finally
+            {
+                replacing = false;
+            }
+            return;
+        }
+
+        //Hierarchy packets carry no position, so nothing is converted - but they are the only evidence that an
+        //assembled entity (a rider on a vehicle, a leashed mob) is assembled, and their *absence* is what a
+        //"the panda is standing next to the boat" report actually looks like. Logged for the own band only, which
+        //is the path vanilla sends and the mod cannot otherwise see; copies get their own line when built.
+        if (packet instanceof ClientboundSetPassengersPacket passengers)
+        {
+            LOGGER.info("[abyss] own-band passengers for {}: vehicle {} carries {}",
+                    gamePacketListener.getPlayer().getGameProfile().name(),
+                    passengers.getVehicle(), java.util.Arrays.toString(passengers.getPassengers()));
+            return;
+        }
+        if (packet instanceof ClientboundSetEntityLinkPacket link)
+        {
+            LOGGER.info("[abyss] own-band link for {}: {} leashed to {}",
+                    gamePacketListener.getPlayer().getGameProfile().name(),
+                    link.getSourceId(), link.getDestId());
+            return;
+        }
+
         if (isEntityPacket(packet))
         {
             try
             {
+                ServerPlayer entityPlayer = gamePacketListener.getPlayer();
+                int yOffset = AbyssWindow.handles(entityPlayer) ? AbyssWindow.bandOffset(entityPlayer) : 0;
+                Vec3 before = entityPosition(packet);
                 Packet<?> translated=item_storage$entityRemapper
                                              .translate(packet,vecTransformer,
-                                                        gamePacketListener.getPlayer().level());
+                                                        entityPlayer.level(),
+                                                        yOffset);
                 if(translated==null)
                 {
                     //Its page is not in this player's map, so there is nowhere to put it. Dropping is right:
-                    //the alternative is sending it at a position the player has never been shown.
+                    //the alternative is sending it at a position the player has never been shown. Logged,
+                    //because a silently dropped entity packet and an entity that never existed look alike.
+                    LOGGER.info("[abyss] dropped entity packet {} for {}",
+                            packet.type(), entityPlayer.getGameProfile().name());
                     ci.cancel();
                     return;
                 }
+                EntityPacketLog.record(entityPlayer, packet, yOffset, before, entityPosition(translated));
                 //Same object back means no change was needed - the common case, an offset packet inside one
                 //page - and the original can simply go out.
                 if(translated==packet)return;
@@ -934,6 +1053,46 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
             return TrackedWaypoint.setChunk(identifier.get(),waypoint.icon(),vecTransformer.s2cTransform(chunkPos));
         }
         return waypoint;
+    }
+
+    /**
+     * The members of a bundle as one line: packet kinds, with entity ids where a packet names one.
+     *
+     * <p>Exists because the interesting failures here are about *absent* members - an add without its metadata, a
+     * vehicle without its passenger packet - and an absence cannot be seen in a log of things that happened.
+     */
+    @Unique
+    private static String describeBundle(Iterable<? extends Packet<?>> packets)
+    {
+        StringBuilder out = new StringBuilder("[");
+        for (Packet<?> sub : packets)
+        {
+            if (out.length() > 1) out.append(", ");
+            String name = sub.getClass().getSimpleName();
+            if (sub instanceof ClientboundAddEntityPacket add) name += ":" + add.getId();
+            else if (sub instanceof ClientboundSetEntityDataPacket data) name += ":" + data.id();
+            else if (sub instanceof ClientboundUpdateAttributesPacket attributes) name += ":" + attributes.getEntityId();
+            out.append(name);
+        }
+        return out.append(']').toString();
+    }
+
+    /**
+     * The position an entity packet carries, or null when it carries none.
+     *
+     * <p>Only for logging; the conversion itself happens in {@link EntityPositionRemapper}. A delta packet is
+     * relative, so the absolute position it implies is not in it and there is nothing to print.
+     */
+    @Unique
+    private static Vec3 entityPosition(Packet<?> packet)
+    {
+        if (packet instanceof ClientboundAddEntityPacket add)
+            return new Vec3(add.getX(), add.getY(), add.getZ());
+        if (packet instanceof ClientboundEntityPositionSyncPacket sync)
+            return sync.position().endPosition();
+        if (packet instanceof ClientboundTeleportEntityPacket teleport)
+            return teleport.change().position();
+        return null;
     }
 
     /**
