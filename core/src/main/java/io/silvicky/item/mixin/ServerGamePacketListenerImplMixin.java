@@ -249,8 +249,8 @@ public abstract class ServerGamePacketListenerImplMixin
         //sooner, and it is what vanilla itself relies on (`ServerPlayer.teleport` calls it for both branches).
         if (abyss) resetPosition();
         if (abyss)
-            Util.LOGGER.debug("[abyss] teleport acknowledged by {} (id {} of {}) - position accepted, not measured",
-                    player.getGameProfile().name(), packet.id(), awaitingTeleport);
+            Util.LOGGER.debug("[abyss] teleport acknowledged by {} (id {} of {}) - position accepted after {} ms, not measured",
+                    player.getGameProfile().name(), packet.id(), awaitingTeleport, AbyssWindow.seamAckMillis(player));
     }
 
     @WrapMethod(method = "handleAttack")

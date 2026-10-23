@@ -22,6 +22,8 @@ import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -981,6 +983,9 @@ public final class AbyssWindow
         incomplete.remove(player);
         ticks.remove(player);
         seamTeleports.remove(player);
+        viewKeepingSeams.remove(player);
+        seamTraffic.remove(player);
+        seamSentAt.remove(player);
         levelSwaps.remove(player);
         escaped.remove(player);
         copyFailures.remove(player);
@@ -991,6 +996,66 @@ public final class AbyssWindow
     public static boolean isSeamTeleport(ServerPlayer player)
     {
         return seamTeleports.contains(player);
+    }
+
+    /**
+     * Players whose current seam teleport leaves the composed view unchanged.
+     *
+     * <p>Only these may skip the chunk traffic. A crossing that changes the composition has to re-send every column
+     * anyway, and while that drains the client holds the old composition - which is still terrain it can stand on -
+     * so vanilla's forget is the right thing there. Widening this to every crossing would trade an unload for a
+     * window of wrong terrain, and the window of wrong terrain is where the fall-through came from.
+     */
+    private static final Set<ServerPlayer> viewKeepingSeams = ConcurrentHashMap.newKeySet();
+
+    public static boolean isViewKeepingSeam(ServerPlayer player)
+    {
+        return viewKeepingSeams.contains(player);
+    }
+
+    /**
+     * Whether a column is one of the nine around the player - the ground a falling player lands on.
+     *
+     * <p>On a crossing that changes the composition these are re-sent *before* the teleport, so their forget packets
+     * are cancelled to match: the client has the new column already, and a forget arriving after it would delete the
+     * very terrain it is standing on. Every other column keeps vanilla's forget, because its replacement arrives over
+     * the following second and a forget is what stops the old composition from being shown meanwhile.
+     */
+    public static boolean isNearSeamColumn(ServerPlayer player, ChunkPos pos)
+    {
+        ChunkPos centre = player.chunkPosition();
+        return Math.abs(pos.x() - centre.x()) <= 1 && Math.abs(pos.z() - centre.z()) <= 1;
+    }
+
+    /** Packet kinds counted for the one line that reports a crossing. */
+    public static final int KIND_CHUNK = 0;
+    public static final int KIND_ENTITY_REMOVE = 1;
+    public static final int KIND_ENTITY_ADD = 2;
+
+    /** What a crossing put on the wire, per player, for the crossing's own log line. */
+    private static final Map<ServerPlayer, int[]> seamTraffic = new ConcurrentHashMap<>();
+
+    /** Counts one outbound packet against the crossing in progress. No-op when no crossing is. */
+    public static void noteSeamTraffic(ServerPlayer player, int kind, int count)
+    {
+        if (!seamTeleports.contains(player)) return;
+        seamTraffic.computeIfAbsent(player, p -> new int[3])[kind] += count;
+    }
+
+    private static int[] takeSeamTraffic(ServerPlayer player)
+    {
+        int[] counted = seamTraffic.remove(player);
+        return counted == null ? new int[3] : counted;
+    }
+
+    /** When the last seam position packet went out, for the acknowledgement to measure against. */
+    private static final Map<ServerPlayer, Long> seamSentAt = new ConcurrentHashMap<>();
+
+    /** Milliseconds since the seam position packet went out, and clears it. Zero when none is outstanding. */
+    public static long seamAckMillis(ServerPlayer player)
+    {
+        Long sent = seamSentAt.remove(player);
+        return sent == null ? 0L : (System.nanoTime() - sent) / 1_000_000L;
     }
 
     public static void markIncomplete(ServerPlayer player, ChunkPos pos)
@@ -1256,16 +1321,19 @@ public final class AbyssWindow
             //  - the seam flag spans all of it, because between `setWindow` and the teleport the stored window
             //    deliberately disagrees with `player.level()`, and anything that re-derives the window in that
             //    gap discards the move;
-            //  - the position packet goes out first. It is the only packet the client has to acknowledge, and it
-            //    is the head of the stream rather than the tail: everything vanilla does with the player's
-            //    movement waits for it, so putting the near columns ahead of it froze the player for however long
-            //    those took to cross the wire. Both go out in one burst, so the client applies the new position
-            //    and the new terrain in the same tick.
+            //  - on a crossing that changes the composition, the 3x3 around the player goes out *before* the
+            //    teleport. Those columns carry the new composition, the client's own coordinates do not change
+            //    across a seam, so they are already correct for where it is standing - and the level change that
+            //    follows makes vanilla forget the whole view, holes included. Having the ground on the wire first
+            //    is what stopped a falling player dropping through it. Their forgets are cancelled to match.
+            //  - the position packet follows. It is the only packet the client has to acknowledge, and
+            //    everything vanilla does with the player's movement waits for it;
             //  - the rest of the view is queued behind that and drained at the chunk sender's pace, because a
             //    crossing changes the composition of every column and marking them all pending at once is a
             //    single-tick stall of the whole view.
             seamTeleports.add(player);
             long started = System.nanoTime();
+            int[] traffic;
             try
             {
                 setWindow(player, nextWindow);
@@ -1275,16 +1343,38 @@ public final class AbyssWindow
                 //column in the view pending, composed, because the window was set above. Queuing them again here
                 //sent the whole view twice: once by that diff, once by `drainResend`.
                 boolean levelChanged = !target.level().equals(band.level());
-                sendTeleport(player, target, targetY);
-                if (bandsChanged)
+                //The columns queued and not yet sent before the crossing. Only needed when the composition does not
+                //change: there the re-mark below is pure duplication, and the columns the client still lacks are
+                //exactly the ones in this set, so they must not be dropped with it.
+                LongSet queuedBefore = bandsChanged ? null : pendingSnapshot(player);
+                if (!bandsChanged) viewKeepingSeams.add(player);
+                else
                 {
                     resendNearChunks(player);
                     flushChunks(player);
+                }
+                try
+                {
+                    sendTeleport(player, target, targetY);
+                }
+                finally
+                {
+                    viewKeepingSeams.remove(player);
+                }
+                if (bandsChanged)
+                {
                     //Only when vanilla has not just queued the whole view itself. A crossing inside one level -
                     //two bands of the same level at different sourceY - never runs that diff, and there this
                     //queue is the only thing that re-composes the view at all.
                     if (!levelChanged) resendChunks(player, 1);
                 }
+                else
+                {
+                    //Composition unchanged, so every column the client holds is still byte-for-byte what it has:
+                    //nothing has to be sent, and the re-mark vanilla just made is dropped again.
+                    discardRemarked(player, queuedBefore);
+                }
+                traffic = takeSeamTraffic(player);
             }
             finally
             {
@@ -1292,11 +1382,12 @@ public final class AbyssWindow
             }
             //Kept in the log because it is the server's share of the hitch a crossing is felt as; anything
             //beyond a millisecond or two is work that could be moved off the transition.
-            LOGGER.info("[abyss] seam crossed {} -> {} at client y={}; local {} -> {} (onGround {}, window {} -> {}); {} ms",
+            LOGGER.info("[abyss] seam crossed {} -> {} at client y={}; local {} -> {} (onGround {}, window {} -> {}); {} ms, sent {} chunk, {} entity remove(s), {} entity add(s)",
                     band.level().identifier(), target.level().identifier(), targetY + bandOffset(player),
                     Math.round(local * 100.0) / 100.0, Math.round((targetY - target.sourceY()) * 100.0) / 100.0,
                     player.onGround(), current.position(), next,
-                    (System.nanoTime() - started) / 1_000_000L);
+                    (System.nanoTime() - started) / 1_000_000L,
+                    traffic[KIND_CHUNK], traffic[KIND_ENTITY_REMOVE], traffic[KIND_ENTITY_ADD]);
             //Whether the bands around the player are actually simulating, which is what decides if a mob in one of
             //them walks and can be damaged. Reported once per crossing, on one line: "frozen in the next band"
             //has two very different causes - chunks that never reach ENTITY_TICKING, or something else - and this
@@ -1672,6 +1763,11 @@ public final class AbyssWindow
         //to the bottom of it while the composed world shifts down with them.
         player.teleport(transition);
 
+        //When the position packet went out, so the acknowledgement can report how long the client took to accept it.
+        //That interval is the window during which `handleMovePlayer` ignores movement - the one part of a crossing
+        //that latency adds to, as opposed to server work the crossing line already measures.
+        seamSentAt.put(player, System.nanoTime());
+
         //The connection's own idea of where the player is has to follow the move. `teleport` resets it for both
         //branches, but it is the reference the client's acknowledgement and its next move packet are measured
         //against, so it is stated here too rather than relied upon.
@@ -2009,7 +2105,55 @@ public final class AbyssWindow
         player.connection.chunkSender.sendNextChunks(player);
     }
 
-    /** Sends the player's own position again so the client picks up the new offset. */
+    /**
+     * Whether this player's chunk coordinates are the server's.
+     *
+     * <p>The suppression and the discard below both assume that a column keeps its identity across a crossing, so
+     * what the client holds is what the server has. That is true of the abyss's own window - which composes bands
+     * into one level - and false of a shuffle, where the mapping is rebuilt on every teleport and the client's
+     * existing columns are then at coordinates the server no longer uses. In that case vanilla's forget packets are
+     * the only thing that removes them, so they are left alone.
+     */
+    public static boolean chunksUnmapped(ServerPlayer player)
+    {
+        VecTransformer transformer = VecTransformer.peekInstance(player);
+        return transformer == null || transformer.getRemap().isIdentity();
+    }
+
+    /** The columns queued and not yet sent, so a re-mark can be told from a first mark. */
+    private static LongSet pendingSnapshot(ServerPlayer player)
+    {
+        if (player.connection == null || !chunksUnmapped(player)) return null;
+        return new LongOpenHashSet(player.connection.chunkSender.pendingChunks);
+    }
+
+    /**
+     * Drops the columns vanilla re-marked when the player was re-added to the level, keeping the ones that were
+     * already queued before the crossing.
+     *
+     * <p>On a crossing that does not change the composition, vanilla forgets the whole view and then queues the
+     * whole view again - because re-adding a player to a level's chunk map resets the tracking view to empty and
+     * diffs it back. Both halves are wasted there: the columns are the same columns, and their composed content is
+     * unchanged. The forgotten half is cancelled in the outbound hook; this is the other half.
+     *
+     * <p>Only what vanilla added is removed. Anything already pending in {@code queuedBefore} was queued before the
+     * crossing and has not been sent yet - the client genuinely lacks it - so it stays queued and is still sent.
+     */
+    private static void discardRemarked(ServerPlayer player, LongSet queuedBefore)
+    {
+        if (player.connection == null || queuedBefore == null) return;
+        LongSet pending = player.connection.chunkSender.pendingChunks;
+        List<Long> redundant = new ArrayList<>();
+        player.getChunkTrackingView().forEach(pos ->
+        {
+            long packed = ChunkPos.pack(pos.x(), pos.z());
+            if (!queuedBefore.contains(packed)) redundant.add(packed);
+        });
+        for (long packed : redundant) pending.remove(packed);
+    }
+
+    /**
+     * Sends the player's own position again so the client picks up the new offset. */
     private static void resyncPosition(ServerPlayer player)
     {
         if (player.connection == null) return;

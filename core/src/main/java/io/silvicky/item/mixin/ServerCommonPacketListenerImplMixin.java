@@ -109,6 +109,48 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
         //click while an upward one survived.
         if (AbyssWindow.isTranslated()) return;
 
+        //Only for a crossing that leaves the composition unchanged, which is where nothing at all has to be sent:
+        //the columns are the same columns, their content is identical, and the client already holds every one of them.
+        //
+        //On a crossing that *does* change the composition, only the nine columns around the player are kept: those
+        //were re-sent with the new composition before this teleport, and a forget arriving after them would delete the
+        //ground the player is standing on - which is what a falling player dropped through, and the bounce was the
+        //server correcting it. The rest of the view keeps vanilla's forget, because it is re-sent over the following
+        //second and the old composition is worse than nothing there.
+        if (packet instanceof ClientboundForgetLevelChunkPacket forget && AbyssWindow.chunksUnmapped(player))
+        {
+            if (AbyssWindow.isViewKeepingSeam(player))
+            {
+                ci.cancel();
+                return;
+            }
+            if (AbyssWindow.isSeamTeleport(player) && AbyssWindow.isNearSeamColumn(player, forget.pos()))
+            {
+                ci.cancel();
+                return;
+            }
+        }
+
+        //What a crossing actually puts on the wire, so the crossing's own line can say where the rest of a hitch is.
+        //The mod's replacements are excluded above (they are the same packets, counted once); this counts the rest.
+        if (AbyssWindow.isSeamTeleport(player))
+        {
+            if (packet instanceof ClientboundLevelChunkWithLightPacket)
+                AbyssWindow.noteSeamTraffic(player, AbyssWindow.KIND_CHUNK, 1);
+            else if (packet instanceof ClientboundRemoveEntitiesPacket removed)
+                AbyssWindow.noteSeamTraffic(player, AbyssWindow.KIND_ENTITY_REMOVE, removed.entityIds().size());
+            else if (packet instanceof ClientboundAddEntityPacket)
+                AbyssWindow.noteSeamTraffic(player, AbyssWindow.KIND_ENTITY_ADD, 1);
+            else if (packet instanceof ClientboundBundlePacket bundle)
+                for (Packet<? super ClientGamePacketListener> sub : bundle.subPackets())
+                {
+                    if (sub instanceof ClientboundAddEntityPacket)
+                        AbyssWindow.noteSeamTraffic(player, AbyssWindow.KIND_ENTITY_ADD, 1);
+                    else if (sub instanceof ClientboundRemoveEntitiesPacket removed)
+                        AbyssWindow.noteSeamTraffic(player, AbyssWindow.KIND_ENTITY_REMOVE, removed.entityIds().size());
+                }
+        }
+
         if (AbyssWindow.handles(player))
         {
             if (packet instanceof ClientboundLevelChunkWithLightPacket chunkPacket)
