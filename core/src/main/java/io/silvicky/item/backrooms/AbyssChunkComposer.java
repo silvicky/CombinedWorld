@@ -79,7 +79,7 @@ public final class AbyssChunkComposer
         MinecraftServer server = player.level().getServer();
         if (server == null) return null;
 
-        LevelChunkSection[] sections = new LevelChunkSection[AbyssWindow.WINDOW_SECTIONS];
+        LevelChunkSection[] sections = new LevelChunkSection[window.geometry().windowSections()];
         LevelChunkSection air = new LevelChunkSection(((ServerLevel) player.level()).palettedContainerFactory());
         for (int i = 0; i < sections.length; i++) sections[i] = air;
 
@@ -101,11 +101,11 @@ public final class AbyssChunkComposer
             }
             LevelChunkSection[] source = chunk.getSections();
             int from = band.sourceY() / 16;
-            for (int i = 0; i < AbyssWindow.SECTIONS_PER_BAND; i++)
+            for (int i = 0; i < window.geometry().sectionsPerBand(); i++)
             {
                 int index = from + i;
                 if (index < 0 || index >= source.length) break;
-                sections[slot * AbyssWindow.SECTIONS_PER_BAND + i] = source[index];
+                sections[slot * window.geometry().sectionsPerBand() + i] = source[index];
             }
             //TODO block entities: chunk.getBlockEntities() would go into the list below, with y shifted into
             //the slot and by sourceY. BlockEntityInfo is package-private with a private constructor, so this
@@ -114,7 +114,7 @@ public final class AbyssChunkComposer
         if (missing) AbyssWindow.markIncomplete(player, pos);
 
         byte[] body = encodeSections(sections);
-        ClientboundLevelChunkPacketData data = chunkData(heightmaps(sections), body);
+        ClientboundLevelChunkPacketData data = chunkData(heightmaps(sections, window.geometry()), body);
         return new ClientboundLevelChunkWithLightPacket(pos.x(), pos.z(), data, light(server, window, pos));
     }
 
@@ -148,9 +148,9 @@ public final class AbyssChunkComposer
      * subtraction cancels against a section index that is also window-relative, and the value is correct for
      * any {@code min_y} the window uses.
      */
-    private static Map<Heightmap.Types, long[]> heightmaps(LevelChunkSection[] sections)
+    private static Map<Heightmap.Types, long[]> heightmaps(LevelChunkSection[] sections, AbyssGeometry geometry)
     {
-        int bits = Mth.ceillog2(AbyssWindow.WINDOW_HEIGHT + 1);
+        int bits = Mth.ceillog2(geometry.windowHeight() + 1);
         Map<Heightmap.Types, long[]> result = new EnumMap<>(Heightmap.Types.class);
         for (Heightmap.Types type : Heightmap.Types.values())
         {
@@ -208,9 +208,9 @@ public final class AbyssChunkComposer
             if (band == null) continue;
             ServerLevel level = server.getLevel(band.level());
             if (level == null) continue;
-            int base = slot * AbyssWindow.SECTIONS_PER_BAND;
+            int base = slot * window.geometry().sectionsPerBand();
             int from = band.sourceY() / 16;
-            for (int local = 0; local < AbyssWindow.SECTIONS_PER_BAND; local++)
+            for (int local = 0; local < window.geometry().sectionsPerBand(); local++)
             {
                 //+1 because light index 0 is the section below the level's minimum Y.
                 int index = base + local + 1;

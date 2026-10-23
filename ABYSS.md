@@ -47,11 +47,14 @@ a user-chosen order, and a cyclic pattern with no end.
 The client's Y is the window's Y:
 
 ```
-clientY = serverY + WINDOW_MIN_Y + slot * BAND_HEIGHT - sourceY(band)
+clientY = serverY + geometry.minY + slot * geometry.bandHeight - sourceY(band)
 slot    = position - windowStart
 ```
 
-with, today, `WINDOW_MIN_Y = 0`, `BAND_HEIGHT = 64`, `WINDOW_LAYERS = 3`, `WINDOW_HEIGHT = 192`.
+where the geometry is the **pattern's**: `WINDOW_LAYERS = 3` is the only constant left, and a band's height, the
+window's height (`bandHeight * 3`) and the window's `min_y` all come from it. The demo patterns use 64, giving
+`minY = 0` and a 192-tall window — the values every earlier build hard-coded — while a 1024-tall abyss gives
+`minY = -1040` and a 3072-tall window.
 
 Worked example, `abyss:stack`, player standing on layer 1's floor:
 
@@ -109,8 +112,10 @@ different bands. It must be a multiple of 16: a band is a whole number of sectio
 
 `AbyssPattern`'s constructor rejects:
 
-- `bandHeight` ≠ `WINDOW_HEIGHT / WINDOW_LAYERS`. One window dimension type means exactly one band height; a
-  pattern with another value would produce chunks that cannot fit the client's section count.
+- `bandHeight` that is not a positive multiple of 16, is below 32, or whose window would fall outside
+  `DimensionType`'s range. Band height is **per pattern** (`AbyssGeometry`): the window's height is three bands, and
+  it is placed as high as the limit allows, so 64 gives the familiar 0..192 and 1024 gives -1040..2032. A height
+  above 1344 cannot fit three bands between -2032 and 2032 and is rejected with that number in the message.
 - a `sourceY` that is not a multiple of 16;
 - an empty band list.
 
@@ -156,11 +161,11 @@ already current, so nothing can cross a window change carrying the old one.
 
 ### 5.3 Crossing (the only thing that changes composition)
 
-`travel` runs when the player's local Y leaves `[0, BAND_HEIGHT)`:
+`travel` runs when the player's local Y leaves `[0, bandHeight)`, the band height being the pattern's:
 
 ```
 local      = serverY - sourceY(band)
-serverY'   = local ± BAND_HEIGHT + sourceY(target)
+serverY'   = local ± bandHeight + sourceY(target)
 ```
 
 The transition, in order:
@@ -206,7 +211,7 @@ the client uses its own `ClientLevel` section count. So:
 
 ### 6.2 Heightmaps
 
-Recomputed from the composed sections at `ceillog2(WINDOW_HEIGHT + 1)` bits. They cannot be copied from a band:
+Recomputed from the composed sections at `ceillog2(windowHeight + 1)` bits. They cannot be copied from a band:
 the bit width depends on the height, and a band's array is packed for its own height. Air sections are skipped
 whole, which is what keeps this cheap.
 
@@ -311,7 +316,8 @@ local client does not run the same path, which is why it only shows up over a re
 
 ## 9. The demos
 
-All three are registered in code and written to `config/AbyssPatterns.json` on first start.
+Six are registered in code and written to `config/AbyssPatterns.json` on first start: the three below at 64, and
+the same three shapes at 1024 (§9.4).
 
 ### 9.1 `abyss:stack` — five layers, acyclic
 
@@ -328,8 +334,8 @@ Closed floors and ceilings: the stack has a bottom (layer 0) and a top (layer 4)
 Separate levels from the stack, because the wrap is built into the geometry:
 
 - layer 4 (`wrapOpen`) replaces part of its ceiling with a **slatted landing** — slabs on a checkerboard at
-  `BAND_HEIGHT - 4`. It catches a player arriving from below, and the gaps let a falling player keep going, so
-  the wrap is not a one-way valve.
+  `bandHeight - 4` (the demo's 60). It catches a player arriving from below, and the gaps let a falling player keep
+  going, so the wrap is not a one-way valve.
 - layer 0 already has its floor shaft and a solid ceiling, which is correct: you arrive at the *bottom* of layer 4
   from the *top* of layer 0, and leave the wrap by dropping back down the same shaft.
 
@@ -338,11 +344,32 @@ Separate levels from the stack, because the wrap is built into the geometry:
 `backrooms:level922`, a single band, cyclic. This is the cheapest possible configuration: all three slots show
 the same level, so the composition is band-invariant and **a crossing re-sends nothing at all**.
 
-`SpiralRule` builds a helix with two turns per band and 32 blocks of rise per turn, so every column carries a
-step at `h` and one at `h + 32`, and the whole column repeats every 64 blocks. Steps alternate bottom slab
-(`y`, surface `y + 0.5`) and full block (`y`, surface `y + 1.0`) — a 0.5 rise per step, which the player
+`SpiralRule` builds a helix with two turns per band and half a band of rise per turn, so every column carries a
+step at `h` and one at `h + bandHeight/2`, and the whole column repeats every band height. Steps alternate bottom
+slab (`y`, surface `y + 0.5`) and full block (`y`, surface `y + 1.0`) — a 0.5 rise per step, which the player
 auto-steps. Solid wall at radius 11 with a lantern every quarter turn; open well at radius ≤ 2 so a player can
 drop through; slatted landings at both ends of the wrap arc.
+
+### 9.4 The 1024 derivatives
+
+Each demo shape also exists at a 1024 band height, reading from its own levels:
+
+| Pattern | Levels | Band height | Window |
+|---|---|---|---|
+| `abyss:stack_1024` | `abyss1024:layer0..4` | 1024 | 3072, `min_y -1040` |
+| `abyss:cycle_1024` | `abyss_cycle1024:layer0..4` | 1024 | 3072, `min_y -1040` |
+| `backrooms:spiral_1024` | `backrooms:level922_1024` | 1024 | 3072, `min_y -1040` |
+
+The levels are staged by the same `AbyssWorlds` provider, using `silvicky:abyss_layer_1024`, and generated by the
+same rules — `AbyssLayerRule` and `SpiralRule` take their height as a constructor argument and are otherwise
+unchanged. The spiral's period is the band height, so the 1024 one is the same shape with sixteen times as many
+steps rather than a stretched ramp.
+
+1024 is not arbitrary: three 1024-blocks bands are 3072 tall, which does not fit above 0, so the window sits at
+`min_y -1040` with its top exactly at the 2032 limit. The largest band height that fits at all is 1344.
+
+The 64 demos keep the levels they always had, so an existing world gains only the new levels and nothing about the
+old ones moves.
 
 ## 10. Configuration
 
@@ -375,7 +402,15 @@ drop through; slatted landings at both ends of the wrap arc.
   `abyss:window`.
 - `name` is the key `AbyssPatterns.forLevel` searches by; the first registered pattern containing the player's
   level wins, so order is meaningful.
-- A malformed file is logged and ignored; the built-in patterns stay registered.
+- `band_height` is this pattern's band height, and it is genuinely per pattern: a world may hold a 64-tall spiral
+  and a 1024-tall abyss at once. It must be a positive multiple of 16 and at least 32, and its window — three bands —
+  must fit inside `DimensionType`'s `-2032..2032`, so the tallest usable band is 1344. `AbyssGeometry` derives the
+  window height and its `min_y` from it, and picks the dimension type the client is told: `silvicky:abyss_window` for
+  64, `silvicky:abyss_window_<height>` otherwise, which must exist as a `dimension_type` in a data pack (both
+  `abyss_window_1024.json` and `abyss_layer_1024.json` ship with the addon). The **levels themselves** must be at
+  least this tall — a pattern cannot take a 1024-band from a 64-tall level.
+- A malformed file is logged and ignored; the built-in patterns stay registered. That includes one pattern with a bad
+  `band_height`: the whole array is dropped, not just that entry, so a height typo costs every custom pattern.
 - `source_y` defaults to 0 if omitted.
 
 ## 11. Levels
@@ -396,18 +431,21 @@ Both are ceilinged, skylight-less, `ambient_light 0.1` with the nether's visual 
 
 **Hard constraints**
 
-- **One band height per world.** The client's level shape comes from a single dimension type at login. A different
-  `band_height` needs a different `silvicky:abyss_window*` type plus a way to pick it — the pattern already
-  carries the value, nothing else does.
+- **One band height per *pattern*, not per world.** The client's level shape comes from one dimension type, so a
+  pattern of height *h* is announced with `silvicky:abyss_window` (h = 64) or `silvicky:abyss_window_<h>`, and that
+  type must exist in a data pack. `abyss_window_1024.json` ships for the 1024 case; any other height needs its own
+  file, with `height = 3h` and `min_y` derived as `AbyssGeometry` derives it. The window *key* is separate and still
+  per pattern (`window_dimension`).
 - **`sourceY` in sections.** Mid-section slices would have to be reconstructed block by block.
-- **2 MiB per chunk.** `ClientboundLevelChunkPacketData`'s buffer is capped; a 12-section window is far below it,
-  a 192-section one was uncomfortably close.
+- **2 MiB per chunk.** `ClientboundLevelChunkPacketData`'s buffer is capped; a 12-section window (64-tall bands) is
+  far below it, while a 192-section one (1024-tall bands) was measured as uncomfortable. A 1024 band is fine for the
+  palette-heavy demo layers; a block-diverse level at that height should be checked before it is depended on.
 
 **Known gaps**
 
-- **Upward crossing threshold.** `travel` fires on `local >= BAND_HEIGHT`. A 64-tall level caps block placement at
-  y 63, so this triggers only when the player's feet reach y ≥ 64 — which happens when they stand on the highest
-  block (e.g. on top of a closed layer's ceiling). Walking up a ramp inside a band never crosses. Making it a
+- **Upward crossing threshold.** `travel` fires on `local >= bandHeight`. A band level's height caps block placement
+  at its top, so this triggers only when the player's feet reach one past it — which happens when they stand on the
+  highest block (e.g. on top of a closed layer's ceiling). Walking up a ramp inside a band never crosses. Making it a
   real "top of band" threshold, with a matching `targetY` that lands on the next band's floor, is a design
   decision that has not been made.
 - **Block entities** are not composed. `BlockEntityInfo` is package-private with a private constructor; the demo

@@ -263,7 +263,8 @@ public class ServerPlayerGameModeMixin
             //`clicked.relative(direction)` inside that level, which is one block too high: a click on the lower
             //band's ceiling at y=63 asks for y=64, and in the upper band that is y=0, not y=1.
             int targetY = pos.getY() + face.getStepY()
-                          - hereBand.sourceY() - step * AbyssWindow.BAND_HEIGHT + thereBand.sourceY();
+                          - hereBand.sourceY() - step * AbyssWindow.geometry(usingPlayer).bandHeight()
+                          + thereBand.sourceY();
             BlockPos landing = new BlockPos(pos.getX(), targetY, pos.getZ());
 
             BlockHitResult reHit = new BlockHitResult(Vec3.atCenterOf(landing), face, landing, false);

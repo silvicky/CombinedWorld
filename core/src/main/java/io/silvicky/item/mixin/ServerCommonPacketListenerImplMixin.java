@@ -99,10 +99,10 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
         VecTransformer vecTransformer=VecTransformer.getInstance(player);
 
         //==============================================================================================
-        //Abyss window demo. The client is told this dimension is AbyssWindow.WINDOW_HEIGHT tall, while the
-        //player physically stands in one AbyssWindow.LAYER_HEIGHT layer, so the two coordinate systems differ
-        //by a whole number of layers. Everything here is per player (the window is per player) and therefore
-        //has to run before the shared `modified` cache below.
+        //Abyss window demo. The client is told this dimension is three bands tall, while the player physically
+        //stands in one band, so the two coordinate systems differ by a whole number of bands. The band height is the
+        //pattern's (see AbyssGeometry), so nothing here assumes one. Everything here is per player (the window is per
+        //player) and therefore has to run before the shared `modified` cache below.
         //==============================================================================================
         //A packet this mod built already holds client coordinates. Converting it again is not idempotent, and
         //doing so moved a block update into the wrong band - the reason a downward break looked like a dead
@@ -253,7 +253,8 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
                     try
                     {
                         Packet<?> translated = item_storage$entityRemapper
-                                .translate(sub, vecTransformer, bundlePlayer.level(), bundleOffset, bundleSource);
+                                .translate(sub, vecTransformer, bundlePlayer.level(), bundleOffset, bundleSource,
+                                        AbyssWindow.geometry(bundlePlayer).bandHeight());
                         if (translated == null)
                         {
                             //Debug, not info: an entity parked outside its band's slice drops one packet per
@@ -262,7 +263,7 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
                             if (LOGGER.isDebugEnabled())
                                 LOGGER.debug("[abyss] dropped bundled entity packet {} for {} at {} (band slice {}..{})",
                                         sub.type(), bundlePlayer.getGameProfile().name(), before,
-                                        bundleSource, bundleSource + AbyssWindow.BAND_HEIGHT);
+                                        bundleSource, bundleSource + AbyssWindow.geometry(bundlePlayer).bandHeight());
                             //Tell the presence table, or nothing ever brings this entity back when it descends
                             //into the band: vanilla sends a spawn once and does not know it was discarded.
                             if (sub instanceof ClientboundAddEntityPacket droppedAdd)
@@ -362,7 +363,8 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
                                              .translate(packet,vecTransformer,
                                                         entityPlayer.level(),
                                                         yOffset,
-                                                        sourceY);
+                                                        sourceY,
+                                                        AbyssWindow.geometry(entityPlayer).bandHeight());
                 if(translated==null)
                 {
                     //Its page is not in this player's map, or its height is outside every band, so there is
@@ -373,7 +375,7 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
                     if (LOGGER.isDebugEnabled())
                         LOGGER.debug("[abyss] dropped entity packet {} for {} at {} (band slice {}..{})",
                                 packet.type(), entityPlayer.getGameProfile().name(), before,
-                                sourceY, sourceY + AbyssWindow.BAND_HEIGHT);
+                                sourceY, sourceY + AbyssWindow.geometry(entityPlayer).bandHeight());
                     //A dropped spawn means the client has nothing, and nothing will send it again; a dropped move
                     //means the client is holding it at a stale height. Both are reconciled once per tick by
                     //AbyssEntityCopies, which needs to know which case this was.
@@ -782,7 +784,7 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
                 //layer-section indices and have to be moved up into the band the layer occupies.
                 ClientboundLightUpdatePacketData lightData = lightUpdateS2CPacket.lightData();
                 if (AbyssWindow.handles(player))
-                    lightData = AbyssChunkComposer.shift(lightData, AbyssWindow.slot(player) * AbyssWindow.SECTIONS_PER_BAND);
+                    lightData = AbyssChunkComposer.shift(lightData, AbyssWindow.slot(player) * AbyssWindow.geometry(player).sectionsPerBand());
                 if (!chunkPos.equals(converted) || lightData != lightUpdateS2CPacket.lightData())
                 {
                     //Rebuild with converted chunk position, preserving lightData
@@ -1035,11 +1037,14 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
     @Unique
     private static @Nullable CommonPlayerSpawnInfo abyssSpawnInfo(CommonPlayerSpawnInfo info, ServerPlayer player)
     {
-        if (AbyssPatterns.forLevel(info.dimension()) == null) return null;
+        AbyssPattern pattern = AbyssPatterns.forLevel(info.dimension());
+        if (pattern == null) return null;
         try
         {
             var types=player.level().getServer().registryAccess().lookupOrThrow(Registries.DIMENSION_TYPE);
-            var window=types.getOrThrow(ResourceKey.create(Registries.DIMENSION_TYPE,AbyssWindow.WINDOW_TYPE));
+            //The type follows the pattern's band height, not a world-wide constant: the client builds its section
+            //array and light range from this, so a 1024-tall band has to be announced with a 3072-tall window type.
+            var window=types.getOrThrow(ResourceKey.create(Registries.DIMENSION_TYPE,pattern.geometry().windowType()));
             //The key comes from the pattern that owns this level, so two patterns can present different names.
             return new CommonPlayerSpawnInfo(window,AbyssWindow.windowKey(info.dimension()),info.seed(),info.gameType(),
                     info.previousGameType(),info.isDebug(),info.isFlat(),info.lastDeathLocation(),
@@ -1047,7 +1052,8 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
         }
         catch (Exception e)
         {
-            LOGGER.warn("[abyss] window dimension type is missing; the client will be told the layer height",e);
+            LOGGER.warn("[abyss] window dimension type is missing for a {} band; the client will be told the layer height",
+                    pattern.geometry().bandHeight(), e);
             return null;
         }
     }

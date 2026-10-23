@@ -15,9 +15,9 @@ import org.jspecify.annotations.NonNull;
  *
  * <h2>The construction</h2>
  *
- * <p>A helix around a central core, with <b>two turns per band</b> and a rise of 32 blocks per turn. Because a
+ * <p>A helix around a central core, with <b>two turns per band</b> and a rise of half the band per turn. Because a
  * column belongs to one angle, the two turns mean each column carries two steps: one at {@code h} and one at
- * {@code h + 32}. Both are inside the 64-block band, and the whole column repeats every 64 blocks - which is
+ * {@code h + height / 2}. Both are inside the band, and the whole column repeats every band height - which is
  * exactly the property the cyclic pattern needs.
  *
  * <p>The rise is 0.5 blocks per step, so the walkway is built from bottom slabs and full blocks alternately:
@@ -25,18 +25,18 @@ import org.jspecify.annotations.NonNull;
  * jumping.
  *
  * <pre>
- *   k (0..63, 64 steps per turn)   y = k / 2
+ *   k (0..height-1, height steps per turn)   y = k / 2
  *     k even -> bottom slab at y     (surface y + 0.5)
  *     k odd  -> full block at y      (surface y + 1.0)
  * </pre>
  *
  * <h2>Why the seam works</h2>
  *
- * <p>A player climbing reaches the top of the band at local y = 64 and is teleported to local y = 0 of the next
+ * <p>A player climbing reaches the top of the band at local y = height and is teleported to local y = 0 of the next
  * band, at the same column. That lands them on the {@code k = 0} step, which is where the climb continues,
  * because the helix's crossing at that column really is at y = 0. The same is true downwards: stepping below
- * y = 0 lands on the {@code k = 63} step at y = 63.6 in the band below. Neither direction needs a special
- * landing - the periodicity of the geometry is what makes the teleport land on solid ground.
+ * y = 0 lands on the {@code k = steps - 1} step just under the top of the band below. Neither direction needs a
+ * special landing - the periodicity of the geometry is what makes the teleport land on solid ground.
  *
  * <h2>Shape</h2>
  *
@@ -49,16 +49,43 @@ public class SpiralRule implements CustomRule
     private static final int CORE_RADIUS = 2;
     private static final int WALKWAY_OUTER = 10;
     private static final int WALL_RADIUS = 11;
-    /** Steps per turn. One turn rises 32 blocks, and 0.5 per step. */
-    private static final int STEPS = 64;
+
+    /**
+     * The height this spiral is generated at, which is the band height of the pattern that reads from it.
+     *
+     * <p>The helix has to be periodic with period = band height, and a step must rise half a block, so the number of
+     * steps per turn is the height itself: {@code STEPS = height} steps of 0.5 gives a rise of {@code height / 2} per
+     * turn, and two turns fill the band. A 1024-tall spiral is therefore the same shape with sixteen times as many
+     * steps, not a stretched one.
+     */
+    private final int height;
+    /** Steps per turn. One turn rises {@code height / 2}. */
+    private final int steps;
     /** Blocks risen per turn. */
-    private static final int RISE = AbyssWindow.BAND_HEIGHT / 2;
+    private final int rise;
 
     private static final BlockState CORE = Blocks.POLISHED_DEEPSLATE.defaultBlockState();
     private static final BlockState STEP_SOLID = Blocks.DEEPSLATE_TILES.defaultBlockState();
     private static final BlockState STEP_SLAB = Blocks.DEEPSLATE_TILE_SLAB.defaultBlockState();
     private static final BlockState WALL = Blocks.DEEPSLATE_BRICKS.defaultBlockState();
     private static final BlockState LIGHT = Blocks.SEA_LANTERN.defaultBlockState();
+
+    private final String name;
+
+    public SpiralRule()
+    {
+        this("abyss_spiral", AbyssWorlds.DEMO_BAND_HEIGHT);
+    }
+
+    public SpiralRule(String name, int height)
+    {
+        if (height < 16 || height % 2 != 0)
+            throw new IllegalArgumentException(name + ": height " + height + " cannot be split into two turns");
+        this.name = name;
+        this.height = height;
+        this.rise = height / 2;
+        this.steps = height;
+    }
 
     @Override
     public void gen(@NonNull ChunkAccess chunk, @NonNull RandomState randomState)
@@ -93,14 +120,14 @@ public class SpiralRule implements CustomRule
                 //Angle in [0, 2pi). atan2 returns (-pi, pi], so shift and wrap.
                 double angle = Math.atan2(z, x);
                 if (angle < 0) angle += Math.PI * 2;
-                int k = (int) Math.floor(angle / (Math.PI * 2) * STEPS);
-                if (k >= STEPS) k = STEPS - 1;
+                int k = (int) Math.floor(angle / (Math.PI * 2) * steps);
+                if (k >= steps) k = steps - 1;
 
                 int y = k / 2;
                 boolean solid = (k & 1) == 1;
                 //Two turns per band: the second is one half-band higher.
                 step(chunk, pos, lx, lz, y, solid);
-                step(chunk, pos, lx, lz, y + RISE, solid);
+                step(chunk, pos, lx, lz, y + rise, solid);
 
                 //Landings at both ends of the wrap arc. A helix cannot have a floor at the top and the bottom
                 //of the *same* column, and the seam teleport keeps x/z, so the arc where the ramp wraps is the
@@ -113,9 +140,9 @@ public class SpiralRule implements CustomRule
                 }
 
                 //A lantern on the wall every quarter turn, at the height of the step beside it.
-                if (radius >= WALL_RADIUS - 1 && radius < WALL_RADIUS && k % (STEPS / 4) == 0)
+                if (radius >= WALL_RADIUS - 1 && radius < WALL_RADIUS && k % (steps / 4) == 0)
                 {
-                    int ly = y + RISE + 1;
+                    int ly = y + rise + 1;
                     if (ly < height) chunk.setBlockState(pos.getBlockAt(lx, ly, lz), LIGHT);
                 }
             }
@@ -123,9 +150,9 @@ public class SpiralRule implements CustomRule
     }
 
     /** The few steps where the ramp wraps from the top of the band to the bottom, where the seam lands. */
-    private static boolean isWrapArc(int k)
+    private boolean isWrapArc(int k)
     {
-        return k >= STEPS - 2 || k <= 1;
+        return k >= steps - 2 || k <= 1;
     }
 
     private static void step(ChunkAccess chunk, ChunkPos pos, int lx, int lz, int y, boolean solid)
@@ -137,6 +164,6 @@ public class SpiralRule implements CustomRule
     @Override
     public String name()
     {
-        return "abyss_spiral";
+        return name;
     }
 }

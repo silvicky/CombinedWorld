@@ -4,6 +4,7 @@ import io.silvicky.item.backrooms.AbyssWindow;
 import io.silvicky.item.worldgen.WorldGens;
 import io.silvicky.item_br.worldgen.abyss.AbyssDecayRule;
 import io.silvicky.item_br.worldgen.abyss.AbyssLayerRule;
+import io.silvicky.item_br.worldgen.abyss.AbyssWorlds;
 import io.silvicky.item_br.worldgen.abyss.SpiralRule;
 import io.silvicky.item_br.worldgen.road2.Road2CustomRule;
 
@@ -28,5 +29,14 @@ public class BackroomsWorldGens
         for (int i = 0; i < 5; i++)
             WorldGens.registerWorldGen(new AbyssLayerRule("abyss_cycle_layer_" + i, i, i == 4));
         WorldGens.registerWorldGen(new SpiralRule());
+
+        //The 1024-tall derivatives: the same three shapes at the height a real abyss wants. Separate rules rather
+        //than a parameter in the worldgen settings, because the height is fixed when the level is created.
+        int real = AbyssWorlds.REAL_BAND_HEIGHT;
+        for (int i = 0; i < 5; i++)
+            WorldGens.registerWorldGen(new AbyssLayerRule("abyss_layer_1024_" + i, i, false, real));
+        for (int i = 0; i < 5; i++)
+            WorldGens.registerWorldGen(new AbyssLayerRule("abyss_cycle_layer_1024_" + i, i, i == 4, real));
+        WorldGens.registerWorldGen(new SpiralRule("abyss_spiral_1024", real));
     }
 }

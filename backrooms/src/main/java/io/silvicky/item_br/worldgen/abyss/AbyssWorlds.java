@@ -50,8 +50,29 @@ import static io.silvicky.item.common.Util.LOGGER;
  */
 public final class AbyssWorlds implements StagedDimensions.Provider
 {
+    /**
+     * The height the demo levels are generated at, which is also the band height their patterns use.
+     *
+     * <p>It is a property of these levels - {@code silvicky:abyss_layer} is 64 tall - and no longer of the window,
+     * which takes its height from whichever pattern is in force. A world with a different band height needs levels of
+     * that height and a pattern that says so; this constant is only the demo's.
+     */
+    public static final int DEMO_BAND_HEIGHT = 64;
+
+    /**
+     * The height the 1024 derivatives are generated at.
+     *
+     * <p>Each demo pattern has a derivative at this height, reading from its own levels. The number is what a real
+     * abyss wants - a layer deep enough to fall through - and, at three bands, it is also close to the largest that
+     * fits: {@code AbyssGeometry.maxBandHeight()} is 1344, because a window may span -2032..2032.
+     */
+    public static final int REAL_BAND_HEIGHT = 1024;
+
     /** The 64-tall type every band uses. Registered by {@code data/silvicky/dimension_type/abyss_layer.json}. */
     private static final Identifier LAYER_TYPE = Identifier.parse("silvicky:abyss_layer");
+
+    /** The 1024-tall type the derivatives use; registered by {@code abyss_layer_1024.json}. */
+    private static final Identifier LAYER_TYPE_1024 = Identifier.parse("silvicky:abyss_layer_1024");
 
     /** The five-layer stack. */
     public static final String STACK = "abyss:stack";
@@ -60,27 +81,71 @@ public final class AbyssWorlds implements StagedDimensions.Provider
     /** The endless spiral. */
     public static final String SPIRAL = "backrooms:spiral";
 
+    /** The stack again, at {@link #REAL_BAND_HEIGHT}. */
+    public static final String STACK_1024 = "abyss:stack_1024";
+    /** The cycle again, at {@link #REAL_BAND_HEIGHT}. */
+    public static final String CYCLE_1024 = "abyss:cycle_1024";
+    /** The spiral again, at {@link #REAL_BAND_HEIGHT}. */
+    public static final String SPIRAL_1024 = "backrooms:spiral_1024";
+
+    /** The key the 1024 derivatives are announced with, so F3 does not show the 64 one for them. */
+    public static final Identifier WINDOW_DIMENSION_1024 = Identifier.parse("abyss:window_1024");
+    /** The cyclic 1024 stack's key. */
+    public static final Identifier WINDOW_DIMENSION_1024_CYCLE = Identifier.parse("abyss:cycling_1024");
+    /** The 1024 spiral's key. */
+    public static final Identifier WINDOW_DIMENSION_1024_SPIRAL = Identifier.parse("backrooms:level_922xxx_1024");
+
     /** The spiral's level. */
     public static final Identifier SPIRAL_LEVEL = Identifier.parse("backrooms:level922");
+    /** The 1024 spiral's level. */
+    public static final Identifier SPIRAL_LEVEL_1024 = Identifier.parse("backrooms:level922_1024");
+
+    /** Namespace of the 1024 stack's levels; the cycle's is this plus {@code _cycle} on each level name. */
+    public static final String STACK_1024_NAMESPACE = "abyss1024";
+    public static final String CYCLE_1024_NAMESPACE = "abyss_cycle1024";
 
     public AbyssWorlds() {}
 
     /** Registers the patterns. Called from the mod initialiser, before any world exists. */
     public static void registerPatterns()
     {
+        registerFamily(STACK, CYCLE, SPIRAL, DEMO_BAND_HEIGHT, "abyss", "abyss_cycle", SPIRAL_LEVEL,
+                AbyssPatterns.DEFAULT_WINDOW_DIMENSION,
+                Identifier.parse("abyss:cycling"),
+                Identifier.parse("backrooms:level_922xxx"));
+        //The same three shapes at 1024, reading from their own levels. A pattern's band height is part of its
+        //geometry, so these are genuinely different worlds rather than the demo stretched: see AbyssGeometry.
+        registerFamily(STACK_1024, CYCLE_1024, SPIRAL_1024, REAL_BAND_HEIGHT,
+                STACK_1024_NAMESPACE, CYCLE_1024_NAMESPACE, SPIRAL_LEVEL_1024,
+                WINDOW_DIMENSION_1024, WINDOW_DIMENSION_1024_CYCLE, WINDOW_DIMENSION_1024_SPIRAL);
+    }
+
+    /**
+     * The three demo shapes at one band height.
+     *
+     * @param stackNamespace namespace of the five stack levels; levels are {@code layer0..4} in it
+     * @param cycleNamespace the same for the cyclic five
+     * @param keys           the window key each of the three is announced with; one per pattern, because
+     *                       {@link AbyssPatterns#windowKeys()} emits one entry per pattern and two patterns sharing a
+     *                       key would put it in the login level list twice
+     */
+    private static void registerFamily(String stackName, String cycleName, String spiralName, int height,
+                                       String stackNamespace, String cycleNamespace, Identifier spiralLevel,
+                                       Identifier... keys)
+    {
         List<AbyssPattern.Band> stack = new ArrayList<>(AbyssWindow.WINDOW_LAYERS + 2);
         List<AbyssPattern.Band> cycle = new ArrayList<>(AbyssWindow.WINDOW_LAYERS + 2);
         for (int i = 0; i < 5; i++)
         {
-            stack.add(new AbyssPattern.Band(levelKey("abyss", "layer" + i), 0));
-            cycle.add(new AbyssPattern.Band(levelKey("abyss_cycle", "layer" + i), 0));
+            stack.add(new AbyssPattern.Band(levelKey(stackNamespace, "layer" + i), 0));
+            cycle.add(new AbyssPattern.Band(levelKey(cycleNamespace, "layer" + i), 0));
         }
-        AbyssPatterns.register(new AbyssPattern(STACK, AbyssWindow.BAND_HEIGHT, false, stack));
+        AbyssPatterns.register(new AbyssPattern(stackName, height, false, stack, keys[0]));
         //Same shape, cyclic: band 4 is followed by band 0 again, forever.
-        AbyssPatterns.register(new AbyssPattern(CYCLE, AbyssWindow.BAND_HEIGHT, true, cycle));
-
-        AbyssPatterns.register(new AbyssPattern(SPIRAL, AbyssWindow.BAND_HEIGHT, true,
-                List.of(new AbyssPattern.Band(levelKey(SPIRAL_LEVEL.getNamespace(), SPIRAL_LEVEL.getPath()), 0))));
+        AbyssPatterns.register(new AbyssPattern(cycleName, height, true, cycle, keys[1]));
+        AbyssPatterns.register(new AbyssPattern(spiralName, height, true,
+                List.of(new AbyssPattern.Band(levelKey(spiralLevel.getNamespace(), spiralLevel.getPath()), 0)),
+                keys[2]));
     }
 
     private static ResourceKey<net.minecraft.world.level.Level> levelKey(String namespace, String path)
@@ -91,8 +156,8 @@ public final class AbyssWorlds implements StagedDimensions.Provider
     @Override
     public void contribute(RegistryAccess access, Path levelPath, Map<ResourceKey<LevelStem>, LevelStem> dimensions)
     {
-        Holder<DimensionType> type;
         Holder<Biome> voidBiome;
+        Holder<DimensionType> type;
         try
         {
             type = access.lookupOrThrow(Registries.DIMENSION_TYPE)
@@ -114,7 +179,42 @@ public final class AbyssWorlds implements StagedDimensions.Provider
             added += add(dimensions, type, voidBiome, "abyss_cycle", "layer" + i, "abyss_cycle_layer_" + i);
         added += add(dimensions, type, voidBiome, SPIRAL_LEVEL.getNamespace(), SPIRAL_LEVEL.getPath(), "abyss_spiral");
 
+        added += contributeReal(access, dimensions, voidBiome);
+
         if (added > 0) LOGGER.info("[abyss] staged {} demo levels in {}; restart once to create them", added, levelPath);
+    }
+
+    /**
+     * The 1024-tall derivatives: the same three shapes, each reading from levels generated at that height.
+     *
+     * <p>Separate levels rather than a taller view of the 64 ones, because a band's geometry has to agree with the
+     * level it reads from - a 1024-band cannot take its slice from a 64-tall level. Missing the 1024 dimension type is
+     * not fatal: the 64 demos are staged anyway and the derivatives are simply absent, which is the same level of
+     * service a missing rule gets.
+     */
+    private static int contributeReal(RegistryAccess access,
+                                      Map<ResourceKey<LevelStem>, LevelStem> dimensions, Holder<Biome> biome)
+    {
+        Holder<DimensionType> type;
+        try
+        {
+            type = access.lookupOrThrow(Registries.DIMENSION_TYPE)
+                         .getOrThrow(ResourceKey.create(Registries.DIMENSION_TYPE, LAYER_TYPE_1024));
+        }
+        catch (Exception e)
+        {
+            LOGGER.error("[abyss] cannot resolve {}; the {} levels are skipped", LAYER_TYPE_1024, REAL_BAND_HEIGHT, e);
+            return 0;
+        }
+
+        int added = 0;
+        for (int i = 0; i < 5; i++)
+            added += add(dimensions, type, biome, STACK_1024_NAMESPACE, "layer" + i, "abyss_layer_1024_" + i);
+        for (int i = 0; i < 5; i++)
+            added += add(dimensions, type, biome, CYCLE_1024_NAMESPACE, "layer" + i, "abyss_cycle_layer_1024_" + i);
+        added += add(dimensions, type, biome, SPIRAL_LEVEL_1024.getNamespace(), SPIRAL_LEVEL_1024.getPath(),
+                "abyss_spiral_1024");
+        return added;
     }
 
     private static int add(Map<ResourceKey<LevelStem>, LevelStem> dimensions, Holder<DimensionType> type,

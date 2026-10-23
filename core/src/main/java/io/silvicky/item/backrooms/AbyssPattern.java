@@ -23,11 +23,11 @@ import java.util.List;
  *
  * <h2>What a pattern has to satisfy</h2>
  *
- * <p><b>{@code bandHeight} must be exactly one window band.</b> The client is told a dimension height once, at
- * login, and builds its section array, heightmaps and light range from it. One dimension type can therefore
- * serve exactly one band height, and that is {@link AbyssWindow#WINDOW_HEIGHT} / {@link AbyssWindow#WINDOW_LAYERS}.
- * A pattern with any other value is rejected at registration with a message saying so, rather than producing a
- * world whose chunks do not fit.
+ * <p><b>{@code bandHeight} is per pattern.</b> The client is told a dimension height once and builds its section
+ * array, heightmaps and light range from it, so one band height means one window dimension type: the pattern's
+ * {@link AbyssGeometry} says which, and two patterns in one save may use different heights. A height that is not a
+ * positive multiple of 16, or one whose window cannot fit under {@code DimensionType}'s limit, is rejected at
+ * registration with a message saying so, rather than producing a world whose chunks do not fit.
  *
  * <p><b>A cyclic pattern's geometry has to be periodic in Y with the same period.</b> Nothing enforces that -
  * the server will happily concatenate a level that does not repeat - but the seam then shows a visible break,
@@ -48,6 +48,7 @@ public final class AbyssPattern
 
     private final String name;
     private final int bandHeight;
+    private final AbyssGeometry geometry;
     private final boolean cyclic;
     private final List<Band> bands;
 
@@ -69,11 +70,16 @@ public final class AbyssPattern
     {
         if (name == null || name.isBlank()) throw new IllegalArgumentException("a pattern needs a name");
         if (bands.isEmpty()) throw new IllegalArgumentException(name + ": a pattern needs at least one band");
-        int expected = AbyssWindow.WINDOW_HEIGHT / AbyssWindow.WINDOW_LAYERS;
-        if (bandHeight != expected)
-            throw new IllegalArgumentException(name + ": band_height is " + bandHeight + ", but the window " +
-                                               "dimension type is " + AbyssWindow.WINDOW_HEIGHT + " tall over " +
-                                               AbyssWindow.WINDOW_LAYERS + " bands, so it must be " + expected);
+        //One geometry per pattern, so one band height per pattern rather than one per world. See AbyssGeometry for
+        //why that is a dimension type as well as a number.
+        try
+        {
+            this.geometry = AbyssGeometry.of(bandHeight);
+        }
+        catch (IllegalArgumentException e)
+        {
+            throw new IllegalArgumentException(name + ": " + e.getMessage());
+        }
         for (Band band : bands)
         {
             if (band.level() == null) throw new IllegalArgumentException(name + ": a band has no level");
@@ -86,6 +92,12 @@ public final class AbyssPattern
         this.bands = List.copyOf(bands);
         this.windowDimension = windowDimension == null
                 ? AbyssPatterns.DEFAULT_WINDOW_DIMENSION : windowDimension;
+    }
+
+    /** This pattern's vertical geometry: band height, window height and where the window starts. */
+    public AbyssGeometry geometry()
+    {
+        return geometry;
     }
 
     /** The dimension key the client is told it is in while this pattern is in force. */
@@ -122,7 +134,7 @@ public final class AbyssPattern
     /** Sections in one band. */
     public int sectionsPerBand()
     {
-        return bandHeight / 16;
+        return geometry.sectionsPerBand();
     }
 
     /**

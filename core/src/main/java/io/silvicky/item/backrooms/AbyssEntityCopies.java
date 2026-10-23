@@ -264,7 +264,7 @@ public final class AbyssEntityCopies
             //**Feet-based slice test, deliberately.** The outbound gate in EntityPositionRemapper.addY tests
             //`pos.y - sourceY`, and the set here has to describe exactly what that gate will let through - or this
             //would re-add an entity whose packets are still being dropped, and remove one that is being shown.
-            if (!AbyssWindow.inSlice(band, entity.getY())) continue;
+            if (!AbyssWindow.inSlice(AbyssWindow.geometry(player), band, entity.getY())) continue;
             now.add(entity.getId());
         }
 
@@ -451,7 +451,7 @@ public final class AbyssEntityCopies
         double viewDistance = viewRadius(player) * 16.0;
         Vec3 centre = player.position();
         AABB box = new AABB(centre.x - viewDistance, band.sourceY(), centre.z - viewDistance,
-                            centre.x + viewDistance, band.sourceY() + AbyssWindow.BAND_HEIGHT,
+                            centre.x + viewDistance, band.sourceY() + AbyssWindow.geometry(player).bandHeight(),
                             centre.z + viewDistance);
 
         return level.getEntities((Entity) null, box, entity ->
@@ -463,7 +463,7 @@ public final class AbyssEntityCopies
             if (entity.isRemoved()) return false;
             if (!entity.broadcastToPlayer(player)) return false;
             AABB bounds = entity.getBoundingBox();
-            if (!AbyssWindow.inSlice(band, bounds.minY, bounds.maxY)) return false;
+            if (!AbyssWindow.inSlice(AbyssWindow.geometry(player), band, bounds.minY, bounds.maxY)) return false;
 
             //Vanilla's own visibility test, in the frame it is meaningful in: chunk tracking plus the type's
             //tracking range. The X/Z distance only - the entity is a band away in Y by construction, and
@@ -496,7 +496,7 @@ public final class AbyssEntityCopies
         }
 
         Copy copy = new Copy(id, CopyIdentity.copyUuid(position, entity.getUUID()), position, entity);
-        int offset = AbyssWindow.slotOffsetY(slot, band);
+        int offset = AbyssWindow.slotOffsetY(AbyssWindow.geometry(player), slot, band);
         Vec3 server = entity.trackingPosition();
         Vec3 client = toClient(player, server, offset);
 
@@ -755,7 +755,7 @@ public final class AbyssEntityCopies
             LOGGER.debug("[abyss] death event sent for copy {} of {}", copy.id, describe(entity));
         }
 
-        int offset = AbyssWindow.slotOffsetY(slot, band);
+        int offset = AbyssWindow.slotOffsetY(AbyssWindow.geometry(player), slot, band);
         Vec3 server = entity.trackingPosition();
         Vec3 client = toClient(player, server, offset);
 

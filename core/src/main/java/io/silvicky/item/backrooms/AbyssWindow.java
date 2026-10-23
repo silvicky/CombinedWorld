@@ -71,18 +71,7 @@ import static io.silvicky.item.common.Util.LOGGER;
 public final class AbyssWindow
 {
     /** How many bands the client is shown at once. */
-    public static final int WINDOW_LAYERS = 3;
-    /** Height the client is told the dimension has: the only band height one dimension type can serve. */
-    public static final int WINDOW_HEIGHT = 192;
-    /** Height of one band, forced by the above. */
-    public static final int BAND_HEIGHT = WINDOW_HEIGHT / WINDOW_LAYERS;
-    /** Sections in one band. */
-    public static final int SECTIONS_PER_BAND = BAND_HEIGHT / 16;
-    /** Sections in the window. */
-    public static final int WINDOW_SECTIONS = WINDOW_HEIGHT / 16;
-
-    /** Lowest Y of the window. 0 because 192 fits inside {@code DimensionType}'s range with room to spare. */
-    public static final int WINDOW_MIN_Y = 0;
+    public static final int WINDOW_LAYERS = AbyssGeometry.LAYERS;
 
     /**
      * How close to a band's edge the player may get before the window slides, in blocks.
@@ -94,17 +83,18 @@ public final class AbyssWindow
     /**
      * How close to the top of a band the player may get before the upward crossing is attempted.
      *
-     * <p>Retained for the crossing threshold below; the sliding it used to name is gone. A band is
-     * {@link #BAND_HEIGHT} tall and the levels really are that tall, so a player's local Y never reaches the
-     * band height and the plain {@code local >= BAND_HEIGHT} test can never fire. This is the point where the
-     * next band up is entered instead.
+     * <p>Retained for the crossing threshold below; the sliding it used to name is gone. A band is one geometry's
+     * band height and the levels really are that tall, so a player's local Y never reaches the band height and the
+     * plain {@code local >= bandHeight} test can never fire. This is the point where the next band up is entered
+     * instead.
      */
     public static final int SLIDE_BUFFER = 4;
 
     /**
-     * The dimension type sent instead of the band's own, so the client builds a 192-tall level.
+     * The dimension type a 64-tall pattern is announced with, and the base name for the others.
      *
-     * <p>A datapack entry, so it is in the synced registry and resolvable by a vanilla client.
+     * <p>A datapack entry, so it is in the synced registry and resolvable by a vanilla client. A pattern of height
+     * {@code h} is announced with {@code abyss_window_h} - see {@link AbyssGeometry#windowType()}.
      */
     public static final Identifier WINDOW_TYPE = Identifier.parse("silvicky:abyss_window");
     /** The key the client is told it is in when a pattern does not name one. */
@@ -146,6 +136,12 @@ public final class AbyssWindow
         public AbyssPattern.Band band()
         {
             return pattern.band(position);
+        }
+
+        /** The vertical geometry this window is drawn with, from its pattern. */
+        public AbyssGeometry geometry()
+        {
+            return pattern.geometry();
         }
 
         public List<AbyssPattern.Band> bands()
@@ -312,12 +308,25 @@ public final class AbyssWindow
         return window == null ? null : window.band();
     }
 
+    /**
+     * The geometry this player's bands are drawn with.
+     *
+     * <p>Public so code outside this class can size a band's slice without asking the pattern itself. Never null: a
+     * player outside any window gets the default geometry, which is only used to answer a question the caller should
+     * already have skipped.
+     */
+    public static AbyssGeometry geometry(@Nullable ServerPlayer player)
+    {
+        Window window = window(player);
+        return window == null ? AbyssGeometry.DEFAULT : window.pattern().geometry();
+    }
+
     /** Client Y minus server Y for this player. Negative when the band sits below the window origin. */
     public static int bandOffset(@Nullable ServerPlayer player)
     {
         Window window = window(player);
         if (window == null || window.band() == null) return 0;
-        return WINDOW_MIN_Y + window.slot() * BAND_HEIGHT - window.band().sourceY();
+        return window.geometry().slotOffset(window.slot(), window.band().sourceY());
     }
 
     /**
@@ -377,7 +386,7 @@ public final class AbyssWindow
     private static int offsetOf(@Nullable Window window)
     {
         if (window == null || window.band() == null) return 0;
-        return WINDOW_MIN_Y + window.slot() * BAND_HEIGHT - window.band().sourceY();
+        return window.geometry().slotOffset(window.slot(), window.band().sourceY());
     }
 
     /**
@@ -432,13 +441,13 @@ public final class AbyssWindow
     {
         Window window = window(player);
         if (window == null) return new Resolution(clientY, -1);
-
+        AbyssGeometry geometry = window.geometry();
         for (int slot = 0; slot < WINDOW_LAYERS; slot++)
         {
             AbyssPattern.Band band = window.pattern().band(window.windowStart() + slot);
             if (band == null) continue;
-            double value = clientY - slotOffset(slot, band);
-            if (value >= band.sourceY() && value < band.sourceY() + BAND_HEIGHT)
+            double value = clientY - geometry.slotOffset(slot, band.sourceY());
+            if (value >= band.sourceY() && value < band.sourceY() + geometry.bandHeight())
                 return new Resolution(value, slot);
         }
         return new Resolution(clientY - bandOffset(player), -1);
@@ -476,9 +485,9 @@ public final class AbyssWindow
     }
 
     /** The offset of one slot: client Y minus server Y for a position in that slot's band. */
-    private static int slotOffset(int slot, AbyssPattern.Band band)
+    private static int slotOffset(AbyssGeometry geometry, int slot, AbyssPattern.Band band)
     {
-        return WINDOW_MIN_Y + slot * BAND_HEIGHT - band.sourceY();
+        return geometry.slotOffset(slot, band.sourceY());
     }
 
     /**
@@ -487,9 +496,9 @@ public final class AbyssWindow
      *
      * @param slot the slot the band is shown in, which is {@code position - windowStart}, not the player's own
      */
-    public static int slotOffsetY(int slot, AbyssPattern.Band band)
+    public static int slotOffsetY(AbyssGeometry geometry, int slot, AbyssPattern.Band band)
     {
-        return slotOffset(slot, band);
+        return slotOffset(geometry, slot, band);
     }
 
     /**
@@ -499,9 +508,9 @@ public final class AbyssWindow
      * entity belongs to a slice only if it stands inside it; an entity elsewhere in the same level is not
      * visible through this band at all.
      */
-    public static boolean inSlice(AbyssPattern.Band band, double serverY)
+    public static boolean inSlice(AbyssGeometry geometry, AbyssPattern.Band band, double serverY)
     {
-        return serverY >= band.sourceY() && serverY < band.sourceY() + BAND_HEIGHT;
+        return serverY >= band.sourceY() && serverY < band.sourceY() + geometry.bandHeight();
     }
 
     /**
@@ -511,9 +520,9 @@ public final class AbyssWindow
      * standing on the highest block of a band has its feet at {@code sourceY + BAND_HEIGHT}, one tenth of a block
      * outside the slice the feet test uses, and would be dropped from the band it is standing in.
      */
-    public static boolean inSlice(AbyssPattern.Band band, double minY, double maxY)
+    public static boolean inSlice(AbyssGeometry geometry, AbyssPattern.Band band, double minY, double maxY)
     {
-        return maxY > band.sourceY() && minY < band.sourceY() + BAND_HEIGHT;
+        return maxY > band.sourceY() && minY < band.sourceY() + geometry.bandHeight();
     }
 
     /**
@@ -531,6 +540,7 @@ public final class AbyssWindow
     {
         Window window = window(player);
         if (window == null) return serverY;
+        AbyssGeometry geometry = window.geometry();
         double eye = clientY(player);
         double best = serverY + bandOffset(player);
         double bestDistance = Math.abs(best - eye);
@@ -547,8 +557,8 @@ public final class AbyssWindow
             //A band whose slice does not contain the block has no image of it: with a single source level all
             //bands qualify, but a pattern taking slices from a taller level must not invent an image in a band
             //that shows a different part of it.
-            if (serverY < band.sourceY() || serverY >= band.sourceY() + BAND_HEIGHT) continue;
-            double image = serverY + slotOffset(slot, band);
+            if (serverY < band.sourceY() || serverY >= band.sourceY() + geometry.bandHeight()) continue;
+            double image = serverY + geometry.slotOffset(slot, band.sourceY());
             double distance = Math.abs(image - eye);
             if (distance < bestDistance)
             {
@@ -671,12 +681,13 @@ public final class AbyssWindow
         }
         ResourceKey<Level> level = player.level().dimension();
         double sample = serverSection.minBlockY();
+        AbyssGeometry geometry = window.geometry();
         for (int slot = 0; slot < WINDOW_LAYERS; slot++)
         {
             AbyssPattern.Band band = window.pattern().band(window.windowStart() + slot);
             if (band == null || !band.level().equals(level)) continue;
-            if (sample < band.sourceY() || sample >= band.sourceY() + BAND_HEIGHT) continue;
-            int shift = slotOffset(slot, band) / 16;
+            if (sample < band.sourceY() || sample >= band.sourceY() + geometry.bandHeight()) continue;
+            int shift = geometry.slotOffset(slot, band.sourceY()) / 16;
             out.add(SectionPos.of(serverSection.x(), serverSection.y() + shift, serverSection.z()));
         }
         if (out.isEmpty()) out.add(serverSection);
@@ -853,8 +864,8 @@ public final class AbyssWindow
         {
             AbyssPattern.Band band = window.pattern().band(window.windowStart() + slot);
             if (band == null || !band.level().equals(level)) continue;
-            if (serverY < band.sourceY() || serverY >= band.sourceY() + BAND_HEIGHT) continue;
-            out.add(serverY + slotOffset(slot, band));
+            if (serverY < band.sourceY() || serverY >= band.sourceY() + window.geometry().bandHeight()) continue;
+            out.add(serverY + window.geometry().slotOffset(slot, band.sourceY()));
         }
         //Not inside any band - the caller still needs somewhere to put it, and the player's own offset is the
         //least surprising answer.
@@ -907,13 +918,14 @@ public final class AbyssWindow
     {
         Window window = window(player);
         if (window == null) return 0;
+        AbyssGeometry geometry = window.geometry();
         for (int slot = 0; slot < WINDOW_LAYERS; slot++)
         {
             AbyssPattern.Band band = window.pattern().band(window.windowStart() + slot);
             if (band == null) continue;
-            double value = clientY - slotOffset(slot, band);
-            if (value >= band.sourceY() && value < band.sourceY() + BAND_HEIGHT)
-                return slotOffset(slot, band);
+            double value = clientY - geometry.slotOffset(slot, band.sourceY());
+            if (value >= band.sourceY() && value < band.sourceY() + geometry.bandHeight())
+                return geometry.slotOffset(slot, band.sourceY());
         }
         return bandOffset(player);
     }
@@ -1220,6 +1232,8 @@ public final class AbyssWindow
     {
         AbyssPattern.Band band = current.band();
         if (band == null) return false;
+        AbyssGeometry geometry = current.geometry();
+        int bandHeight = geometry.bandHeight();
         double local = player.getY() - band.sourceY();
 
         //A band is one band tall on the client but a level may hold the player anywhere, so a position more
@@ -1233,7 +1247,7 @@ public final class AbyssWindow
         //beyond one band is the window genuinely out of step. The guard used to test |local| >= BAND_HEIGHT,
         //which made `recover` swallow every upward crossing - y=64.008 was "re-derived" and the player was
         //pushed back to 63.99, so a level could never be ascended from below.
-        if (local < -BAND_HEIGHT || local >= 2 * BAND_HEIGHT)
+        if (local < -bandHeight || local >= 2 * bandHeight)
         {
             //**Outside an end of the pattern is not a desync.** An acyclic pattern really does have a bottom, and a
             //player below it has fallen out of the world - not out of step with it. Recovering them means teleporting
@@ -1266,14 +1280,14 @@ public final class AbyssWindow
             next = current.position() - 1;
             AbyssPattern.Band target = current.pattern().band(next);
             if (target == null) return false;
-            targetY = local + BAND_HEIGHT + target.sourceY();
+            targetY = local + bandHeight + target.sourceY();
         }
-        else if (local >= BAND_HEIGHT + CROSS_MARGIN)
+        else if (local >= bandHeight + CROSS_MARGIN)
         {
             next = current.position() + 1;
             AbyssPattern.Band target = current.pattern().band(next);
             if (target == null) return false;
-            targetY = local - BAND_HEIGHT + target.sourceY();
+            targetY = local - bandHeight + target.sourceY();
         }
         else
         {
@@ -1448,11 +1462,11 @@ public final class AbyssWindow
             LOGGER.warn("[abyss] window was out of step with {} (y={}); re-derived, no teleport",
                         player.getName().getString(), player.getY());
         double local = player.getY() - band.sourceY();
-        if (local >= 0 && local < BAND_HEIGHT) return;
+        if (local >= 0 && local < current.geometry().bandHeight()) return;
         //Both edges are nudged *into* the slice, which is right, but the upper one is ``sourceY + BAND_HEIGHT -
         //0.01`` - inside the highest block of the band when one exists there. The same clamp the crossing uses
         //applies, or recovery would eject the player exactly as a crossing did.
-        double edge = local < 0 ? band.sourceY() + 0.01 : band.sourceY() + BAND_HEIGHT - 0.01;
+        double edge = local < 0 ? band.sourceY() + 0.01 : band.sourceY() + current.geometry().bandHeight() - 0.01;
         ServerLevel own = player.level().getServer() == null ? null
                 : player.level().getServer().getLevel(band.level());
         if (own != null) edge = arrivalY(own, player.getX(), player.getZ(), edge);
@@ -1500,7 +1514,7 @@ public final class AbyssWindow
                 : nearestBand(pattern, level.dimension(), at.getY());
         if (band == null) return null;
         int minY = band.sourceY();
-        int maxY = band.sourceY() + BAND_HEIGHT - 1;
+        int maxY = band.sourceY() + pattern.geometry().bandHeight() - 1;
         //The highest block a player's feet may occupy: at `maxY` the head would be in the ceiling, or outside the slice.
         int top = maxY - 1;
 
@@ -1555,7 +1569,8 @@ public final class AbyssWindow
     private static AbyssPattern.@Nullable Band bandContaining(AbyssPattern pattern, ResourceKey<Level> level, int y)
     {
         for (AbyssPattern.Band band : pattern.bands())
-            if (band.level().equals(level) && y >= band.sourceY() && y < band.sourceY() + BAND_HEIGHT) return band;
+            if (band.level().equals(level) && y >= band.sourceY()
+                    && y < band.sourceY() + pattern.geometry().bandHeight()) return band;
         return null;
     }
 
@@ -1574,7 +1589,7 @@ public final class AbyssWindow
         {
             if (!band.level().equals(level)) continue;
             int minY = band.sourceY();
-            int maxY = band.sourceY() + BAND_HEIGHT - 1;
+            int maxY = band.sourceY() + pattern.geometry().bandHeight() - 1;
             long distance = y < minY ? (long) minY - y : y > maxY ? (long) y - maxY : 0;
             if (distance < bestDistance)
             {
@@ -1684,7 +1699,7 @@ public final class AbyssWindow
         if (pattern == null) return pos;
         AbyssPattern.Band band = nearestBand(pattern, level.dimension(), pos.getY());
         if (band == null) return pos;
-        int y = Mth.clamp(pos.getY(), band.sourceY(), band.sourceY() + BAND_HEIGHT - 2);
+        int y = Mth.clamp(pos.getY(), band.sourceY(), band.sourceY() + pattern.geometry().bandHeight() - 2);
         if (y == pos.getY()) return pos;
         return new BlockPos(pos.getX(), y, pos.getZ());
     }
@@ -1711,7 +1726,7 @@ public final class AbyssWindow
     private static boolean outOfPattern(AbyssPattern pattern, int position, double local)
     {
         if (pattern.cyclic()) return false;
-        if (local >= AbyssWindow.BAND_HEIGHT) return position >= pattern.length() - 1;
+        if (local >= pattern.geometry().bandHeight()) return position >= pattern.length() - 1;
         return position <= 0;
     }
 
@@ -1719,7 +1734,7 @@ public final class AbyssWindow
     private static boolean insideAnySlice(AbyssPattern pattern, double y)
     {
         for (AbyssPattern.Band band : pattern.bands())
-            if (y >= band.sourceY() && y < band.sourceY() + BAND_HEIGHT) return true;
+            if (y >= band.sourceY() && y < band.sourceY() + pattern.geometry().bandHeight()) return true;
         return false;
     }
 
