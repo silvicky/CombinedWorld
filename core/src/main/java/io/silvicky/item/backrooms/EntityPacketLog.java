@@ -45,7 +45,7 @@ public final class EntityPacketLog
 
         if (packet instanceof ClientboundAddEntityPacket add)
         {
-            LOGGER.info("[abyss] own-band add id {} {} for {}: server {} -> client {} (offset {}, level {})",
+            LOGGER.debug("[abyss] own-band add id {} {} for {}: server {} -> client {} (offset {}, level {})",
                     add.getId(), add.getType(), name(player), fmt(serverPos), fmt(clientPos), offset,
                     player.level().dimension().identifier());
             return;
@@ -53,7 +53,7 @@ public final class EntityPacketLog
 
         if (packet instanceof ClientboundRemoveEntitiesPacket remove)
         {
-            LOGGER.info("[abyss] own-band remove {} for {}", remove.entityIds(), name(player));
+            LOGGER.debug("[abyss] own-band remove {} for {}", remove.entityIds(), name(player));
             return;
         }
 
@@ -75,9 +75,11 @@ public final class EntityPacketLog
         Integer previous = lastOffset.computeIfAbsent(player, p -> new HashMap<>()).put(id, offset);
         if (absolute || previous == null || previous != offset)
         {
-            LOGGER.info("[abyss] own-band {} id {} for {}: server {} -> client {} (offset {} -> {})",
-                    absolute ? "position" : "move", id, name(player), fmt(serverPos), fmt(clientPos),
-                    previous == null ? "?" : previous, offset);
+            //Guarded: `fmt` builds two strings per packet, and this is the per-entity movement path.
+            if (LOGGER.isDebugEnabled())
+                LOGGER.debug("[abyss] own-band {} id {} for {}: server {} -> client {} (offset {} -> {})",
+                        absolute ? "position" : "move", id, name(player), fmt(serverPos), fmt(clientPos),
+                        previous == null ? "?" : previous, offset);
             return;
         }
 
@@ -86,8 +88,9 @@ public final class EntityPacketLog
         Long was = prints.get(id);
         if (was != null && now - was < 1000L) return;
         prints.put(id, now);
-        LOGGER.info("[abyss] own-band move id {} for {}: server {} -> client {} (offset {})",
-                id, name(player), fmt(serverPos), fmt(clientPos), offset);
+        if (LOGGER.isDebugEnabled())
+            LOGGER.debug("[abyss] own-band move id {} for {}: server {} -> client {} (offset {})",
+                    id, name(player), fmt(serverPos), fmt(clientPos), offset);
     }
 
     /** Forgets a player's history. */

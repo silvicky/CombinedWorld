@@ -129,7 +129,7 @@ public abstract class ServerGamePacketListenerImplMixin
             double fromTickStart = AbyssWindow.movementDistanceSq(player,
                     new Vec3(firstGoodX, firstGoodY, firstGoodZ), target);
             if (fromTickStart > 100.0 && step <= 100.0)
-                Util.LOGGER.info("[abyss] speed check rebased for {}: {} blocks since the tick start "
+                Util.LOGGER.debug("[abyss] speed check rebased for {}: {} blocks since the tick start "
                                 + "(firstGood y={}), {} since the previous packet (lastGood y={}); player y={}",
                         player.getGameProfile().name(), round(Math.sqrt(fromTickStart)), round(firstGoodY),
                         round(Math.sqrt(step)), round(lastGoodY), round(player.getY()));
@@ -249,7 +249,7 @@ public abstract class ServerGamePacketListenerImplMixin
         //sooner, and it is what vanilla itself relies on (`ServerPlayer.teleport` calls it for both branches).
         if (abyss) resetPosition();
         if (abyss)
-            Util.LOGGER.info("[abyss] teleport acknowledged by {} (id {} of {}) - position accepted, not measured",
+            Util.LOGGER.debug("[abyss] teleport acknowledged by {} (id {} of {}) - position accepted, not measured",
                     player.getGameProfile().name(), packet.id(), awaitingTeleport);
     }
 
@@ -303,7 +303,7 @@ public abstract class ServerGamePacketListenerImplMixin
             //situation in which its tick state can be observed without any of this machinery in the way.
             Entity ordinary = player.level().getEntityOrPart(packet.entityId());
             if (ordinary != null && AbyssWindow.handles(player))
-                Util.LOGGER.info("[abyss] own-band attack on {}: {}", packet.entityId(),
+                Util.LOGGER.debug("[abyss] own-band attack on {}: {}", packet.entityId(),
                         AbyssEntityCopies.tickState(ordinary));
             original.call(packet);
             return;
@@ -311,25 +311,26 @@ public abstract class ServerGamePacketListenerImplMixin
         //Vanilla resolves the target in the player's own level (`level.getEntityOrPart(id)`), so the action is
         //re-pointed at the real entity and run with the player's level swapped to its band. The reach test inside
         //still passes: PlayerMixin measures entity boxes in the client's frame, where the copy is on screen.
-        AbyssEntityCopies.sendHurt(player, packet.entityId(), target.band(), target.entity());
+        AbyssEntityCopies.sendHurt(player, packet.entityId(), target.band());
         ServerboundAttackPacket real = new ServerboundAttackPacket(target.entity().getId());
-        Util.LOGGER.info("[abyss] attack dispatched [{}]: copy {} -> {} in {} (offset {}, player y={}, own band {})",
+        Util.LOGGER.debug("[abyss] attack dispatched [{}]: copy {} -> {} in {} (offset {}, player y={}, own band {})",
                 Thread.currentThread().getName(), packet.entityId(), target.entity().getId(),
                 target.band().dimension().identifier(), target.offset(), Math.round(player.getY()),
                 player.level().dimension().identifier());
         //Why a hit may not land, in one line: whether the entity is ticked at all (`tickCount` of 0 on a living
         //entity means it has never been ticked), which gate is closed if not, and how far away vanilla thinks it is.
         Entity victim = target.entity();
-        Util.LOGGER.info("[abyss] attack target {} ({}): {}{}, distance={}",
-                victim.getId(), victim.getType(), AbyssEntityCopies.tickState(victim),
-                victim.isInvulnerable() ? ", INVULNERABLE" : "",
-                Math.round(Math.sqrt(victim.distanceToSqr(player))));
+        if (Util.LOGGER.isDebugEnabled())
+            Util.LOGGER.debug("[abyss] attack target {} ({}): {}{}, distance={}",
+                    victim.getId(), victim.getType(), AbyssEntityCopies.tickState(victim),
+                    victim.isInvulnerable() ? ", INVULNERABLE" : "",
+                    Math.round(Math.sqrt(victim.distanceToSqr(player))));
         //Health is the only observable that says whether vanilla's handler actually reached the entity: the
         //handler refuses silently when its own reach test fails, so without this a rejected attack and an
         //ignored attack produce identical logs.
         float before = health(target);
         item_storage$inBand(target, () -> original.call(real));
-        Util.LOGGER.info("[abyss] attack on copy {} completed: {} health {} -> {} (alive {})",
+        Util.LOGGER.debug("[abyss] attack on copy {} completed: {} health {} -> {} (alive {})",
                 packet.entityId(), target.entity().getType(), before, health(target), target.entity().isAlive());
         //The hurt event the level broadcast went to its own trackers, not to this player; sendHurt above covers
         //the copy. Nothing else has to be forwarded: the death event and the removal come from the copy loop.
@@ -376,11 +377,10 @@ public abstract class ServerGamePacketListenerImplMixin
         Vec3 location = AbyssEntityCopies.toServer(player, target, packet.location());
         ServerboundInteractPacket real = new ServerboundInteractPacket(
                 target.entity().getId(), packet.hand(), location, packet.usingSecondaryAction());
-        Util.LOGGER.info("[abyss] interact dispatched [{}]: copy {} -> {} in {} (hit {} in copy frame -> {})",
+        Util.LOGGER.debug("[abyss] interact dispatched [{}]: copy {} -> {} in {} (hit {} in copy frame -> {})",
                 Thread.currentThread().getName(), packet.entityId(), target.entity().getId(),
                 target.band().dimension().identifier(), fmt(packet.location()), fmt(location));
         item_storage$inBand(target, () -> original.call(real));
-        Util.LOGGER.info("[abyss] interact on copy {} completed", packet.entityId());
     }
 
     /**

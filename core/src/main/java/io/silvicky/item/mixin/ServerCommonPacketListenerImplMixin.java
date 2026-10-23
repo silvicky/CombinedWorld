@@ -250,10 +250,12 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
             if (!changed) return;
             //What the bundle contained, and what it became. A spawn is a *sequence* - add, metadata, attributes,
             //equipment, passengers - and a missing member looks exactly like a missing entity from the outside, so
-            //the sequence is worth one line rather than a log of only the things that happened.
-            LOGGER.info("[abyss] bundle for {}: {} -> {}",
-                    gamePacketListener.getPlayer().getGameProfile().name(),
-                    describeBundle(bundle.subPackets()), describeBundle(converted));
+            //the sequence is worth one line rather than a log of only the things that happened. Guarded because
+            //`describeBundle` walks every sub-packet, and this runs once per bundle.
+            if (LOGGER.isDebugEnabled())
+                LOGGER.debug("[abyss] bundle for {}: {} -> {}",
+                        gamePacketListener.getPlayer().getGameProfile().name(),
+                        describeBundle(bundle.subPackets()), describeBundle(converted));
 
             //**Adds go first.** The client resolves both ends of a hierarchy packet by id at the moment it is
             //handled:
@@ -292,14 +294,14 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
         //is the path vanilla sends and the mod cannot otherwise see; copies get their own line when built.
         if (packet instanceof ClientboundSetPassengersPacket passengers)
         {
-            LOGGER.info("[abyss] own-band passengers for {}: vehicle {} carries {}",
+            LOGGER.debug("[abyss] own-band passengers for {}: vehicle {} carries {}",
                     gamePacketListener.getPlayer().getGameProfile().name(),
                     passengers.getVehicle(), java.util.Arrays.toString(passengers.getPassengers()));
             return;
         }
         if (packet instanceof ClientboundSetEntityLinkPacket link)
         {
-            LOGGER.info("[abyss] own-band link for {}: {} leashed to {}",
+            LOGGER.debug("[abyss] own-band link for {}: {} leashed to {}",
                     gamePacketListener.getPlayer().getGameProfile().name(),
                     link.getSourceId(), link.getDestId());
             return;

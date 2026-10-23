@@ -223,7 +223,7 @@ public class ServerPlayerGameModeMixin
         //without consuming the action. So a rejection here and a rejection there look identical from outside; the
         //inputs do not. Printed for every attempt rather than only failures, because the interesting case is the
         //one where the mod believed it had a target and vanilla disagreed.
-        LOGGER.info("[abyss] place attempt: item {} at hit {} face {} in {} (y bounds {})-({}) | own band {}, target {}, player y={}",
+        LOGGER.debug("[abyss] place attempt: item {} at hit {} face {} in {} (y bounds {})-({}) | own band {}, target {}, player y={}",
                 stack.getItem(), pos.toShortString(), hit.getDirection(),
                 usingLevel.dimension().identifier().getPath(),
                 usingLevel.getMinY(), usingLevel.getMaxY(),
@@ -253,8 +253,9 @@ public class ServerPlayerGameModeMixin
             ServerLevel there = thereBand == null ? null : AbyssWindow.levelAt(usingPlayer, herePosition + step);
             if (there == null || thereBand == null)
             {
-                //The pattern ends here, so there is no band to place into and vanilla is right to refuse.
-                LOGGER.info("[abyss] place across seam refused: no band at position {}", herePosition + step);
+                //The pattern ends here, so there is no band to place into and vanilla is right to refuse. A refusal is a
+                //bug signal rather than routine play, so it stays visible above debug.
+                LOGGER.warn("[abyss] place across seam refused: no band at position {}", herePosition + step);
                 return InteractionResult.FAIL;
             }
 
@@ -269,7 +270,7 @@ public class ServerPlayerGameModeMixin
             InteractionResult[] result = new InteractionResult[1];
             item_storage$dispatch(there, landing, landing,
                     () -> result[0] = original.call(usingPlayer, there, stack, hand, reHit));
-            LOGGER.info("[abyss] place across seam: {} at {} in {} [{},{}] -> {} in {} [{},{}] consumed={}",
+            LOGGER.debug("[abyss] place across seam: {} at {} in {} [{},{}] -> {} in {} [{},{}] consumed={}",
                     stack.getItem(), pos.toShortString(), clickedLevel.dimension().identifier().getPath(),
                     herePosition, hereBand.sourceY(), landing.toShortString(),
                     there.dimension().identifier().getPath(), herePosition + step, thereBand.sourceY(),
@@ -295,7 +296,7 @@ public class ServerPlayerGameModeMixin
         //The outcome, and the two positions involved. A block that is consumed but placed *elsewhere* than the
         //face asked for (a stair, a door, a block that snaps) shows up here as a disagreement between `placed`
         //and the state vanilla reports at the clicked position.
-        LOGGER.info("[abyss] place result: {} at {} in {} -> {} (consumed={}, placed={}, state-at-clicked={})",
+        LOGGER.debug("[abyss] place result: {} at {} in {} -> {} (consumed={}, placed={}, state-at-clicked={})",
                 stack.getItem(), pos.toShortString(), target.dimension().identifier().getPath(),
                 result[0], result[0] != null && result[0].consumesAction(), placed.toShortString(),
                 target.getBlockState(pos));
@@ -330,11 +331,11 @@ public class ServerPlayerGameModeMixin
         return new UseOnContext(band, usingPlayer, hand, usingPlayer.getItemInHand(hand), hit);
     }
 
-    /** One line per dispatched action, at info, so a failing case can be told apart from a rejected one. */
+    /** One line per dispatched action, at debug, so a failing case can be told apart from a rejected one. */
     @Unique
     private void item_storage$log(String what, ServerLevel target, BlockPos pos)
     {
-        LOGGER.info("[abyss] {} dispatched to {} at {} (player in {}, y={})",
+        LOGGER.debug("[abyss] {} dispatched to {} at {} (player in {}, y={})",
                     what, target.dimension().identifier(), pos,
                     player.level().dimension().identifier(), player.getY());
     }

@@ -172,7 +172,7 @@ public final class AbyssEntityCopies
         if (!shape.equals(lastShape.get(player)))
         {
             lastShape.put(player, shape);
-            LOGGER.info("[abyss] window for {} is {} (position {}, start {}, own slot {})",
+            LOGGER.debug("[abyss] window for {} is {} (position {}, start {}, own slot {})",
                     name(player), shape, window.position(), window.windowStart(), ownSlot);
         }
 
@@ -276,7 +276,7 @@ public final class AbyssEntityCopies
                 if (before.contains(id)) continue;
                 Entity entity = level.getEntity(id);
                 if (entity != null)
-                    LOGGER.info("[abyss] {} entered own band {} of {} (y={}, offset {})",
+                    LOGGER.debug("[abyss] {} entered own band {} of {} (y={}, offset {})",
                             describe(entity), band.level().identifier().getPath(), name(player),
                             Math.round(player.getY()), AbyssWindow.bandOffset(player));
             }
@@ -284,7 +284,7 @@ public final class AbyssEntityCopies
             {
                 if (now.contains(id)) continue;
                 Entity entity = level.getEntity(id);
-                LOGGER.info("[abyss] left own band {} of {}: {}", band.level().identifier().getPath(), name(player),
+                LOGGER.debug("[abyss] left own band {} of {}: {}", band.level().identifier().getPath(), name(player),
                         entity == null ? ("entity " + id + " (gone)") : describe(entity));
             }
         }
@@ -369,7 +369,7 @@ public final class AbyssEntityCopies
                 AbyssWindow.sendPreTranslated(player, riders);
             }
             present.add(id);
-            LOGGER.info("[abyss] re-added own-band {} to {} at client {} (spawn had been dropped)",
+            LOGGER.debug("[abyss] re-added own-band {} to {} at client {} (spawn had been dropped)",
                     describe(entity), name(player), fmt(client));
         }
 
@@ -383,7 +383,7 @@ public final class AbyssEntityCopies
         if (!gone.isEmpty())
         {
             AbyssWindow.sendPreTranslated(player, new ClientboundRemoveEntitiesPacket(gone));
-            LOGGER.info("[abyss] hid {} own-band entities from {} for leaving the band slice: {}",
+            LOGGER.debug("[abyss] hid {} own-band entities from {} for leaving the band slice: {}",
                     gone.size(), name(player), gone);
         }
     }
@@ -545,7 +545,7 @@ public final class AbyssEntityCopies
         //After the copy is in the table, because the hierarchy packets have to be able to resolve the other
         //members' copies at this same position.
         sendHierarchy(player, copy, table);
-        LOGGER.info("[abyss] spawn copy {} (uuid {}) for {} -> {} slot {} offset {} | server {} client {}",
+        LOGGER.debug("[abyss] spawn copy {} (uuid {}) for {} -> {} slot {} offset {} | server {} client {}",
                 id, copy.uuid, describe(entity), band.level().identifier().getPath(), slot, offset,
                 fmt(server), fmt(client));
         return copy;
@@ -579,7 +579,7 @@ public final class AbyssEntityCopies
         //replaced with ours - the widener makes that field mutable.
         packet.entries = List.of(entry);
         AbyssWindow.sendPreTranslated(player, packet);
-        LOGGER.info("[abyss] player info for copy {} ({}) of {}", copy.id, copy.uuid, real.name());
+        LOGGER.debug("[abyss] player info for copy {} ({}) of {}", copy.id, copy.uuid, real.name());
     }
 
     private static void removePlayerInfo(ServerPlayer player, Copy copy)
@@ -709,7 +709,7 @@ public final class AbyssEntityCopies
                 packet.vehicle = copy.id;
                 packet.passengers = passengers.stream().mapToInt(Integer::intValue).toArray();
                 AbyssWindow.sendPreTranslated(player, packet);
-                LOGGER.info("[abyss] copy {} of {} carries {}", copy.id, describe(entity), passengers);
+                LOGGER.debug("[abyss] copy {} of {} carries {}", copy.id, describe(entity), passengers);
             }
         }
 
@@ -735,7 +735,7 @@ public final class AbyssEntityCopies
                 packet.sourceId = copy.id;
                 packet.destId = leashId;
                 AbyssWindow.sendPreTranslated(player, packet);
-                LOGGER.info("[abyss] copy {} of {} leashed to copy {}", copy.id, describe(entity), leashId);
+                LOGGER.debug("[abyss] copy {} of {} leashed to copy {}", copy.id, describe(entity), leashId);
             }
         }
     }
@@ -752,7 +752,7 @@ public final class AbyssEntityCopies
         {
             AbyssWindow.sendPreTranslated(player, AbyssEntityCopies.eventPacket(entity, copy.id, DEATH_EVENT));
             copy.deathSent = true;
-            LOGGER.info("[abyss] death event sent for copy {} of {}", copy.id, describe(entity));
+            LOGGER.debug("[abyss] death event sent for copy {} of {}", copy.id, describe(entity));
         }
 
         int offset = AbyssWindow.slotOffsetY(slot, band);
@@ -772,7 +772,7 @@ public final class AbyssEntityCopies
                     copy.id, PositionPath.of(client), entity.getYRot(), entity.getXRot(), entity.onGround()));
             copy.lastServer = server;
             copy.offset = offset;
-            LOGGER.info("[abyss] re-offset copy {} for {}: slot {} offset {} -> {} | client {}",
+            LOGGER.debug("[abyss] re-offset copy {} for {}: slot {} offset {} -> {} | client {}",
                     copy.id, describe(entity), slot, before, offset, fmt(client));
         }
         else if (movementChanged)
@@ -801,7 +801,7 @@ public final class AbyssEntityCopies
                 AbyssWindow.sendPreTranslated(player, new ClientboundEntityPositionSyncPacket(
                         copy.id, PositionPath.of(client), entity.getYRot(), entity.getXRot(), entity.onGround()));
                 copy.lastServer = server;
-                LOGGER.info("[abyss] copy {} for {} jumped too far for a delta; synced absolutely to {}",
+                LOGGER.debug("[abyss] copy {} for {} jumped too far for a delta; synced absolutely to {}",
                         copy.id, describe(entity), fmt(client));
             }
         }
@@ -861,7 +861,7 @@ public final class AbyssEntityCopies
             AbyssWindow.sendPreTranslated(player, new ClientboundRemoveEntitiesPacket(one));
             removePlayerInfo(player, copy);
         }
-        LOGGER.info("[abyss] drop copy {} at position {} for {} ({})",
+        LOGGER.debug("[abyss] drop copy {} at position {} for {} ({})",
                 copy.id, copy.position, describe(copy.source), why);
     }
 
@@ -888,7 +888,7 @@ public final class AbyssEntityCopies
             removePlayerInfo(player, copy);
         }
         AbyssWindow.sendPreTranslated(player, new ClientboundRemoveEntitiesPacket(ids));
-        LOGGER.info("[abyss] dropped all {} copies of {}", ids.size(), name(player));
+        LOGGER.debug("[abyss] dropped all {} copies of {}", ids.size(), name(player));
     }
 
     // ---------------------------------------------------------------------------------------------------
@@ -939,7 +939,7 @@ public final class AbyssEntityCopies
             if (LOGGER.isDebugEnabled())
                 LOGGER.debug("[abyss] re-placed own-band {} -> client {}", describe(entity), fmt(client));
         }
-        LOGGER.info("[abyss] own band re-placed for {}: {} entities at offset {}", name(player), count, offset);
+        LOGGER.debug("[abyss] own band re-placed for {}: {} entities at offset {}", name(player), count, offset);
     }
 
     // ---------------------------------------------------------------------------------------------------
@@ -1050,12 +1050,11 @@ public final class AbyssEntityCopies
      * <p>Only a hurt animation: the damage itself was already applied to the real entity by the dispatched attack.
      * The client's own health bar for the copy follows the metadata stream, which is separate.
      */
-    public static void sendHurt(ServerPlayer player, int copyId, ServerLevel band, Entity source)
+    public static void sendHurt(ServerPlayer player, int copyId, ServerLevel band)
     {
         DamageSource attack = band.damageSources().playerAttack(player);
         AbyssWindow.sendPreTranslated(player, new ClientboundDamageEventPacket(
                 copyId, attack.typeHolder(), player.getId(), -1, java.util.Optional.empty()));
-        LOGGER.info("[abyss] hurt flash sent for copy {} of {}", copyId, describe(source));
     }
 
     /** Vanilla's death animation event id ({@code EntityEvent.DEATH}). */

@@ -272,7 +272,7 @@ public final class AbyssWindow
         //level, and it discards whatever window was there. If it fires during an ordinary session, something is
         //reading the window in a frame where {@code player.level()} does not match it - which is how a
         //cross-band action used to corrupt the own band.
-        LOGGER.info("[abyss] window derived for {}: {} position {} start {} (level {}, y={})",
+        LOGGER.debug("[abyss] window derived for {}: {} position {} start {} (level {}, y={})",
                 player.getName().getString(), pattern.name(), position, fresh.windowStart(),
                 player.level().dimension().identifier(), Math.round(player.getY()));
         setWindow(player, fresh);
@@ -352,7 +352,7 @@ public final class AbyssWindow
         noteOffset(player);
         if (offsetOf(previous) != offsetOf(window))
         {
-            LOGGER.info("[abyss] offset for {} {} -> {} (position {} -> {}, start {} -> {}, slot {} -> {})",
+            LOGGER.debug("[abyss] offset for {} {} -> {} (position {} -> {}, start {} -> {}, slot {} -> {})",
                     player.getName().getString(), offsetOf(previous), offsetOf(window),
                     previous == null ? "?" : previous.position(), window.position(),
                     previous == null ? "?" : previous.windowStart(), window.windowStart(),
@@ -778,7 +778,7 @@ public final class AbyssWindow
         {
             for (BlockPos image : images)
             {
-                LOGGER.info("[abyss] update {} at server {} -> client {} state {}",
+                LOGGER.debug("[abyss] update {} at server {} -> client {} state {}",
                             level.identifier(), pos, image, source.getBlockState(pos));
                 player.connection.send(new ClientboundBlockUpdatePacket(image, source.getBlockState(pos)));
             }
@@ -1270,12 +1270,20 @@ public final class AbyssWindow
             {
                 setWindow(player, nextWindow);
                 boolean bandsChanged = !nextWindow.bands().equals(current.bands());
+                //A crossing that changes the host level re-adds the player to that level's chunk map, and that
+                //re-add resets the tracking view to EMPTY and diffs it back - so vanilla has already marked every
+                //column in the view pending, composed, because the window was set above. Queuing them again here
+                //sent the whole view twice: once by that diff, once by `drainResend`.
+                boolean levelChanged = !target.level().equals(band.level());
                 sendTeleport(player, target, targetY);
                 if (bandsChanged)
                 {
                     resendNearChunks(player);
                     flushChunks(player);
-                    resendChunks(player, 1);
+                    //Only when vanilla has not just queued the whole view itself. A crossing inside one level -
+                    //two bands of the same level at different sourceY - never runs that diff, and there this
+                    //queue is the only thing that re-composes the view at all.
+                    if (!levelChanged) resendChunks(player, 1);
                 }
             }
             finally
