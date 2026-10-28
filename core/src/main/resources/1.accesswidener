@@ -84,6 +84,30 @@ accessible field net/minecraft/network/protocol/game/ServerboundPickItemFromBloc
 mutable field net/minecraft/network/protocol/game/ServerboundPickItemFromBlockPacket pos Lnet/minecraft/core/BlockPos;
 accessible field net/minecraft/network/protocol/game/ClientboundLevelEventPacket pos Lnet/minecraft/core/BlockPos;
 mutable field net/minecraft/network/protocol/game/ClientboundLevelEventPacket pos Lnet/minecraft/core/BlockPos;
+# --- every remaining BlockPos field on a packet, mutable so the reflective conversion can write it ---
+#
+# Both packet hooks convert a packet by walking its BlockPos fields and setting them in place, and every one of
+# these fields is final. Reflection cannot write a final field, so a packet whose field is not made mutable here
+# throws IllegalAccessException the moment it is sent - and the whole packet is dropped. That is not theoretical:
+# ClientboundOpenSignEditorPacket failed this way, so the sign editor never opened, and the error only appeared in
+# the log as the vanilla handler suppressing it.
+#
+# This list is exhaustive for 26.3 rather than grown one failure at a time. Re-derive it when the game version
+# changes: dump the fields of every Clientbound*/Serverbound* packet and make each BlockPos field mutable.
+accessible field net/minecraft/network/protocol/game/ClientboundOpenSignEditorPacket pos Lnet/minecraft/core/BlockPos;
+mutable field net/minecraft/network/protocol/game/ClientboundOpenSignEditorPacket pos Lnet/minecraft/core/BlockPos;
+accessible field net/minecraft/network/protocol/game/ServerboundSignUpdatePacket pos Lnet/minecraft/core/BlockPos;
+mutable field net/minecraft/network/protocol/game/ServerboundSignUpdatePacket pos Lnet/minecraft/core/BlockPos;
+accessible field net/minecraft/network/protocol/game/ClientboundGameTestHighlightPosPacket absolutePos Lnet/minecraft/core/BlockPos;
+mutable field net/minecraft/network/protocol/game/ClientboundGameTestHighlightPosPacket absolutePos Lnet/minecraft/core/BlockPos;
+accessible field net/minecraft/network/protocol/game/ClientboundGameTestHighlightPosPacket relativePos Lnet/minecraft/core/BlockPos;
+mutable field net/minecraft/network/protocol/game/ClientboundGameTestHighlightPosPacket relativePos Lnet/minecraft/core/BlockPos;
+accessible field net/minecraft/network/protocol/game/ClientboundDebugBlockValuePacket blockPos Lnet/minecraft/core/BlockPos;
+mutable field net/minecraft/network/protocol/game/ClientboundDebugBlockValuePacket blockPos Lnet/minecraft/core/BlockPos;
+accessible field net/minecraft/network/protocol/game/ServerboundTestInstanceBlockActionPacket pos Lnet/minecraft/core/BlockPos;
+mutable field net/minecraft/network/protocol/game/ServerboundTestInstanceBlockActionPacket pos Lnet/minecraft/core/BlockPos;
+accessible field net/minecraft/network/protocol/game/ServerboundSetTestBlockPacket position Lnet/minecraft/core/BlockPos;
+mutable field net/minecraft/network/protocol/game/ServerboundSetTestBlockPacket position Lnet/minecraft/core/BlockPos;
 accessible field net/minecraft/network/protocol/game/ClientboundMoveVehiclePacket movingTo Lnet/minecraft/core/PositionAndRotation;
 mutable field net/minecraft/network/protocol/game/ClientboundMoveVehiclePacket movingTo Lnet/minecraft/core/PositionAndRotation;
 accessible field net/minecraft/network/protocol/game/ServerboundMoveVehiclePacket movingTo Lnet/minecraft/core/PositionAndRotation;
@@ -116,5 +140,8 @@ accessible field net/minecraft/network/protocol/game/ServerboundSetCommandBlockP
 mutable field net/minecraft/network/protocol/game/ServerboundSetCommandBlockPacket pos Lnet/minecraft/core/BlockPos;
 accessible field net/minecraft/network/protocol/game/ServerboundSetJigsawBlockPacket pos Lnet/minecraft/core/BlockPos;
 mutable field net/minecraft/network/protocol/game/ServerboundSetJigsawBlockPacket pos Lnet/minecraft/core/BlockPos;
-#accessible field net/minecraft/network/protocol/game/ServerboundSetStructureBlockPacket pos Lnet/minecraft/core/BlockPos;
-#accessible field net/minecraft/network/protocol/game/ServerboundSetStructureBlockPacket offset Lnet/minecraft/core/BlockPos;
+# Only `pos` is a world position. `offset` is the structure's offset *inside* the structure block's own frame
+# (the same units as `size`), so it is relative and must not be remapped - converting it would move the structure
+# by however far the chunk happens to be shuffled. This is the answer to the old "there are 2 pos" note.
+accessible field net/minecraft/network/protocol/game/ServerboundSetStructureBlockPacket pos Lnet/minecraft/core/BlockPos;
+mutable field net/minecraft/network/protocol/game/ServerboundSetStructureBlockPacket pos Lnet/minecraft/core/BlockPos;

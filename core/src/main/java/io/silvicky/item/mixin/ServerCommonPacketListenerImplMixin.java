@@ -653,7 +653,7 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
                     }
                     catch (IllegalAccessException e)
                     {
-                        throw new RuntimeException(e);
+                        throw missingWidener(packet, field, e);
                     }
                 }
             }
@@ -699,6 +699,25 @@ public class ServerCommonPacketListenerImplMixin implements EntityRemapAccess
             }
         }
         return null;
+    }
+
+    /**
+     * The failure a missing access-widener entry produces, named so the next occurrence is a one-line fix.
+     *
+     * <p>A packet's position fields are final, and reflection cannot write a final field. When one is not listed
+     * as {@code mutable} in {@code 1.accesswidener}, converting it throws - and this is deliberately <b>not</b>
+     * swallowed, because the alternative is worse: the packet would go out carrying a server coordinate, and the
+     * client would be handed a real-world position that the shuffle exists to hide.
+     *
+     * <p>So the packet is dropped, and this message says exactly which line to add.
+     */
+    @Unique
+    private static RuntimeException missingWidener(Object packet, Field field, Exception cause)
+    {
+        return new RuntimeException("cannot convert " + packet.getClass().getName() + "." + field.getName()
+                + ": the field is final and has no mutable access-widener entry. Add:\n"
+                + "mutable field " + field.getDeclaringClass().getName().replace('.', '/') + " "
+                + field.getName() + " " + field.getType().descriptorString().replace('.', '/'), cause);
     }
 
     /**
