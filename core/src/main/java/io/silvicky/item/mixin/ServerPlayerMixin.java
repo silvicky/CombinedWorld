@@ -81,13 +81,40 @@ public abstract class ServerPlayerMixin
             }
         }
     }
+    /**
+     * Where this player respawns, stored per group.
+     *
+     * <p><b>Compares with {@code isSamePosition}, not {@code equals}.</b> That distinction is the whole of the
+     * "clicking a bed sets my spawn again and again" bug. A {@code RespawnConfig} is a record over
+     * {@code RespawnData(dimension, pos, yaw, pitch)} and {@code forced}, so {@code equals} also compares the
+     * <em>facing</em> - and {@code ServerPlayer.startSleepInBed} builds the bed's config from the player's current
+     * head rotation:
+     *
+     * <pre>
+     *   new RespawnConfig(RespawnData.of(level().dimension(), pos, getYRot(), getXRot()), false)
+     * </pre>
+     *
+     * <p>So every click at a slightly different angle produced a config that was not {@code equals} to the stored
+     * one, and the message fired again. Vanilla compares with {@code isSamePosition}, which is
+     * {@code respawnData.globalPos().equals(other.respawnData.globalPos())} - dimension and block only, deliberately
+     * ignoring facing and {@code forced}. Same place means same place, however you are looking at it.
+     *
+     * <p>The new config is still stored every time, facing included; only the message is suppressed. That is what
+     * vanilla does too - it assigns the field unconditionally and messages conditionally.
+     *
+     * <p>{@code sendMessage} is honoured in both branches. It was ignored in the group branch, so any programmatic
+     * set - {@code copyRespawnPosition} during a respawn, for one - told the player their spawn had been set when
+     * nothing had changed for them.
+     */
     @Inject(method = "setRespawnPosition",at= @At(value = "HEAD"),cancellable = true)
     private void inject3(ServerPlayer.RespawnConfig respawn, boolean sendMessage, CallbackInfo ci)
     {
         ServerPlayer player=(ServerPlayer) (Object)this;
         if(respawn==null)
         {
-            //what's this??
+            //Vanilla's own assignment, kept for the level's field. Deliberately does NOT touch the group maps:
+            //a respawn calls this with the outgoing player's null config, and clearing the map entry here would
+            //wipe the stored spawn point of the world the player just died in.
             player.respawnConfig =null;
             ci.cancel();
             return;
@@ -95,13 +122,16 @@ public abstract class ServerPlayerMixin
         Identifier id=getDimensionId(respawn.respawnData().dimension().identifier());
         if(id.equals(Level.OVERWORLD.identifier()))
         {
-            if(sendMessage&&!respawn.equals(player.respawnConfig))player.sendSystemMessage(ServerPlayer.SPAWN_SET_MESSAGE);
+            if(sendMessage&&!respawn.isSamePosition(player.respawnConfig))player.sendSystemMessage(ServerPlayer.SPAWN_SET_MESSAGE);
             player.respawnConfig = respawn;
         }
         else
         {
             HashMap<String, ServerPlayer.RespawnConfig> respawnMap=StateSaver.getServerState(level().getServer()).respawn.computeIfAbsent(id, _ -> new HashMap<>());
-            if(!respawn.equals(respawnMap.get(player.getStringUUID())))player.sendSystemMessage(ServerPlayer.SPAWN_SET_MESSAGE);
+            //isSamePosition takes a nullable argument and answers false for null, which is the "no spawn point
+            //yet" case and should message.
+            ServerPlayer.RespawnConfig previous=respawnMap.get(player.getStringUUID());
+            if(sendMessage&&!respawn.isSamePosition(previous))player.sendSystemMessage(ServerPlayer.SPAWN_SET_MESSAGE);
             respawnMap.put(player.getStringUUID(), respawn);
         }
         ci.cancel();
