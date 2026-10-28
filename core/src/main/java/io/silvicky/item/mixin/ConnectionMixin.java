@@ -148,7 +148,20 @@ public abstract class ConnectionMixin
                 playerInteractEntityC2SPacket.location=AbyssWindow.toServer(player,playerInteractEntityC2SPacket.location);
             return;
         }
-        if(packet instanceof ServerboundSetStructureBlockPacket){return;}//TODO there are 2 pos!
+        if(packet instanceof ServerboundSetStructureBlockPacket structureBlockPacket)
+        {
+            //This packet carries two BlockPos fields and only one of them is a world position:
+            //  - `pos`    is the structure block itself, which lives in the shuffled world and must be converted;
+            //  - `offset` is the structure's offset inside the block's own frame, in the same units as `size`.
+            //    It is relative, so converting it would move the structure by the size of the shuffle.
+            //The generic loop below converts every BlockPos field it finds, so this needs its own branch to
+            //leave `offset` alone - which is what the old note "there are 2 pos!" was about.
+            //Pinned first, for the same reason as every other interaction: the server answers with block entity
+            //updates at this position and those are converted back, so the page must not re-roll in between.
+            vecTransformer.pinAt(Vec3.atCenterOf(structureBlockPacket.pos));
+            structureBlockPacket.pos=c2sOrKeep(vecTransformer,structureBlockPacket.pos);
+            return;
+        }
         if(packet instanceof ServerboundPlayerActionPacket playerActionPacket)
         {
             //Same contract as the use-item-on branch above: the destroy click is converted C->S here, the
@@ -169,12 +182,20 @@ public abstract class ConnectionMixin
                     {
                         for (Field field : packet.getClass().getDeclaredFields())
                         {
-                            if (BlockPos.class.isAssignableFrom(field.getType()))
-                            {
-                                field.setAccessible(true);
+                            if (!BlockPos.class.isAssignableFrom(field.getType()))continue;
+                            field.setAccessible(true);
+                            try {
                                 BlockPos converted=vecTransformer.c2sTransform((BlockPos) field.get(packet));
                                 if (AbyssWindow.handles(player)) converted=AbyssWindow.toServer(player,converted);
                                 field.set(packet,converted);
+                            }
+                            catch (IllegalAccessException e)
+                            {
+                                throw new RuntimeException("cannot convert " + packet.getClass().getName() + "."
+                                        + field.getName() + ": the field is final and has no mutable"
+                                        + " access-widener entry. Add:\n"
+                                        + "mutable field " + field.getDeclaringClass().getName().replace('.', '/')
+                                        + " " + field.getName() + " " + field.getType().descriptorString(), e);
                             }
                         }
                     }
@@ -188,10 +209,6 @@ public abstract class ConnectionMixin
                                 impl.getPlayer().getGameProfile().name(), playerActionPacket.getPos());
                         ci.cancel();
                         return;
-                    }
-                    catch (IllegalAccessException e)
-                    {
-                        throw new RuntimeException(e);
                     }
                     return;
                 default:
@@ -213,7 +230,10 @@ public abstract class ConnectionMixin
                 }
                 catch (IllegalAccessException e)
                 {
-                    throw new RuntimeException(e);
+                    throw new RuntimeException("cannot convert " + packet.getClass().getName() + "." + field.getName()
+                            + ": the field is final and has no mutable access-widener entry. Add:\n"
+                            + "mutable field " + field.getDeclaringClass().getName().replace('.', '/') + " "
+                            + field.getName() + " " + field.getType().descriptorString(), e);
                 }
             }
         }
