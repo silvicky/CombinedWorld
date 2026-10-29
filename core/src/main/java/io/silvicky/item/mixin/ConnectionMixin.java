@@ -160,6 +160,12 @@ public abstract class ConnectionMixin
             //updates at this position and those are converted back, so the page must not re-roll in between.
             vecTransformer.pinAt(Vec3.atCenterOf(structureBlockPacket.pos));
             structureBlockPacket.pos=c2sOrKeep(vecTransformer,structureBlockPacket.pos);
+            //The window's Y differs from the band's by a whole number of bands, and this branch returns before
+            //the generic loop below, so it is the one inbound block position that has to apply that step itself.
+            //Written without it on a branch where the abyss did not exist; on this one every other block
+            //position - use-item, destroy, and the generic fallback - converts both. See AbyssWindow.toServer.
+            if (AbyssWindow.handles(player))
+                structureBlockPacket.pos=AbyssWindow.toServer(player,structureBlockPacket.pos);
             return;
         }
         if(packet instanceof ServerboundPlayerActionPacket playerActionPacket)
